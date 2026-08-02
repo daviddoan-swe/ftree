@@ -220,6 +220,21 @@ Exit criteria:
 Layout can be tested without Flutter widgets, and has been visually verified
 against non-trivial trees including half siblings and multiple marriages.
 
+**Complete** — tagged `m4`. The throwaway renderer earned its place: it found
+three defects that thirty-seven passing tests had not, each invisible until a
+chart contained both a couple and a branch.
+
+Known limitations, recorded rather than fixed:
+
+* A family graph is not a tree. Someone with parents in two branches is drawn
+  once, under whichever branch reaches them first.
+* Children keep the order the data records, so connectors can cross when two
+  marriages genuinely interleave. Birth order was judged the more important of
+  the two — a gia phả is read by it.
+* A graph containing a cycle draws as an ordinary chart with the closing edge
+  simply absent. Detecting and reporting such data belongs to synchronisation
+  (DOMAIN.md §6.2), not to the layout.
+
 ---
 
 ## M5 — Core Flutter UI
