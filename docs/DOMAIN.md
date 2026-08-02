@@ -30,8 +30,8 @@ Conceptual fields:
 * id
 * name
 * description
-* createdAt
-* updatedAt
+
+Timestamps are not domain fields — see §15.2.
 
 A Family contains:
 
@@ -68,8 +68,8 @@ Conceptual fields:
 * deathPlace
 * biography
 * profileMediaRef
-* createdAt
-* updatedAt
+
+Timestamps are not domain fields — see §15.2.
 
 Most biographical information is optional.
 
@@ -278,8 +278,8 @@ Conceptual fields:
 * type
 * personAId
 * personBId
-* createdAt
-* updatedAt
+
+Timestamps are not domain fields — see §15.2.
 
 Additional metadata may be introduced only when required.
 
@@ -475,17 +475,31 @@ Validation therefore returns a result, not a boolean:
 ```
 ValidationSeverity = error | warning
 
+IssueCode          // a stable identifier, each declaring its own severity
+  familyNameEmpty(error)
+  deathBeforeBirth(warning)
+  …
+
 ValidationIssue {
-  code            : stable identifier
-  severity        : ValidationSeverity
+  code            : IssueCode
   involvedIds     : person/relationship ids
+  severity        : read through code
 }
 
 ValidationResult {
   issues          : list of ValidationIssue
-  hasErrors       : any issue with severity = error
+  hasErrors       : any issue whose severity is error
 }
 ```
+
+Severity belongs to the **code**, not to the individual issue. Carried per
+issue, nothing would stop the same condition being raised as an error at one
+call site and a warning at another. Attaching it to the code makes that
+unrepresentable. A condition that genuinely needs both severities should become
+two codes with two names.
+
+Issues carry no human-readable message. Those belong to the presentation layer:
+the domain must run without Flutter, and messages need localisation.
 
 **Errors** block the write. They represent structurally impossible data.
 

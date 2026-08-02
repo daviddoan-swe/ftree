@@ -19,6 +19,10 @@ Exit criteria:
 
 Application builds and runs on both development platforms.
 
+**Complete** — tagged `m0`. Verified on iPhone 17 Pro (iOS 26.5) and
+Pixel_7_API_36 (Android 16, x86_64): the app renders and responds to input on
+both, not merely builds.
+
 ---
 
 ## M1 — Core Domain
@@ -57,6 +61,9 @@ Exit criteria:
 
 Core entities, the date model, the validation severity model, and basic
 relationship invariants are covered by tests.
+
+**Complete** — tagged `m1`. Domain purity is enforced by a test that scans
+`lib/domain` for forbidden imports rather than left to convention.
 
 ---
 
