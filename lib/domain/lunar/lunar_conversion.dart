@@ -219,14 +219,24 @@ LunarDay solarToLunar(
 }
 
 /// The intercalary month of [lunarYear], or null if it has none.
+///
+/// Two windows have to be checked, because [lunarToSolar] anchors months 1-10
+/// to the previous year's month 11 and months 11-12 to this year's. A leap
+/// month 11 or 12 falls in the second window, and looking only at the first
+/// would report the year as ordinary while [lunarToSolar] disagreed.
 int? leapMonthOf(int lunarYear, {double timeZone = vietnamTimeZone}) {
-  final a11 = lunarMonth11Start(lunarYear - 1, timeZone: timeZone);
-  final b11 = lunarMonth11Start(lunarYear, timeZone: timeZone);
-  if (b11 - a11 <= 365) return null;
+  for (final anchor in <int>[lunarYear - 1, lunarYear]) {
+    final a11 = lunarMonth11Start(anchor, timeZone: timeZone);
+    final b11 = lunarMonth11Start(anchor + 1, timeZone: timeZone);
+    if (b11 - a11 <= 365) continue;
 
-  var month = leapMonthOffset(a11, timeZone: timeZone) - 2;
-  if (month < 0) month += 12;
-  return month;
+    var month = leapMonthOffset(a11, timeZone: timeZone) - 2;
+    if (month < 0) month += 12;
+
+    final belongsToThisYear = anchor == lunarYear - 1 ? month < 11 : month >= 11;
+    if (belongsToThisYear) return month;
+  }
+  return null;
 }
 
 /// Whether [lunarYear] has an intercalary month at [lunarMonth].

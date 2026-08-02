@@ -168,7 +168,10 @@ void main() {
     });
 
     test('a leap month converts and round-trips', () {
-      for (var year = 1990; year <= 2030; year++) {
+      // Reaches past 2030 on purpose: a leap month 11 is anchored to a
+      // different month-11 window than months 1-10, and 2034 is the nearest
+      // year that exercises it.
+      for (var year = 1990; year <= 2040; year++) {
         final leap = leapMonthOf(year);
         if (leap == null) continue;
 
@@ -187,7 +190,10 @@ void main() {
     });
 
     test('an ordinary month and its leap twin are different days', () {
-      for (var year = 1990; year <= 2030; year++) {
+      // Reaches past 2030 on purpose: a leap month 11 is anchored to a
+      // different month-11 window than months 1-10, and 2034 is the nearest
+      // year that exercises it.
+      for (var year = 1990; year <= 2040; year++) {
         final leap = leapMonthOf(year);
         if (leap == null) continue;
 
