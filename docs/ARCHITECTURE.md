@@ -362,6 +362,12 @@ soon as the layout engine emits its first coordinates, and develop the engine
 against it. The engine stays free of Flutter; the renderer exists to close the
 feedback loop.
 
+Once the real tree screen exists the crude one is deleted, but the discipline
+outlives it: run the screen and look at it. At M5 that caught two defects that
+forty passing layout tests did not — a second wife's children hanging from the
+first wife's box, and two marriages' connector bars merging into one. Both
+were wrong in a way no coordinate assertion was ever going to state.
+
 ---
 
 # 15. Proposed Project Structure

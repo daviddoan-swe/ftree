@@ -330,13 +330,26 @@ final class _Placer {
           toPersonId: entry.key,
           fromAnchorX: partnerIndex == null
               ? unitCentre
-              : personCentre + (partnerIndex + 1) * _metrics.spouseSlotWidth / 2,
+              : _marriageAnchor(personCentre, partnerIndex),
         ),
       );
     }
 
     return personCentre;
   }
+
+  /// Where the children of one marriage leave the row of boxes.
+  ///
+  /// The gap immediately to the left of that partner's box. For a first
+  /// marriage that is the gap between the two people, which is what a reader
+  /// expects. For a later one it is the gap before that spouse — deliberately
+  /// not the midpoint between the person and that spouse, which for a second
+  /// marriage lands squarely on the *first* spouse's box and so says the child
+  /// is theirs.
+  ///
+  /// A gap is never a box, at any number of marriages.
+  double _marriageAnchor(double personCentre, int partnerIndex) =>
+      personCentre + (partnerIndex + 0.5) * _metrics.spouseSlotWidth;
 
   /// Which marriage each child came from, keyed by child id.
   ///

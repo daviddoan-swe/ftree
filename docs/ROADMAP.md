@@ -260,9 +260,27 @@ Date entry offers both calendars when the family uses the lunar one, and shows
 both readings wherever a date is displayed. The conversion for this lands at
 M1.5, so these screens can be built dual-calendar rather than retrofitted.
 
+Relationships are created and removed from the person being looked at, not from
+a screen of their own. Errors block; warnings are confirmable, as with person
+entry.
+
 Exit criteria:
 
 A complete family tree can be created and explored locally on iOS and Android.
+
+**Complete** — tagged `m5`. Two defects were found only by running the tree on
+a simulator and looking at it, exactly as ARCHITECTURE §14.1 anticipated, and
+neither was visible to the layout's unit tests:
+
+* a second wife's children hung from the midpoint between the husband and that
+  wife, which for a second marriage is the *first* wife's box — so the chart
+  said the children were hers. Each marriage now drops into the gap before its
+  own spouse, and a test asserts no connector passes through a box.
+* the two marriages' horizontal bars sat at one depth and read as a single
+  bar. Each marriage now gets its own depth.
+
+The throwaway layout renderer at `lib/dev/layout_preview.dart` is deleted: the
+real tree screen replaces it.
 
 ---
 

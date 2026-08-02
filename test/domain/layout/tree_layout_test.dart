@@ -658,17 +658,67 @@ void main() {
           )
           .fromAnchorX;
 
+      // Each drop point is the gap immediately before that wife's box.
+      double gapBefore(String id) =>
+          layout.nodeFor(id)!.x - metrics.spouseGap / 2;
+
       expect(
         anchorTo('c1'),
-        closeTo((centre('a') + centre('w1')) / 2, 0.001),
+        closeTo(gapBefore('w1'), 0.001),
         reason: 'first wife’s child',
       );
       expect(
         anchorTo('c2'),
-        closeTo((centre('a') + centre('w2')) / 2, 0.001),
+        closeTo(gapBefore('w2'), 0.001),
         reason: 'second wife’s child',
       );
       expect(anchorTo('c1'), isNot(closeTo(anchorTo('c2'), 0.001)));
+      // The first wife's centre is exactly the midpoint between the husband and
+      // the second wife, so a midpoint rule would drop the second wife's child
+      // through the first wife's box and read as her child.
+      expect(anchorTo('c2'), isNot(closeTo(centre('w1'), 0.001)));
+    });
+
+    test('never drop a connector through somebody else’s box', () {
+      // Only visible by looking at the chart: the second wife's children hung
+      // from the middle of the first wife. Every drop point must land in a gap.
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w1', 'w2', 'w3', 'c1', 'c2', 'c3'],
+          <Relationship>[
+            spouseOf('a', 'w1'),
+            spouseOf('a', 'w2'),
+            spouseOf('a', 'w3'),
+            parentOf('a', 'c1'),
+            parentOf('w1', 'c1'),
+            parentOf('a', 'c2'),
+            parentOf('w2', 'c2'),
+            parentOf('a', 'c3'),
+            parentOf('w3', 'c3'),
+          ],
+        ),
+        'a',
+      );
+
+      for (final edge in layout.edges.where(
+        (e) => e.kind == LayoutEdgeKind.parentChild,
+      )) {
+        final parent = layout.nodeFor(edge.fromPersonId)!;
+        for (final node in layout.nodes) {
+          if (node.generation != parent.generation) continue;
+          final inside =
+              edge.fromAnchorX > node.x &&
+              edge.fromAnchorX < node.x + metrics.nodeWidth;
+          expect(
+            inside,
+            isFalse,
+            reason:
+                'the line to ${edge.toPersonId} passes through '
+                '${node.person.id}',
+          );
+        }
+      }
     });
 
     test('keep children in the order the data records them', () {
