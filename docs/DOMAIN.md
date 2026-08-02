@@ -174,10 +174,11 @@ A genealogical date is:
 
 ```
 GenealogicalDate {
-  year           : int      // required when a date is present
-  month          : int?     // 1-12, null if unknown
-  day            : int?     // 1-31, null if unknown
-  isApproximate  : bool     // "about", "circa"
+  year           : int        // Gregorian; required when a date is present
+  month          : int?       // 1-12, null if unknown
+  day            : int?       // 1-31, null if unknown
+  isApproximate  : bool       // "about", "circa"
+  lunar          : LunarDate? // display and provenance only — see §4.4
 }
 ```
 
@@ -214,8 +215,50 @@ Rule: date-based checks (§9) must only produce a warning when the ranges are
 **disjoint**. Overlapping or indeterminate comparisons produce nothing. This
 prevents partial data from generating a permanent wall of false warnings.
 
-BC/BCE dates, non-Gregorian calendars, and date ranges ("between 1880 and 1890")
-are out of scope for V1.
+BC/BCE dates and date ranges ("between 1880 and 1890") are out of scope for V1.
+
+### 4.4 Lunar calendar
+
+Vietnamese genealogical sources are written in the lunar calendar, and giỗ —
+the death anniversary — is observed on the lunar date. Modern records use the
+Gregorian calendar. A single family tree will contain both.
+
+**The Gregorian date is mandatory and is the only basis for comparison.**
+
+```
+LunarDate {
+  year         : int
+  month        : int?   // 1-12
+  day          : int?   // 1-30 — a lunar month has 29 or 30 days
+  isLeapMonth  : bool   // tháng nhuận
+}
+```
+
+The user converts to Gregorian when entering data. The lunar date is then
+recorded alongside, optional, and used only for display and provenance.
+
+Rules:
+
+* Ordering, intervals, and every warning in §9.2 read the Gregorian value
+  alone. A lunar annotation can never change whether a warning fires.
+* Nothing verifies that the two agree. That requires the conversion described
+  below; once it exists, a mismatch becomes a good warning candidate.
+* Day is bounded at 30 rather than resolved exactly, because knowing whether a
+  given lunar month has 29 or 30 days requires the astronomical calculation.
+
+Why the lunar value is stored rather than derived: the conversion does not
+exist yet, so without storage there is no way to show a lunar date or compute
+giỗ at all. Storage also preserves what the source document said, not merely
+the user's hand conversion of it, which may be wrong.
+
+Lunar↔Gregorian conversion is deferred. When it is built it must use the
+**Vietnamese** lunar calendar: it is based on UTC+7 rather than the UTC+8 of
+the Chinese calendar, so the two differ by a day for some dates. A Chinese
+implementation cannot be adopted without verification.
+
+Can-chi year names (Đinh Hợi, Giáp Tý) are derivable from the lunar year and
+are a display concern, not stored. Note for data entry: can-chi repeats every
+60 years, so a source giving only the name needs a century from the user.
 
 ---
 
@@ -773,6 +816,7 @@ Recorded so they are not relitigated, and so their cost of reversal is visible.
 | Decision                                             | Section | Cost if changed later                                |
 | ---------------------------------------------------- | ------- | ---------------------------------------------------- |
 | Partial dates (`year` + optional month/day + approx)  | §4      | Unrecoverable — precision is lost at data entry       |
+| Lunar date stored alongside a mandatory Gregorian one | §4.4    | Unrecoverable — the source's lunar reading is lost    |
 | `updatedAt` + `deletedAt` on all syncable tables      | §15.2   | Deleted records resurrect on first sync; no recovery  |
 | Acyclicity: enforce / detect / repair, never assume   | §6.2    | Hangs and crashes on synced data                      |
 | Validation returns severities, not a boolean          | §9      | Signature change across every layer                   |

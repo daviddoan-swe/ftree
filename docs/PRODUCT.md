@@ -120,6 +120,11 @@ Two consequences of that incompleteness are part of V1 rather than deferred:
 are all valid entries. Forcing a full date makes users invent day and month
 values, which destroys the distinction permanently.
 
+**Dates may carry a lunar reading.** Vietnamese family records are written in
+the lunar calendar. A person's dates may therefore be recorded in both: a
+Gregorian date, which the application requires, and the lunar date the source
+actually gave.
+
 **Family name at birth is recorded separately.** A person whose surname changed
 on marriage appears under two surnames across records, and the birth surname is
 what links them into their parents' branch.

@@ -63,6 +63,105 @@ final class DateSpan {
   String toString() => 'DateSpan($minimumDays..$maximumDays days)';
 }
 
+/// A date as written in the Vietnamese lunar calendar.
+///
+/// Carried alongside a Gregorian date for display and provenance. It takes no
+/// part in ordering, arithmetic, or validation of the Gregorian value — see
+/// [GenealogicalDate.lunar].
+///
+/// Stored rather than derived because the lunar↔Gregorian conversion does not
+/// exist yet, and because it preserves what the source document actually said
+/// rather than only the user's hand conversion of it.
+///
+/// Day is capped at 30: a lunar month has 29 or 30 days, and which one requires
+/// the astronomical calculation this milestone does not have. The looser bound
+/// accepts every real date and rejects the obviously impossible.
+final class LunarDate {
+  /// Creates a lunar date from the components that are known.
+  ///
+  /// Throws [ArgumentError] for a non-positive [year], a month outside 1-12, a
+  /// day outside 1-30, a [day] without a [month], or [isLeapMonth] set while
+  /// the month itself is unknown.
+  LunarDate({
+    required this.year,
+    this.month,
+    this.day,
+    this.isLeapMonth = false,
+  }) {
+    if (year < 1) {
+      throw ArgumentError.value(year, 'year', 'must be positive');
+    }
+    if (month != null && (month! < 1 || month! > 12)) {
+      throw ArgumentError.value(month, 'month', 'must be between 1 and 12');
+    }
+    if (day != null) {
+      if (month == null) {
+        throw ArgumentError.value(
+          day,
+          'day',
+          'cannot be known while the month is unknown',
+        );
+      }
+      if (day! < 1 || day! > 30) {
+        throw ArgumentError.value(
+          day,
+          'day',
+          'must be between 1 and 30 in the lunar calendar',
+        );
+      }
+    }
+    if (isLeapMonth && month == null) {
+      throw ArgumentError.value(
+        isLeapMonth,
+        'isLeapMonth',
+        'cannot be set while the month is unknown',
+      );
+    }
+  }
+
+  /// The lunar year.
+  final int year;
+
+  /// The lunar month, 1-12, or null when unknown.
+  final int? month;
+
+  /// The day of the lunar month, 1-30, or null when unknown.
+  final int? day;
+
+  /// Whether [month] is an intercalary month (tháng nhuận).
+  final bool isLeapMonth;
+
+  /// How much of this lunar date is known.
+  DatePrecision get precision {
+    if (day != null) return DatePrecision.day;
+    if (month != null) return DatePrecision.month;
+    return DatePrecision.year;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LunarDate &&
+          other.year == year &&
+          other.month == month &&
+          other.day == day &&
+          other.isLeapMonth == isLeapMonth;
+
+  @override
+  int get hashCode => Object.hash(year, month, day, isLeapMonth);
+
+  @override
+  String toString() {
+    final buffer = StringBuffer(year.toString());
+    if (month != null) {
+      buffer.write('-${month!.toString().padLeft(2, '0')}');
+      if (isLeapMonth) buffer.write('L');
+      if (day != null) buffer.write('-${day!.toString().padLeft(2, '0')}');
+    }
+    return '$buffer lunar';
+  }
+}
+
 /// A date known to year, month, or day precision.
 ///
 /// Deliberately does **not** implement [Comparable]. Ordering partial dates is
@@ -84,6 +183,7 @@ final class GenealogicalDate {
     this.month,
     this.day,
     this.isApproximate = false,
+    this.lunar,
   }) {
     if (year < 1) {
       throw ArgumentError.value(
@@ -121,7 +221,11 @@ final class GenealogicalDate {
   ///
   /// Throws [FormatException] if [text] is not one of the three forms, and
   /// [ArgumentError] if it parses but describes no real date.
-  factory GenealogicalDate.parseIso(String text, {bool isApproximate = false}) {
+  factory GenealogicalDate.parseIso(
+    String text, {
+    bool isApproximate = false,
+    LunarDate? lunar,
+  }) {
     final match = _isoPattern.firstMatch(text);
     if (match == null) {
       throw FormatException('Expected YYYY, YYYY-MM, or YYYY-MM-DD', text);
@@ -133,6 +237,7 @@ final class GenealogicalDate {
       month: monthText == null ? null : int.parse(monthText),
       day: dayText == null ? null : int.parse(dayText),
       isApproximate: isApproximate,
+      lunar: lunar,
     );
   }
 
@@ -157,6 +262,18 @@ final class GenealogicalDate {
   /// still be questioned. The false-warning problem §4.3 guards against comes
   /// from missing precision, which [earliest]/[latest] already model.
   final bool isApproximate;
+
+  /// The same event as written in the lunar calendar, when the source gave one.
+  ///
+  /// Display and provenance only. It is deliberately ignored by [earliest],
+  /// [latest], [spanTo], [definitelyBefore], and [definitelyAfter]: the
+  /// Gregorian value is the single basis for every comparison, so a lunar
+  /// annotation can never change whether a warning fires.
+  ///
+  /// Nothing checks that the two agree — that needs the conversion this
+  /// milestone does not have. Once it exists, a mismatch is a good candidate
+  /// for a warning.
+  final LunarDate? lunar;
 
   /// How much of this date is known. Derived from the components present.
   DatePrecision get precision {
@@ -218,13 +335,17 @@ final class GenealogicalDate {
           other.year == year &&
           other.month == month &&
           other.day == day &&
-          other.isApproximate == isApproximate;
+          other.isApproximate == isApproximate &&
+          other.lunar == lunar;
 
   @override
-  int get hashCode => Object.hash(year, month, day, isApproximate);
+  int get hashCode => Object.hash(year, month, day, isApproximate, lunar);
 
   @override
-  String toString() => isApproximate ? 'about ${toIso()}' : toIso();
+  String toString() {
+    final gregorian = isApproximate ? 'about ${toIso()}' : toIso();
+    return lunar == null ? gregorian : '$gregorian ($lunar)';
+  }
 
   static int _daysInMonth(int year, int month) {
     const lengths = <int>[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];

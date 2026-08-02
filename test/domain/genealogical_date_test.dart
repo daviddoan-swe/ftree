@@ -326,6 +326,154 @@ void main() {
     });
   });
 
+  group('lunar annotation', () {
+    test('is absent unless the source gave one', () {
+      expect(GenealogicalDate(year: 1887).lunar, isNull);
+    });
+
+    test('records what the source wrote, at any precision', () {
+      final date = GenealogicalDate(
+        year: 1887,
+        month: 4,
+        day: 5,
+        lunar: LunarDate(year: 1887, month: 3, day: 12),
+      );
+
+      expect(date.lunar!.year, 1887);
+      expect(date.lunar!.month, 3);
+      expect(date.lunar!.day, 12);
+      expect(date.lunar!.precision, DatePrecision.day);
+    });
+
+    test('never affects the interval used for comparison', () {
+      // The Gregorian value is the single basis for ordering. A lunar
+      // annotation must not be able to change whether a warning fires.
+      final plain = GenealogicalDate(year: 1887, month: 4, day: 5);
+      final annotated = GenealogicalDate(
+        year: 1887,
+        month: 4,
+        day: 5,
+        lunar: LunarDate(year: 1887, month: 3, day: 12),
+      );
+
+      expect(annotated.earliest, plain.earliest);
+      expect(annotated.latest, plain.latest);
+      expect(annotated.spanTo(plain), plain.spanTo(plain));
+      expect(annotated.definitelyBefore(plain), isFalse);
+      expect(annotated.definitelyAfter(plain), isFalse);
+    });
+
+    test('a wildly wrong annotation still cannot shift ordering', () {
+      final gregorian1887 = GenealogicalDate(
+        year: 1887,
+        lunar: LunarDate(year: 1200),
+      );
+      final gregorian1889 = GenealogicalDate(year: 1889);
+
+      expect(gregorian1887.definitelyBefore(gregorian1889), isTrue);
+    });
+
+    test('is part of equality — it is data, not decoration', () {
+      final withLunar = GenealogicalDate(
+        year: 1887,
+        lunar: LunarDate(year: 1887),
+      );
+      final withoutLunar = GenealogicalDate(year: 1887);
+
+      expect(withLunar, isNot(withoutLunar));
+    });
+
+    test('survives an ISO round trip when carried alongside', () {
+      final date = GenealogicalDate(
+        year: 1887,
+        month: 4,
+        day: 5,
+        lunar: LunarDate(year: 1887, month: 3, day: 12, isLeapMonth: true),
+      );
+
+      expect(
+        GenealogicalDate.parseIso(date.toIso(), lunar: date.lunar),
+        date,
+      );
+    });
+
+    test('is left out of the Gregorian ISO string', () {
+      final date = GenealogicalDate(
+        year: 1887,
+        month: 4,
+        day: 5,
+        lunar: LunarDate(year: 1887, month: 3, day: 12),
+      );
+      expect(date.toIso(), '1887-04-05');
+    });
+  });
+
+  group('LunarDate construction', () {
+    test('accepts each precision', () {
+      expect(LunarDate(year: 1887).precision, DatePrecision.year);
+      expect(LunarDate(year: 1887, month: 3).precision, DatePrecision.month);
+      expect(
+        LunarDate(year: 1887, month: 3, day: 12).precision,
+        DatePrecision.day,
+      );
+    });
+
+    test('accepts day 30 — lunar months run to 29 or 30', () {
+      expect(LunarDate(year: 1887, month: 3, day: 30).day, 30);
+    });
+
+    test('rejects day 31, which no lunar month has', () {
+      expect(
+        () => LunarDate(year: 1887, month: 3, day: 31),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects a day without a month', () {
+      expect(() => LunarDate(year: 1887, day: 12), throwsArgumentError);
+    });
+
+    test('rejects months outside 1-12', () {
+      expect(() => LunarDate(year: 1887, month: 0), throwsArgumentError);
+      expect(() => LunarDate(year: 1887, month: 13), throwsArgumentError);
+    });
+
+    test('rejects a non-positive year', () {
+      expect(() => LunarDate(year: 0), throwsArgumentError);
+    });
+
+    test('records an intercalary month', () {
+      final leap = LunarDate(year: 1887, month: 3, isLeapMonth: true);
+      expect(leap.isLeapMonth, isTrue);
+      expect(leap.toString(), contains('L'));
+    });
+
+    test('rejects a leap flag with no month to apply it to', () {
+      expect(
+        () => LunarDate(year: 1887, isLeapMonth: true),
+        throwsArgumentError,
+      );
+    });
+
+    test('a leap month is not the same date as the ordinary month', () {
+      expect(
+        LunarDate(year: 1887, month: 3, isLeapMonth: true),
+        isNot(LunarDate(year: 1887, month: 3)),
+      );
+    });
+
+    test('compares by value', () {
+      expect(
+        LunarDate(year: 1887, month: 3, day: 12),
+        LunarDate(year: 1887, month: 3, day: 12),
+      );
+      expect(
+        LunarDate(year: 1887, month: 3, day: 12).hashCode,
+        LunarDate(year: 1887, month: 3, day: 12).hashCode,
+      );
+    });
+  });
+
   group('design', () {
     test('is deliberately not Comparable', () {
       // A compareTo would have to return -1, 0, or 1 for 1887 vs 1887-03-15,
