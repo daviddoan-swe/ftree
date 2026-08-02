@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ftree/domain/family_graph.dart';
+import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/person.dart';
 import 'package:ftree/domain/relationship.dart';
+import 'package:ftree/domain/validation.dart';
 
 void main() {
   const familyId = 'family-1';
@@ -636,6 +638,283 @@ void main() {
         graph.siblings(bobId).map((s) => s.person.id),
         contains(carolId),
       );
+    });
+  });
+
+  group('validateAddition', () {
+    /// alice -> bob -> carol, three generations in a line.
+    FamilyGraph threeGenerations() => FamilyGraph(
+      persons: <Person>[
+        personOf(aliceId),
+        personOf(bobId),
+        personOf(carolId),
+      ],
+      relationships: <Relationship>[
+        parentOf(aliceId, bobId),
+        parentOf(bobId, carolId),
+      ],
+    );
+
+    group('cycles', () {
+      test('an edge closing a loop is refused', () {
+        final result = threeGenerations().validateAddition(
+          parentOf(carolId, aliceId, id: 'new'),
+        );
+
+        expect(
+          result.issues.map((i) => i.code),
+          contains(IssueCode.relationshipCreatesCycle),
+        );
+        expect(result.hasErrors, isTrue);
+      });
+
+      test('reversing an existing edge is refused', () {
+        final result = threeGenerations().validateAddition(
+          parentOf(bobId, aliceId, id: 'new'),
+        );
+
+        expect(
+          result.issues.map((i) => i.code),
+          contains(IssueCode.relationshipCreatesCycle),
+        );
+      });
+
+      test('a new leaf on a deep line is accepted', () {
+        final graph = FamilyGraph(
+          persons: <Person>[
+            personOf(aliceId),
+            personOf(bobId),
+            personOf(carolId),
+            personOf(daveId),
+          ],
+          relationships: <Relationship>[
+            parentOf(aliceId, bobId),
+            parentOf(bobId, carolId),
+          ],
+        );
+
+        expect(
+          graph.validateAddition(parentOf(carolId, daveId, id: 'new')).hasIssues,
+          isFalse,
+        );
+      });
+
+      test('a second parent is not mistaken for a cycle', () {
+        final graph = FamilyGraph(
+          persons: <Person>[
+            personOf(aliceId),
+            personOf(bobId),
+            personOf(carolId),
+          ],
+          relationships: <Relationship>[parentOf(aliceId, carolId)],
+        );
+
+        expect(
+          graph.validateAddition(parentOf(bobId, carolId, id: 'new')).hasIssues,
+          isFalse,
+        );
+      });
+
+      test('validating against an already-looped graph does not hang', () {
+        final looped = FamilyGraph(
+          persons: <Person>[
+            personOf(aliceId),
+            personOf(bobId),
+            personOf(carolId),
+          ],
+          relationships: <Relationship>[
+            parentOf(aliceId, bobId),
+            parentOf(bobId, aliceId),
+          ],
+        );
+
+        expect(
+          () => looped.validateAddition(parentOf(bobId, carolId, id: 'new')),
+          returnsNormally,
+        );
+      });
+
+      test('spouse edges are not cycle-checked', () {
+        expect(
+          threeGenerations()
+              .validateAddition(spouseOf(aliceId, bobId, id: 'new'))
+              .issues
+              .map((i) => i.code),
+          isNot(contains(IssueCode.relationshipCreatesCycle)),
+        );
+      });
+    });
+
+    group('missing endpoints', () {
+      test('an unknown person is an error', () {
+        final result = threeGenerations().validateAddition(
+          parentOf(aliceId, 'ghost', id: 'new'),
+        );
+
+        expect(result.issues.single.code, IssueCode.relationshipEndpointMissing);
+        expect(result.hasErrors, isTrue);
+      });
+
+      test('stops there rather than guessing at the rest', () {
+        // Every other check needs both people, so continuing would only
+        // produce noise about a person who is not there.
+        final result = threeGenerations().validateAddition(
+          parentOf('ghost-a', 'ghost-b', id: 'new'),
+        );
+
+        expect(result.issues.length, 1);
+        expect(
+          result.issues.single.involvedIds,
+          containsAll(<String>['ghost-a', 'ghost-b']),
+        );
+      });
+    });
+
+    group('spouse who is also a blood relative', () {
+      test('an ancestor marrying a descendant is a warning, not an error', () {
+        // Almost always a transcription mistake, but the record is the user's.
+        final result = threeGenerations().validateAddition(
+          spouseOf(aliceId, carolId, id: 'new'),
+        );
+
+        expect(
+          result.issues.map((i) => i.code),
+          contains(IssueCode.spouseIsAncestorOrDescendant),
+        );
+        expect(result.hasErrors, isFalse);
+      });
+
+      test('it is reported whichever way round the pair is given', () {
+        for (final pair in <List<String>>[
+          <String>[aliceId, carolId],
+          <String>[carolId, aliceId],
+        ]) {
+          final result = threeGenerations().validateAddition(
+            spouseOf(pair[0], pair[1], id: 'new'),
+          );
+          expect(
+            result.issues.map((i) => i.code),
+            contains(IssueCode.spouseIsAncestorOrDescendant),
+            reason: '${pair[0]} + ${pair[1]}',
+          );
+        }
+      });
+
+      test('cousins raise nothing — historically ordinary', () {
+        // alice has two children; their children are cousins to each other.
+        const eveChildId = 'ffff';
+        final graph = FamilyGraph(
+          persons: <Person>[
+            personOf(aliceId),
+            personOf(bobId),
+            personOf(carolId),
+            personOf(daveId),
+            personOf(eveChildId),
+          ],
+          relationships: <Relationship>[
+            parentOf(aliceId, bobId),
+            parentOf(aliceId, carolId),
+            parentOf(bobId, daveId),
+            parentOf(carolId, eveChildId),
+          ],
+        );
+
+        expect(
+          graph.validateAddition(spouseOf(daveId, eveChildId, id: 'new')).hasIssues,
+          isFalse,
+        );
+      });
+
+      test('unrelated spouses raise nothing', () {
+        final graph = FamilyGraph(
+          persons: <Person>[personOf(aliceId), personOf(bobId)],
+          relationships: const <Relationship>[],
+        );
+
+        expect(
+          graph.validateAddition(spouseOf(aliceId, bobId, id: 'new')).hasIssues,
+          isFalse,
+        );
+      });
+    });
+
+    group('rules delegated to the pair-level checks', () {
+      test('a duplicate is caught', () {
+        final result = threeGenerations().validateAddition(
+          parentOf(aliceId, bobId, id: 'new'),
+        );
+
+        expect(
+          result.issues.map((i) => i.code),
+          contains(IssueCode.relationshipDuplicate),
+        );
+      });
+
+      test('a reversed duplicate spouse is caught', () {
+        final graph = FamilyGraph(
+          persons: <Person>[personOf(aliceId), personOf(bobId)],
+          relationships: <Relationship>[spouseOf(aliceId, bobId)],
+        );
+
+        expect(
+          graph
+              .validateAddition(spouseOf(bobId, aliceId, id: 'new'))
+              .issues
+              .map((i) => i.code),
+          contains(IssueCode.relationshipDuplicate),
+        );
+      });
+
+      test('an edge is not reported as a duplicate of itself', () {
+        // Revalidating something already stored must stay clean.
+        final graph = threeGenerations();
+        final existing = graph.relationships.first;
+
+        expect(
+          graph.validateAddition(existing).issues.map((i) => i.code),
+          isNot(contains(IssueCode.relationshipDuplicate)),
+        );
+      });
+
+      test('self-reference is caught', () {
+        expect(
+          threeGenerations()
+              .validateAddition(parentOf(aliceId, aliceId, id: 'new'))
+              .issues
+              .map((i) => i.code),
+          contains(IssueCode.relationshipSelfReference),
+        );
+      });
+
+      test('a parent born after the child still warns', () {
+        final graph = FamilyGraph(
+          persons: <Person>[
+            Person(
+              id: aliceId,
+              familyId: familyId,
+              displayName: 'alice',
+              birthDate: GenealogicalDate(year: 1950),
+            ),
+            Person(
+              id: bobId,
+              familyId: familyId,
+              displayName: 'bob',
+              birthDate: GenealogicalDate(year: 1900),
+            ),
+          ],
+          relationships: const <Relationship>[],
+        );
+
+        final result = graph.validateAddition(
+          parentOf(aliceId, bobId, id: 'new'),
+        );
+
+        expect(
+          result.issues.map((i) => i.code),
+          contains(IssueCode.parentBornAfterChild),
+        );
+        expect(result.hasErrors, isFalse);
+      });
     });
   });
 

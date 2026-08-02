@@ -3,6 +3,8 @@ library;
 
 import 'person.dart';
 import 'relationship.dart';
+import 'relationship_rules.dart';
+import 'validation.dart';
 
 /// Someone who shares at least one parent with the person asked about.
 ///
@@ -192,6 +194,97 @@ final class FamilyGraph {
   ///
   /// The subject is excluded, as in [ancestors].
   List<Person> descendants(String personId) => _traverse(personId, children);
+
+  /// Checks whether [candidate] may be added to this family (§13.1).
+  ///
+  /// Relationship validation lives here rather than on the entity because a
+  /// cycle cannot be seen from a single edge. What can be decided without the
+  /// graph — self-reference, duplication, family consistency, and the
+  /// parent-child date warnings — is delegated to [validateRelationship] rather
+  /// than repeated, so those rules have one home.
+  ///
+  /// [candidate] is expected not to be part of the graph already. Its own key
+  /// is excluded from the duplicate check so that revalidating a stored edge
+  /// does not report it as a duplicate of itself.
+  ValidationResult validateAddition(Relationship candidate) {
+    final personA = _personsById[candidate.personAId];
+    final personB = _personsById[candidate.personBId];
+
+    if (personA == null || personB == null) {
+      // Nothing further can be judged: the date, family and cycle checks all
+      // need both people.
+      return ValidationResult.single(
+        ValidationIssue(
+          IssueCode.relationshipEndpointMissing,
+          involvedIds: <String>[
+            candidate.id,
+            if (personA == null) candidate.personAId,
+            if (personB == null) candidate.personBId,
+          ],
+        ),
+      );
+    }
+
+    final existingKeys = <RelationshipKey>{
+      for (final r in _relationships)
+        if (r.id != candidate.id) r.key,
+    };
+
+    return validateRelationship(
+      relationship: candidate,
+      personA: personA,
+      personB: personB,
+      existingKeys: existingKeys,
+    ).merge(_graphOnlyIssues(candidate));
+  }
+
+  ValidationResult _graphOnlyIssues(Relationship candidate) {
+    final issues = <ValidationIssue>[];
+
+    switch (candidate.type) {
+      case RelationshipType.parentChild:
+        // The parent must not already descend from the child. Checking
+        // descendants rather than ancestors is deliberate: a traversal excludes
+        // its own subject, so asking whether the parent is among the child's
+        // descendants gives the right answer even in an already-looped graph.
+        final closesLoop = descendants(
+          candidate.childId,
+        ).any((p) => p.id == candidate.parentId);
+
+        if (closesLoop) {
+          issues.add(
+            ValidationIssue(
+              IssueCode.relationshipCreatesCycle,
+              involvedIds: <String>[
+                candidate.id,
+                candidate.parentId,
+                candidate.childId,
+              ],
+            ),
+          );
+        }
+
+      case RelationshipType.spouse:
+        final a = candidate.personAId;
+        final b = candidate.personBId;
+        final related =
+            ancestors(a).any((p) => p.id == b) ||
+            descendants(a).any((p) => p.id == b);
+
+        if (related) {
+          issues.add(
+            ValidationIssue(
+              IssueCode.spouseIsAncestorOrDescendant,
+              involvedIds: <String>[candidate.id, a, b],
+            ),
+          );
+        }
+    }
+
+    return issues.isEmpty
+        ? const ValidationResult.ok()
+        : ValidationResult(issues);
+  }
 
   /// Breadth-first walk from [startId], following [step] outwards.
   ///

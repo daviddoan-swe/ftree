@@ -54,6 +54,12 @@ enum IssueCode {
   /// The two people in a relationship belong to different families.
   personsInDifferentFamilies(ValidationSeverity.error),
 
+  /// A relationship names a person the family does not contain.
+  relationshipEndpointMissing(ValidationSeverity.error),
+
+  /// A parent-child edge would make someone their own ancestor.
+  relationshipCreatesCycle(ValidationSeverity.error),
+
   // ---- Warnings (DOMAIN.md §9.2) ----
 
   /// A person's death date falls before their birth date.
@@ -71,7 +77,14 @@ enum IssueCode {
   childBornLongAfterParentDeath(ValidationSeverity.warning),
 
   /// A parent was implausibly young or old at the child's birth.
-  implausibleParentAge(ValidationSeverity.warning);
+  implausibleParentAge(ValidationSeverity.warning),
+
+  /// Two spouses are also ancestor and descendant of one another.
+  ///
+  /// A warning rather than an error: cousin marriage is historically common,
+  /// and while a parent-child marriage is almost always a transcription
+  /// mistake, the record belongs to the user.
+  spouseIsAncestorOrDescendant(ValidationSeverity.warning);
 
   const IssueCode(this.severity);
 

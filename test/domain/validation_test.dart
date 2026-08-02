@@ -2,6 +2,28 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ftree/domain/validation.dart';
 
+/// Every code DOMAIN.md §9.1 lists as blocking.
+const List<IssueCode> _blockingCodes = <IssueCode>[
+  IssueCode.familyNameEmpty,
+  IssueCode.displayNameEmpty,
+  IssueCode.relationshipSelfReference,
+  IssueCode.relationshipDuplicate,
+  IssueCode.relationshipFamilyIdMismatch,
+  IssueCode.personsInDifferentFamilies,
+  IssueCode.relationshipEndpointMissing,
+  IssueCode.relationshipCreatesCycle,
+];
+
+/// Every code DOMAIN.md §9.2 lists as advisory.
+const List<IssueCode> _advisoryCodes = <IssueCode>[
+  IssueCode.deathBeforeBirth,
+  IssueCode.implausibleLifespan,
+  IssueCode.parentBornAfterChild,
+  IssueCode.childBornLongAfterParentDeath,
+  IssueCode.implausibleParentAge,
+  IssueCode.spouseIsAncestorOrDescendant,
+];
+
 void main() {
   group('IssueCode', () {
     test('severity is a property of the code, not of the issue', () {
@@ -12,15 +34,7 @@ void main() {
     });
 
     test('every code declared in DOMAIN.md §9.1 is an error', () {
-      const blocking = <IssueCode>[
-        IssueCode.familyNameEmpty,
-        IssueCode.displayNameEmpty,
-        IssueCode.relationshipSelfReference,
-        IssueCode.relationshipDuplicate,
-        IssueCode.relationshipFamilyIdMismatch,
-        IssueCode.personsInDifferentFamilies,
-      ];
-      for (final code in blocking) {
+      for (final code in _blockingCodes) {
         expect(
           code.severity,
           ValidationSeverity.error,
@@ -32,20 +46,24 @@ void main() {
     test('every code declared in DOMAIN.md §9.2 is a warning', () {
       // Posthumous birth and teenage parenthood are real. Refusing them would
       // make the app unusable on genuine family records.
-      const advisory = <IssueCode>[
-        IssueCode.deathBeforeBirth,
-        IssueCode.implausibleLifespan,
-        IssueCode.parentBornAfterChild,
-        IssueCode.childBornLongAfterParentDeath,
-        IssueCode.implausibleParentAge,
-      ];
-      for (final code in advisory) {
+      for (final code in _advisoryCodes) {
         expect(
           code.severity,
           ValidationSeverity.warning,
           reason: '${code.name} must not block the write',
         );
       }
+    });
+
+    test('no code escapes the two lists above', () {
+      // Without this, adding a code and forgetting to categorise it would leave
+      // the two tests above silently claiming a coverage they no longer have.
+      final categorised = <IssueCode>{..._blockingCodes, ..._advisoryCodes};
+      expect(
+        IssueCode.values.toSet().difference(categorised),
+        isEmpty,
+        reason: 'add the new code to §9.1 or §9.2 and to the list here',
+      );
     });
   });
 
