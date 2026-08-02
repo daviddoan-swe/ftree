@@ -23,6 +23,9 @@
   "actionCancel": "Cancel",
   "actionSaveAnyway": "Save anyway",
   "actionReview": "Review",
+  "actionClose": "Close",
+  "actionAdd": "Add",
+  "actionRemove": "Remove",
 
   "peopleEmpty": "Nobody in this family yet",
   "peopleEmptyHint": "Add the first person to start building the tree",
@@ -45,6 +48,48 @@
   "personDeathPlace": "Place of death",
   "personBiography": "Notes",
 
+  "personProfile": "Profile",
+  "personRelatives": "Relatives",
+  "personNoRelatives": "Not connected to anybody yet",
+  "relationParents": "Parents",
+  "relationChildren": "Children",
+  "relationSpouses": "Spouses",
+  "relationSiblings": "Siblings",
+  "siblingSharedParents": "{count, plural, =1{1 parent in common} other{{count} parents in common}}",
+  "@siblingSharedParents": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "treeTitle": "Family tree",
+  "treeEmpty": "Nobody to draw yet",
+  "treeFit": "Fit",
+  "treeDrawFrom": "Draw from here",
+  "treeOffChart": "{count, plural, other{{count} not on this branch}}",
+  "@treeOffChart": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "relationshipAdd": "Add relationship",
+  "relationshipAddParent": "Add a parent",
+  "relationshipAddSpouse": "Add a spouse",
+  "relationshipAddChild": "Add a child",
+  "relationshipChoosePerson": "Choose a person",
+  "relationshipSearch": "Search by name",
+  "relationshipNobodyElse": "Nobody else in this family yet",
+  "relationshipNoMatch": "No name matches",
+  "relationshipRemoveTitle": "Remove relationship?",
+  "relationshipRemoveBody": "Removes the link between {subject} and {other}. Both people stay in the tree.",
+  "@relationshipRemoveBody": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "other": { "type": "String" }
+    }
+  },
+
   "dateYear": "Year",
   "dateMonth": "Month",
   "dateDay": "Day",
@@ -53,6 +98,9 @@
   "dateCalendarGregorian": "Gregorian",
   "dateCalendarLunar": "Lunar",
   "dateYearOnlyIsFine": "A year on its own is fine",
+  "dateUnknown": "Unknown",
+  "dateLunarSuffix": "lunar",
+  "dateApproximatePrefix": "about",
   "dateImpossible": "No such date",
   "dateNeedsYear": "A year is needed",
   "dateNeedsMonth": "A day needs a month",

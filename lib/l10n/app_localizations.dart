@@ -187,6 +187,24 @@ abstract class AppText {
   /// **'Xem lại'**
   String get actionReview;
 
+  /// No description provided for @actionClose.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đóng'**
+  String get actionClose;
+
+  /// No description provided for @actionAdd.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm'**
+  String get actionAdd;
+
+  /// No description provided for @actionRemove.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gỡ'**
+  String get actionRemove;
+
   /// No description provided for @peopleEmpty.
   ///
   /// In vi, this message translates to:
@@ -307,6 +325,144 @@ abstract class AppText {
   /// **'Ghi chép'**
   String get personBiography;
 
+  /// No description provided for @personProfile.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hồ sơ'**
+  String get personProfile;
+
+  /// No description provided for @personRelatives.
+  ///
+  /// In vi, this message translates to:
+  /// **'Quan hệ'**
+  String get personRelatives;
+
+  /// No description provided for @personNoRelatives.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa nối người này với ai'**
+  String get personNoRelatives;
+
+  /// No description provided for @relationParents.
+  ///
+  /// In vi, this message translates to:
+  /// **'Cha mẹ'**
+  String get relationParents;
+
+  /// No description provided for @relationChildren.
+  ///
+  /// In vi, this message translates to:
+  /// **'Con'**
+  String get relationChildren;
+
+  /// No description provided for @relationSpouses.
+  ///
+  /// In vi, this message translates to:
+  /// **'Vợ chồng'**
+  String get relationSpouses;
+
+  /// No description provided for @relationSiblings.
+  ///
+  /// In vi, this message translates to:
+  /// **'Anh chị em'**
+  String get relationSiblings;
+
+  /// Số cha mẹ chung — không gọi thẳng là anh em ruột hay cùng cha khác mẹ, vì một người có thể có cả cha mẹ đẻ lẫn cha mẹ nuôi
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{Chung 1 cha mẹ} other{Chung {count} cha mẹ}}'**
+  String siblingSharedParents(int count);
+
+  /// No description provided for @treeTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Cây gia phả'**
+  String get treeTitle;
+
+  /// No description provided for @treeEmpty.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa có ai để vẽ'**
+  String get treeEmpty;
+
+  /// No description provided for @treeFit.
+  ///
+  /// In vi, this message translates to:
+  /// **'Vừa khung'**
+  String get treeFit;
+
+  /// No description provided for @treeDrawFrom.
+  ///
+  /// In vi, this message translates to:
+  /// **'Vẽ từ người này'**
+  String get treeDrawFrom;
+
+  /// Cây vẽ hậu duệ của một gốc, nên người ngoài nhánh đó không xuất hiện
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, other{{count} người không nằm trong nhánh này}}'**
+  String treeOffChart(int count);
+
+  /// No description provided for @relationshipAdd.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm quan hệ'**
+  String get relationshipAdd;
+
+  /// No description provided for @relationshipAddParent.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm cha mẹ'**
+  String get relationshipAddParent;
+
+  /// No description provided for @relationshipAddSpouse.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm vợ hoặc chồng'**
+  String get relationshipAddSpouse;
+
+  /// No description provided for @relationshipAddChild.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm con'**
+  String get relationshipAddChild;
+
+  /// No description provided for @relationshipChoosePerson.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chọn người'**
+  String get relationshipChoosePerson;
+
+  /// No description provided for @relationshipSearch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tìm theo tên'**
+  String get relationshipSearch;
+
+  /// No description provided for @relationshipNobodyElse.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa có ai khác trong gia đình này'**
+  String get relationshipNobodyElse;
+
+  /// No description provided for @relationshipNoMatch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không có tên nào khớp'**
+  String get relationshipNoMatch;
+
+  /// No description provided for @relationshipRemoveTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gỡ quan hệ?'**
+  String get relationshipRemoveTitle;
+
+  /// No description provided for @relationshipRemoveBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gỡ quan hệ giữa {subject} và {other}. Cả hai người vẫn còn trong gia phả.'**
+  String relationshipRemoveBody(String subject, String other);
+
   /// No description provided for @dateYear.
   ///
   /// In vi, this message translates to:
@@ -354,6 +510,24 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Chỉ cần năm cũng được'**
   String get dateYearOnlyIsFine;
+
+  /// No description provided for @dateUnknown.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không rõ'**
+  String get dateUnknown;
+
+  /// No description provided for @dateLunarSuffix.
+  ///
+  /// In vi, this message translates to:
+  /// **'âm lịch'**
+  String get dateLunarSuffix;
+
+  /// No description provided for @dateApproximatePrefix.
+  ///
+  /// In vi, this message translates to:
+  /// **'khoảng'**
+  String get dateApproximatePrefix;
 
   /// No description provided for @dateImpossible.
   ///

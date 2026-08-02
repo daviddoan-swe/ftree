@@ -10,6 +10,8 @@ import '../../domain/genealogical_date.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
 import '../person/person_form_screen.dart';
+import '../person/person_profile_screen.dart';
+import '../tree/tree_screen.dart';
 
 /// Opens the screen for [family].
 Future<void> showFamilyScreen(BuildContext context, Family family) =>
@@ -32,6 +34,14 @@ class FamilyScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(snapshot.valueOrNull?.family.name ?? ''),
+        actions: <Widget>[
+          if (snapshot.valueOrNull?.graph.persons.isNotEmpty ?? false)
+            IconButton(
+              icon: const Icon(Icons.account_tree_outlined),
+              tooltip: text.treeTitle,
+              onPressed: () => showTreeScreen(context, familyId),
+            ),
+        ],
       ),
       floatingActionButton: snapshot.valueOrNull == null
           ? null
@@ -56,10 +66,8 @@ class FamilyScreen extends ConsumerWidget {
           return ListView.separated(
             itemCount: people.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) => _PersonTile(
-              person: people[index],
-              usesLunarCalendar: data.family.usesLunarCalendar,
-            ),
+            itemBuilder: (context, index) =>
+                _PersonTile(person: people[index]),
           );
         },
       ),
@@ -68,10 +76,9 @@ class FamilyScreen extends ConsumerWidget {
 }
 
 class _PersonTile extends StatelessWidget {
-  const _PersonTile({required this.person, required this.usesLunarCalendar});
+  const _PersonTile({required this.person});
 
   final Person person;
-  final bool usesLunarCalendar;
 
   @override
   Widget build(BuildContext context) {
@@ -85,19 +92,22 @@ class _PersonTile extends StatelessWidget {
       ),
       title: Text(person.displayName),
       subtitle: lifespan == null ? null : Text(lifespan),
-      onTap: () => showPersonForm(
+      // The profile, not the form. Reading is the common case, and editing is
+      // one tap further in.
+      onTap: () => showPersonProfile(
         context,
         familyId: person.familyId,
-        usesLunarCalendar: usesLunarCalendar,
-        editing: person,
+        personId: person.id,
       ),
     );
   }
 
-  /// `1887 – 1960`, with whichever end is known.
+  /// `1887–1960`, with whichever end is known.
   ///
   /// Shows the ISO-prefix form rather than a formatted date, so a year-only
-  /// record reads as a year rather than as an invented January.
+  /// record reads as a year rather than as an invented January. No space around
+  /// the dash, so a missing end reads as unrecorded rather than as a value that
+  /// failed to load.
   static String? _lifespan(Person person) {
     String? show(GenealogicalDate? date) =>
         date == null ? null : (date.isApproximate ? '~' : '') + date.toIso();
@@ -105,7 +115,7 @@ class _PersonTile extends StatelessWidget {
     final born = show(person.birthDate);
     final died = show(person.deathDate);
     if (born == null && died == null) return null;
-    return '${born ?? ''} – ${died ?? ''}';
+    return '${born ?? ''}–${died ?? ''}';
   }
 }
 

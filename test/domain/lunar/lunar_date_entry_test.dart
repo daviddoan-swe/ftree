@@ -61,6 +61,46 @@ void main() {
     });
   });
 
+  group('lunarReadingOf', () {
+    test('prefers what the source recorded over anything computed', () {
+      // A recorded reading says what the document said. Even a deliberately
+      // wrong one must not be quietly replaced by a conversion.
+      final recorded = LunarDate(year: 1200, month: 1, day: 1);
+      final date = GenealogicalDate(
+        year: 1960,
+        month: 4,
+        day: 5,
+        lunar: recorded,
+      );
+
+      expect(lunarReadingOf(date), recorded);
+    });
+
+    test('derives one from a complete Gregorian date', () {
+      final date = GenealogicalDate(year: 1960, month: 4, day: 5);
+      final reading = lunarReadingOf(date)!;
+      final expected = solarToLunar(5, 4, 1960);
+
+      expect(reading.year, expected.year);
+      expect(reading.month, expected.month);
+      expect(reading.day, expected.day);
+    });
+
+    test('has nothing to show for a partial date', () {
+      // Converting would mean inventing the missing parts, the same mistake as
+      // storing a year-only date as 1 January.
+      expect(lunarReadingOf(GenealogicalDate(year: 1960)), isNull);
+      expect(lunarReadingOf(GenealogicalDate(year: 1960, month: 4)), isNull);
+    });
+
+    test('round-trips a date that was entered as lunar', () {
+      final entered = LunarDate(year: 1960, month: 3, day: 12);
+      final stored = gregorianFromLunarEntry(entered);
+
+      expect(lunarReadingOf(stored), entered);
+    });
+  });
+
   group('the lunar reading', () {
     test('is carried through untouched at every precision', () {
       // It records what the source said. Nothing derived may overwrite it.

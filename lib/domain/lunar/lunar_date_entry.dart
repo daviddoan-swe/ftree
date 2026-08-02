@@ -82,3 +82,34 @@ GenealogicalDate gregorianFromLunarEntry(
     lunar: lunar,
   );
 }
+
+/// The lunar reading to show for [date], or null if there is none to show.
+///
+/// A recorded reading wins: it says what the source said, and a computed one
+/// must never quietly replace it.
+///
+/// Otherwise the reading is derived, but only from a complete date. Converting
+/// a partial one would mean inventing the missing parts, which is the same
+/// mistake as storing a year-only date as 1 January (§4.2). A year-only record
+/// simply has no lunar reading to show.
+LunarDate? lunarReadingOf(
+  GenealogicalDate date, {
+  double timeZone = vietnamTimeZone,
+}) {
+  final recorded = date.lunar;
+  if (recorded != null) return recorded;
+  if (date.precision != DatePrecision.day) return null;
+
+  final converted = solarToLunar(
+    date.day!,
+    date.month!,
+    date.year,
+    timeZone: timeZone,
+  );
+  return LunarDate(
+    year: converted.year,
+    month: converted.month,
+    day: converted.day,
+    isLeapMonth: converted.isLeapMonth,
+  );
+}

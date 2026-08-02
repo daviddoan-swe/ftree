@@ -301,7 +301,11 @@ void main() {
       );
       await save(tester);
 
+      // Through the profile: the list opens what a person is, and editing is
+      // one tap further in.
       await tester.tap(find.text('Old name'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.edit_outlined));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, 'Display name'),

@@ -32,6 +32,9 @@
   "actionCancel": "Huỷ",
   "actionSaveAnyway": "Vẫn lưu",
   "actionReview": "Xem lại",
+  "actionClose": "Đóng",
+  "actionAdd": "Thêm",
+  "actionRemove": "Gỡ",
 
   "peopleEmpty": "Chưa có ai trong gia đình này",
   "peopleEmptyHint": "Thêm người đầu tiên để bắt đầu dựng cây",
@@ -57,6 +60,50 @@
   "personDeathPlace": "Nơi mất",
   "personBiography": "Ghi chép",
 
+  "personProfile": "Hồ sơ",
+  "personRelatives": "Quan hệ",
+  "personNoRelatives": "Chưa nối người này với ai",
+  "relationParents": "Cha mẹ",
+  "relationChildren": "Con",
+  "relationSpouses": "Vợ chồng",
+  "relationSiblings": "Anh chị em",
+  "siblingSharedParents": "{count, plural, =1{Chung 1 cha mẹ} other{Chung {count} cha mẹ}}",
+  "@siblingSharedParents": {
+    "description": "Số cha mẹ chung — không gọi thẳng là anh em ruột hay cùng cha khác mẹ, vì một người có thể có cả cha mẹ đẻ lẫn cha mẹ nuôi",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "treeTitle": "Cây gia phả",
+  "treeEmpty": "Chưa có ai để vẽ",
+  "treeFit": "Vừa khung",
+  "treeDrawFrom": "Vẽ từ người này",
+  "treeOffChart": "{count, plural, other{{count} người không nằm trong nhánh này}}",
+  "@treeOffChart": {
+    "description": "Cây vẽ hậu duệ của một gốc, nên người ngoài nhánh đó không xuất hiện",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "relationshipAdd": "Thêm quan hệ",
+  "relationshipAddParent": "Thêm cha mẹ",
+  "relationshipAddSpouse": "Thêm vợ hoặc chồng",
+  "relationshipAddChild": "Thêm con",
+  "relationshipChoosePerson": "Chọn người",
+  "relationshipSearch": "Tìm theo tên",
+  "relationshipNobodyElse": "Chưa có ai khác trong gia đình này",
+  "relationshipNoMatch": "Không có tên nào khớp",
+  "relationshipRemoveTitle": "Gỡ quan hệ?",
+  "relationshipRemoveBody": "Gỡ quan hệ giữa {subject} và {other}. Cả hai người vẫn còn trong gia phả.",
+  "@relationshipRemoveBody": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "other": { "type": "String" }
+    }
+  },
+
   "dateYear": "Năm",
   "dateMonth": "Tháng",
   "dateDay": "Ngày",
@@ -71,6 +118,9 @@
   "@dateYearOnlyIsFine": {
     "description": "Nhắc người dùng không phải bịa ngày tháng khi không biết"
   },
+  "dateUnknown": "Không rõ",
+  "dateLunarSuffix": "âm lịch",
+  "dateApproximatePrefix": "khoảng",
   "dateImpossible": "Ngày này không tồn tại",
   "dateNeedsYear": "Cần có năm",
   "dateNeedsMonth": "Có ngày thì phải có tháng",

@@ -63,6 +63,15 @@ class AppTextVi extends AppText {
   String get actionReview => 'Xem lại';
 
   @override
+  String get actionClose => 'Đóng';
+
+  @override
+  String get actionAdd => 'Thêm';
+
+  @override
+  String get actionRemove => 'Gỡ';
+
+  @override
   String get peopleEmpty => 'Chưa có ai trong gia đình này';
 
   @override
@@ -123,6 +132,92 @@ class AppTextVi extends AppText {
   String get personBiography => 'Ghi chép';
 
   @override
+  String get personProfile => 'Hồ sơ';
+
+  @override
+  String get personRelatives => 'Quan hệ';
+
+  @override
+  String get personNoRelatives => 'Chưa nối người này với ai';
+
+  @override
+  String get relationParents => 'Cha mẹ';
+
+  @override
+  String get relationChildren => 'Con';
+
+  @override
+  String get relationSpouses => 'Vợ chồng';
+
+  @override
+  String get relationSiblings => 'Anh chị em';
+
+  @override
+  String siblingSharedParents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Chung $count cha mẹ',
+      one: 'Chung 1 cha mẹ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get treeTitle => 'Cây gia phả';
+
+  @override
+  String get treeEmpty => 'Chưa có ai để vẽ';
+
+  @override
+  String get treeFit => 'Vừa khung';
+
+  @override
+  String get treeDrawFrom => 'Vẽ từ người này';
+
+  @override
+  String treeOffChart(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count người không nằm trong nhánh này',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get relationshipAdd => 'Thêm quan hệ';
+
+  @override
+  String get relationshipAddParent => 'Thêm cha mẹ';
+
+  @override
+  String get relationshipAddSpouse => 'Thêm vợ hoặc chồng';
+
+  @override
+  String get relationshipAddChild => 'Thêm con';
+
+  @override
+  String get relationshipChoosePerson => 'Chọn người';
+
+  @override
+  String get relationshipSearch => 'Tìm theo tên';
+
+  @override
+  String get relationshipNobodyElse => 'Chưa có ai khác trong gia đình này';
+
+  @override
+  String get relationshipNoMatch => 'Không có tên nào khớp';
+
+  @override
+  String get relationshipRemoveTitle => 'Gỡ quan hệ?';
+
+  @override
+  String relationshipRemoveBody(String subject, String other) {
+    return 'Gỡ quan hệ giữa $subject và $other. Cả hai người vẫn còn trong gia phả.';
+  }
+
+  @override
   String get dateYear => 'Năm';
 
   @override
@@ -145,6 +240,15 @@ class AppTextVi extends AppText {
 
   @override
   String get dateYearOnlyIsFine => 'Chỉ cần năm cũng được';
+
+  @override
+  String get dateUnknown => 'Không rõ';
+
+  @override
+  String get dateLunarSuffix => 'âm lịch';
+
+  @override
+  String get dateApproximatePrefix => 'khoảng';
 
   @override
   String get dateImpossible => 'Ngày này không tồn tại';

@@ -64,6 +64,15 @@ class AppTextEn extends AppText {
   String get actionReview => 'Review';
 
   @override
+  String get actionClose => 'Close';
+
+  @override
+  String get actionAdd => 'Add';
+
+  @override
+  String get actionRemove => 'Remove';
+
+  @override
   String get peopleEmpty => 'Nobody in this family yet';
 
   @override
@@ -126,6 +135,92 @@ class AppTextEn extends AppText {
   String get personBiography => 'Notes';
 
   @override
+  String get personProfile => 'Profile';
+
+  @override
+  String get personRelatives => 'Relatives';
+
+  @override
+  String get personNoRelatives => 'Not connected to anybody yet';
+
+  @override
+  String get relationParents => 'Parents';
+
+  @override
+  String get relationChildren => 'Children';
+
+  @override
+  String get relationSpouses => 'Spouses';
+
+  @override
+  String get relationSiblings => 'Siblings';
+
+  @override
+  String siblingSharedParents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count parents in common',
+      one: '1 parent in common',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get treeTitle => 'Family tree';
+
+  @override
+  String get treeEmpty => 'Nobody to draw yet';
+
+  @override
+  String get treeFit => 'Fit';
+
+  @override
+  String get treeDrawFrom => 'Draw from here';
+
+  @override
+  String treeOffChart(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count not on this branch',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get relationshipAdd => 'Add relationship';
+
+  @override
+  String get relationshipAddParent => 'Add a parent';
+
+  @override
+  String get relationshipAddSpouse => 'Add a spouse';
+
+  @override
+  String get relationshipAddChild => 'Add a child';
+
+  @override
+  String get relationshipChoosePerson => 'Choose a person';
+
+  @override
+  String get relationshipSearch => 'Search by name';
+
+  @override
+  String get relationshipNobodyElse => 'Nobody else in this family yet';
+
+  @override
+  String get relationshipNoMatch => 'No name matches';
+
+  @override
+  String get relationshipRemoveTitle => 'Remove relationship?';
+
+  @override
+  String relationshipRemoveBody(String subject, String other) {
+    return 'Removes the link between $subject and $other. Both people stay in the tree.';
+  }
+
+  @override
   String get dateYear => 'Year';
 
   @override
@@ -148,6 +243,15 @@ class AppTextEn extends AppText {
 
   @override
   String get dateYearOnlyIsFine => 'A year on its own is fine';
+
+  @override
+  String get dateUnknown => 'Unknown';
+
+  @override
+  String get dateLunarSuffix => 'lunar';
+
+  @override
+  String get dateApproximatePrefix => 'about';
 
   @override
   String get dateImpossible => 'No such date';
