@@ -33,6 +33,55 @@
   "actionSaveAnyway": "Vẫn lưu",
   "actionReview": "Xem lại",
 
+  "peopleEmpty": "Chưa có ai trong gia đình này",
+  "peopleEmptyHint": "Thêm người đầu tiên để bắt đầu dựng cây",
+  "personAdd": "Thêm người",
+  "personEdit": "Sửa thông tin",
+  "personDisplayName": "Tên hiển thị",
+  "personDisplayNameHint": "Tên đầy đủ như muốn hiện trên cây",
+  "personNameParts": "Các phần của tên",
+  "personGivenName": "Tên",
+  "personAdditionalNames": "Tên đệm và tên khác",
+  "personFamilyName": "Họ",
+  "personBirthFamilyName": "Họ khai sinh",
+  "@personBirthFamilyName": {
+    "description": "Họ trước khi lấy chồng — cách nối một người vào chi bên ngoại"
+  },
+  "personSex": "Giới tính",
+  "sexMale": "Nam",
+  "sexFemale": "Nữ",
+  "sexUnknown": "Không rõ",
+  "personBirth": "Sinh",
+  "personDeath": "Mất",
+  "personBirthPlace": "Nơi sinh",
+  "personDeathPlace": "Nơi mất",
+  "personBiography": "Ghi chép",
+
+  "dateYear": "Năm",
+  "dateMonth": "Tháng",
+  "dateDay": "Ngày",
+  "dateApproximate": "Khoảng",
+  "@dateApproximate": {
+    "description": "Nguồn ghi 'khoảng năm 1887' chứ không chắc chắn"
+  },
+  "dateLeapMonth": "Nhuận",
+  "dateCalendarGregorian": "Dương",
+  "dateCalendarLunar": "Âm",
+  "dateYearOnlyIsFine": "Chỉ cần năm cũng được",
+  "@dateYearOnlyIsFine": {
+    "description": "Nhắc người dùng không phải bịa ngày tháng khi không biết"
+  },
+  "dateImpossible": "Ngày này không tồn tại",
+  "dateNeedsYear": "Cần có năm",
+  "dateNeedsMonth": "Có ngày thì phải có tháng",
+  "dateLunarStored": "Lưu dương lịch: {gregorian}",
+  "@dateLunarStored": {
+    "description": "Hiện ngày dương mà app quy đổi ra từ ngày âm vừa nhập",
+    "placeholders": {
+      "gregorian": { "type": "String" }
+    }
+  },
+
   "validationCannotSave": "Không thể lưu",
   "@validationCannotSave": {
     "description": "Tiêu đề khi có lỗi chặn việc lưu"

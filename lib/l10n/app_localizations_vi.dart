@@ -63,6 +63,104 @@ class AppTextVi extends AppText {
   String get actionReview => 'Xem lại';
 
   @override
+  String get peopleEmpty => 'Chưa có ai trong gia đình này';
+
+  @override
+  String get peopleEmptyHint => 'Thêm người đầu tiên để bắt đầu dựng cây';
+
+  @override
+  String get personAdd => 'Thêm người';
+
+  @override
+  String get personEdit => 'Sửa thông tin';
+
+  @override
+  String get personDisplayName => 'Tên hiển thị';
+
+  @override
+  String get personDisplayNameHint => 'Tên đầy đủ như muốn hiện trên cây';
+
+  @override
+  String get personNameParts => 'Các phần của tên';
+
+  @override
+  String get personGivenName => 'Tên';
+
+  @override
+  String get personAdditionalNames => 'Tên đệm và tên khác';
+
+  @override
+  String get personFamilyName => 'Họ';
+
+  @override
+  String get personBirthFamilyName => 'Họ khai sinh';
+
+  @override
+  String get personSex => 'Giới tính';
+
+  @override
+  String get sexMale => 'Nam';
+
+  @override
+  String get sexFemale => 'Nữ';
+
+  @override
+  String get sexUnknown => 'Không rõ';
+
+  @override
+  String get personBirth => 'Sinh';
+
+  @override
+  String get personDeath => 'Mất';
+
+  @override
+  String get personBirthPlace => 'Nơi sinh';
+
+  @override
+  String get personDeathPlace => 'Nơi mất';
+
+  @override
+  String get personBiography => 'Ghi chép';
+
+  @override
+  String get dateYear => 'Năm';
+
+  @override
+  String get dateMonth => 'Tháng';
+
+  @override
+  String get dateDay => 'Ngày';
+
+  @override
+  String get dateApproximate => 'Khoảng';
+
+  @override
+  String get dateLeapMonth => 'Nhuận';
+
+  @override
+  String get dateCalendarGregorian => 'Dương';
+
+  @override
+  String get dateCalendarLunar => 'Âm';
+
+  @override
+  String get dateYearOnlyIsFine => 'Chỉ cần năm cũng được';
+
+  @override
+  String get dateImpossible => 'Ngày này không tồn tại';
+
+  @override
+  String get dateNeedsYear => 'Cần có năm';
+
+  @override
+  String get dateNeedsMonth => 'Có ngày thì phải có tháng';
+
+  @override
+  String dateLunarStored(String gregorian) {
+    return 'Lưu dương lịch: $gregorian';
+  }
+
+  @override
   String get validationCannotSave => 'Không thể lưu';
 
   @override

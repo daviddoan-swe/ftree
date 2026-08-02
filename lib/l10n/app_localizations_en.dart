@@ -64,6 +64,106 @@ class AppTextEn extends AppText {
   String get actionReview => 'Review';
 
   @override
+  String get peopleEmpty => 'Nobody in this family yet';
+
+  @override
+  String get peopleEmptyHint =>
+      'Add the first person to start building the tree';
+
+  @override
+  String get personAdd => 'Add person';
+
+  @override
+  String get personEdit => 'Edit person';
+
+  @override
+  String get personDisplayName => 'Display name';
+
+  @override
+  String get personDisplayNameHint =>
+      'The name as it should appear on the tree';
+
+  @override
+  String get personNameParts => 'Name parts';
+
+  @override
+  String get personGivenName => 'Given name';
+
+  @override
+  String get personAdditionalNames => 'Additional names';
+
+  @override
+  String get personFamilyName => 'Family name';
+
+  @override
+  String get personBirthFamilyName => 'Family name at birth';
+
+  @override
+  String get personSex => 'Sex';
+
+  @override
+  String get sexMale => 'Male';
+
+  @override
+  String get sexFemale => 'Female';
+
+  @override
+  String get sexUnknown => 'Unknown';
+
+  @override
+  String get personBirth => 'Born';
+
+  @override
+  String get personDeath => 'Died';
+
+  @override
+  String get personBirthPlace => 'Place of birth';
+
+  @override
+  String get personDeathPlace => 'Place of death';
+
+  @override
+  String get personBiography => 'Notes';
+
+  @override
+  String get dateYear => 'Year';
+
+  @override
+  String get dateMonth => 'Month';
+
+  @override
+  String get dateDay => 'Day';
+
+  @override
+  String get dateApproximate => 'About';
+
+  @override
+  String get dateLeapMonth => 'Leap';
+
+  @override
+  String get dateCalendarGregorian => 'Gregorian';
+
+  @override
+  String get dateCalendarLunar => 'Lunar';
+
+  @override
+  String get dateYearOnlyIsFine => 'A year on its own is fine';
+
+  @override
+  String get dateImpossible => 'No such date';
+
+  @override
+  String get dateNeedsYear => 'A year is needed';
+
+  @override
+  String get dateNeedsMonth => 'A day needs a month';
+
+  @override
+  String dateLunarStored(String gregorian) {
+    return 'Stored as $gregorian';
+  }
+
+  @override
   String get validationCannotSave => 'Cannot save';
 
   @override

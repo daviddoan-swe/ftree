@@ -16,6 +16,7 @@ import '../data/database/app_database.dart';
 import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
 import '../domain/family_repository.dart';
+import '../domain/person.dart';
 
 /// The open database.
 ///
@@ -86,5 +87,16 @@ final class FamilySnapshotNotifier
     state = await AsyncValue.guard(
       () => ref.read(familyRepositoryProvider).loadFamily(arg),
     );
+  }
+
+  /// Saves [person] and rebuilds the graph.
+  ///
+  /// Does not validate. The screen has already run the rules and, where they
+  /// were only warnings, asked the user — a repository or notifier that
+  /// silently refused data would be a second, invisible place where validation
+  /// lives (DOMAIN.md §9).
+  Future<void> savePerson(Person person) async {
+    await ref.read(familyRepositoryProvider).savePerson(person);
+    await reload();
   }
 }

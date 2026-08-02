@@ -8,6 +8,7 @@ import '../../app/providers.dart';
 import '../../domain/family.dart';
 import '../../l10n/app_localizations.dart';
 import 'family_form_sheet.dart';
+import 'family_screen.dart';
 
 class FamilyListScreen extends ConsumerWidget {
   const FamilyListScreen({super.key});
@@ -53,10 +54,7 @@ class _FamilyList extends StatelessWidget {
         trailing: family.usesLunarCalendar
             ? const Icon(Icons.brightness_2_outlined, size: 18)
             : null,
-        onTap: () {
-          // The family screen arrives with the next task; tapping does nothing
-          // rather than pretending to navigate.
-        },
+        onTap: () => showFamilyScreen(context, family),
       );
     },
   );

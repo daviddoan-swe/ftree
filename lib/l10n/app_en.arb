@@ -24,6 +24,45 @@
   "actionSaveAnyway": "Save anyway",
   "actionReview": "Review",
 
+  "peopleEmpty": "Nobody in this family yet",
+  "peopleEmptyHint": "Add the first person to start building the tree",
+  "personAdd": "Add person",
+  "personEdit": "Edit person",
+  "personDisplayName": "Display name",
+  "personDisplayNameHint": "The name as it should appear on the tree",
+  "personNameParts": "Name parts",
+  "personGivenName": "Given name",
+  "personAdditionalNames": "Additional names",
+  "personFamilyName": "Family name",
+  "personBirthFamilyName": "Family name at birth",
+  "personSex": "Sex",
+  "sexMale": "Male",
+  "sexFemale": "Female",
+  "sexUnknown": "Unknown",
+  "personBirth": "Born",
+  "personDeath": "Died",
+  "personBirthPlace": "Place of birth",
+  "personDeathPlace": "Place of death",
+  "personBiography": "Notes",
+
+  "dateYear": "Year",
+  "dateMonth": "Month",
+  "dateDay": "Day",
+  "dateApproximate": "About",
+  "dateLeapMonth": "Leap",
+  "dateCalendarGregorian": "Gregorian",
+  "dateCalendarLunar": "Lunar",
+  "dateYearOnlyIsFine": "A year on its own is fine",
+  "dateImpossible": "No such date",
+  "dateNeedsYear": "A year is needed",
+  "dateNeedsMonth": "A day needs a month",
+  "dateLunarStored": "Stored as {gregorian}",
+  "@dateLunarStored": {
+    "placeholders": {
+      "gregorian": { "type": "String" }
+    }
+  },
+
   "validationCannotSave": "Cannot save",
   "validationCheckBeforeSaving": "Worth checking",
 

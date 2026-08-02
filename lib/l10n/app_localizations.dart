@@ -187,6 +187,198 @@ abstract class AppText {
   /// **'Xem lại'**
   String get actionReview;
 
+  /// No description provided for @peopleEmpty.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa có ai trong gia đình này'**
+  String get peopleEmpty;
+
+  /// No description provided for @peopleEmptyHint.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm người đầu tiên để bắt đầu dựng cây'**
+  String get peopleEmptyHint;
+
+  /// No description provided for @personAdd.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thêm người'**
+  String get personAdd;
+
+  /// No description provided for @personEdit.
+  ///
+  /// In vi, this message translates to:
+  /// **'Sửa thông tin'**
+  String get personEdit;
+
+  /// No description provided for @personDisplayName.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tên hiển thị'**
+  String get personDisplayName;
+
+  /// No description provided for @personDisplayNameHint.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tên đầy đủ như muốn hiện trên cây'**
+  String get personDisplayNameHint;
+
+  /// No description provided for @personNameParts.
+  ///
+  /// In vi, this message translates to:
+  /// **'Các phần của tên'**
+  String get personNameParts;
+
+  /// No description provided for @personGivenName.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tên'**
+  String get personGivenName;
+
+  /// No description provided for @personAdditionalNames.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tên đệm và tên khác'**
+  String get personAdditionalNames;
+
+  /// No description provided for @personFamilyName.
+  ///
+  /// In vi, this message translates to:
+  /// **'Họ'**
+  String get personFamilyName;
+
+  /// Họ trước khi lấy chồng — cách nối một người vào chi bên ngoại
+  ///
+  /// In vi, this message translates to:
+  /// **'Họ khai sinh'**
+  String get personBirthFamilyName;
+
+  /// No description provided for @personSex.
+  ///
+  /// In vi, this message translates to:
+  /// **'Giới tính'**
+  String get personSex;
+
+  /// No description provided for @sexMale.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nam'**
+  String get sexMale;
+
+  /// No description provided for @sexFemale.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nữ'**
+  String get sexFemale;
+
+  /// No description provided for @sexUnknown.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không rõ'**
+  String get sexUnknown;
+
+  /// No description provided for @personBirth.
+  ///
+  /// In vi, this message translates to:
+  /// **'Sinh'**
+  String get personBirth;
+
+  /// No description provided for @personDeath.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mất'**
+  String get personDeath;
+
+  /// No description provided for @personBirthPlace.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nơi sinh'**
+  String get personBirthPlace;
+
+  /// No description provided for @personDeathPlace.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nơi mất'**
+  String get personDeathPlace;
+
+  /// No description provided for @personBiography.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ghi chép'**
+  String get personBiography;
+
+  /// No description provided for @dateYear.
+  ///
+  /// In vi, this message translates to:
+  /// **'Năm'**
+  String get dateYear;
+
+  /// No description provided for @dateMonth.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tháng'**
+  String get dateMonth;
+
+  /// No description provided for @dateDay.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày'**
+  String get dateDay;
+
+  /// Nguồn ghi 'khoảng năm 1887' chứ không chắc chắn
+  ///
+  /// In vi, this message translates to:
+  /// **'Khoảng'**
+  String get dateApproximate;
+
+  /// No description provided for @dateLeapMonth.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nhuận'**
+  String get dateLeapMonth;
+
+  /// No description provided for @dateCalendarGregorian.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dương'**
+  String get dateCalendarGregorian;
+
+  /// No description provided for @dateCalendarLunar.
+  ///
+  /// In vi, this message translates to:
+  /// **'Âm'**
+  String get dateCalendarLunar;
+
+  /// Nhắc người dùng không phải bịa ngày tháng khi không biết
+  ///
+  /// In vi, this message translates to:
+  /// **'Chỉ cần năm cũng được'**
+  String get dateYearOnlyIsFine;
+
+  /// No description provided for @dateImpossible.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày này không tồn tại'**
+  String get dateImpossible;
+
+  /// No description provided for @dateNeedsYear.
+  ///
+  /// In vi, this message translates to:
+  /// **'Cần có năm'**
+  String get dateNeedsYear;
+
+  /// No description provided for @dateNeedsMonth.
+  ///
+  /// In vi, this message translates to:
+  /// **'Có ngày thì phải có tháng'**
+  String get dateNeedsMonth;
+
+  /// Hiện ngày dương mà app quy đổi ra từ ngày âm vừa nhập
+  ///
+  /// In vi, this message translates to:
+  /// **'Lưu dương lịch: {gregorian}'**
+  String dateLunarStored(String gregorian);
+
   /// Tiêu đề khi có lỗi chặn việc lưu
   ///
   /// In vi, this message translates to:
