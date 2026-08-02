@@ -24,7 +24,6 @@ migrate_working_dir/
 .vscode/
 # But do not ignore the extensions configuration file
 !.vscode/extensions.json
-.metadata
 
 # Flutter/Dart/Pub related
 **/doc/api/
