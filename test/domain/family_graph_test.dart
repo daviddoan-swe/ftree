@@ -411,6 +411,234 @@ void main() {
     });
   });
 
+  group('ancestors and descendants', () {
+    /// A single line: alice -> bob -> carol -> dave.
+    FamilyGraph fourGenerations() => FamilyGraph(
+      persons: <Person>[
+        personOf(aliceId),
+        personOf(bobId),
+        personOf(carolId),
+        personOf(daveId),
+      ],
+      relationships: <Relationship>[
+        parentOf(aliceId, bobId),
+        parentOf(bobId, carolId),
+        parentOf(carolId, daveId),
+      ],
+    );
+
+    test('reach the whole line upwards', () {
+      expect(idsOf(fourGenerations().ancestors(daveId)), <String>[
+        carolId,
+        bobId,
+        aliceId,
+      ]);
+    });
+
+    test('reach the whole line downwards', () {
+      expect(idsOf(fourGenerations().descendants(aliceId)), <String>[
+        bobId,
+        carolId,
+        daveId,
+      ]);
+    });
+
+    test('exclude the subject', () {
+      final graph = fourGenerations();
+      expect(idsOf(graph.ancestors(daveId)), isNot(contains(daveId)));
+      expect(idsOf(graph.descendants(aliceId)), isNot(contains(aliceId)));
+    });
+
+    test('come back nearest generation first', () {
+      // Breadth-first, so a layout can read generations straight off.
+      final graph = fourGenerations();
+      expect(idsOf(graph.ancestors(daveId)).first, carolId);
+      expect(idsOf(graph.ancestors(daveId)).last, aliceId);
+    });
+
+    test('follow every branch, not just one', () {
+      // dave has two parents, each with a parent of their own.
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          personOf(bobId),
+          personOf(carolId),
+          personOf(daveId),
+          personOf(eveId),
+        ],
+        relationships: <Relationship>[
+          parentOf(bobId, daveId),
+          parentOf(carolId, daveId),
+          parentOf(aliceId, bobId),
+          parentOf(eveId, carolId),
+        ],
+      );
+
+      expect(idsOf(graph.ancestors(daveId)), <String>[
+        bobId,
+        carolId,
+        aliceId,
+        eveId,
+      ]);
+    });
+
+    test('list a shared ancestor once, not once per route', () {
+      // alice reaches dave through both bob and carol.
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          personOf(bobId),
+          personOf(carolId),
+          personOf(daveId),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(aliceId, carolId),
+          parentOf(bobId, daveId),
+          parentOf(carolId, daveId),
+        ],
+      );
+
+      expect(
+        idsOf(graph.ancestors(daveId)).where((id) => id == aliceId).length,
+        1,
+      );
+      expect(
+        idsOf(graph.descendants(aliceId)).where((id) => id == daveId).length,
+        1,
+      );
+    });
+
+    test('are empty for someone unconnected', () {
+      final graph = FamilyGraph(
+        persons: <Person>[personOf(aliceId)],
+        relationships: const <Relationship>[],
+      );
+
+      expect(graph.ancestors(aliceId), isEmpty);
+      expect(graph.descendants(aliceId), isEmpty);
+    });
+
+    test('skip endpoints the family does not contain', () {
+      final graph = FamilyGraph(
+        persons: <Person>[personOf(aliceId), personOf(bobId)],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf('ghost', aliceId),
+        ],
+      );
+
+      expect(idsOf(graph.ancestors(bobId)), <String>[aliceId]);
+    });
+  });
+
+  group('a graph containing a cycle', () {
+    // Acyclicity cannot be guaranteed once two devices edit offline: each may
+    // add a valid edge that together close a loop (§6.2). These graphs are
+    // invalid, and every traversal must still finish.
+
+    test('a three-person loop does not hang going up', () {
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          personOf(bobId),
+          personOf(carolId),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(bobId, carolId),
+          parentOf(carolId, aliceId),
+        ],
+      );
+
+      expect(idsOf(graph.ancestors(aliceId)), <String>[carolId, bobId]);
+    });
+
+    test('a three-person loop does not hang going down', () {
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          personOf(bobId),
+          personOf(carolId),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(bobId, carolId),
+          parentOf(carolId, aliceId),
+        ],
+      );
+
+      expect(idsOf(graph.descendants(aliceId)), <String>[bobId, carolId]);
+    });
+
+    test('someone recorded as their own parent does not hang', () {
+      final graph = FamilyGraph(
+        persons: <Person>[personOf(aliceId)],
+        relationships: <Relationship>[parentOf(aliceId, aliceId)],
+      );
+
+      expect(graph.ancestors(aliceId), isEmpty);
+      expect(graph.descendants(aliceId), isEmpty);
+    });
+
+    test('a two-person loop does not hang', () {
+      final graph = FamilyGraph(
+        persons: <Person>[personOf(aliceId), personOf(bobId)],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(bobId, aliceId),
+        ],
+      );
+
+      expect(idsOf(graph.ancestors(aliceId)), <String>[bobId]);
+      expect(idsOf(graph.descendants(aliceId)), <String>[bobId]);
+    });
+
+    test('a clean branch hanging off a loop is still reported', () {
+      // Corruption in one place must not blind the query everywhere else.
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          personOf(bobId),
+          personOf(carolId),
+          personOf(daveId),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(bobId, aliceId),
+          parentOf(bobId, carolId),
+          parentOf(carolId, daveId),
+        ],
+      );
+
+      expect(idsOf(graph.descendants(aliceId)), containsAll(<String>[
+        bobId,
+        carolId,
+        daveId,
+      ]));
+    });
+
+    test('siblings survive a loop too', () {
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          personOf(bobId),
+          personOf(carolId),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(bobId, aliceId),
+          parentOf(aliceId, carolId),
+        ],
+      );
+
+      expect(
+        graph.siblings(bobId).map((s) => s.person.id),
+        contains(carolId),
+      );
+    });
+  });
+
   group('damaged data', () {
     test('an edge naming someone absent is skipped, not fatal', () {
       // Offline edits on two devices can produce this. The graph reports what

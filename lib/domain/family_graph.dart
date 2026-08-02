@@ -182,6 +182,45 @@ final class FamilyGraph {
     ];
   }
 
+  /// Everyone [personId] descends from, nearest generation first (§10).
+  ///
+  /// The subject is excluded, including in a damaged graph where a cycle makes
+  /// them their own ancestor.
+  List<Person> ancestors(String personId) => _traverse(personId, parents);
+
+  /// Everyone descended from [personId], nearest generation first (§10).
+  ///
+  /// The subject is excluded, as in [ancestors].
+  List<Person> descendants(String personId) => _traverse(personId, children);
+
+  /// Breadth-first walk from [startId], following [step] outwards.
+  ///
+  /// Keeps a visited set and stops on revisit. That is a contract, not
+  /// defensive coding (§6.2): acyclicity cannot be guaranteed in a system that
+  /// permits offline editing, because two devices can each add a valid edge
+  /// that together close a loop. A single such cycle arriving from a merge
+  /// would otherwise hang the tree screen forever.
+  ///
+  /// The visited set also collapses diamonds — two routes to one ancestor yield
+  /// one entry — and breadth-first order means results come back by distance,
+  /// which is what a layout wants.
+  List<Person> _traverse(String startId, List<Person> Function(String) step) {
+    final visited = <String>{startId};
+    final found = <Person>[];
+
+    // A plain list walked by index is the queue; no import, amortised O(1).
+    final queue = <String>[startId];
+    for (var head = 0; head < queue.length; head++) {
+      for (final next in step(queue[head])) {
+        if (!visited.add(next.id)) continue;
+        found.add(next);
+        queue.add(next.id);
+      }
+    }
+
+    return found;
+  }
+
   List<Relationship> _edges(String personId) =>
       _edgesByPerson[personId] ?? const <Relationship>[];
 
