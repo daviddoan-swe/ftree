@@ -17,6 +17,7 @@ import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
 import '../domain/family_repository.dart';
 import '../domain/person.dart';
+import '../domain/relationship.dart';
 
 /// The open database.
 ///
@@ -97,6 +98,21 @@ final class FamilySnapshotNotifier
   /// lives (DOMAIN.md §9).
   Future<void> savePerson(Person person) async {
     await ref.read(familyRepositoryProvider).savePerson(person);
+    await reload();
+  }
+
+  /// Saves [relationship] and rebuilds the graph.
+  ///
+  /// Does not validate, for the reason given on [savePerson]. A cycle check in
+  /// particular needs the graph the caller already holds.
+  Future<void> saveRelationship(Relationship relationship) async {
+    await ref.read(familyRepositoryProvider).saveRelationship(relationship);
+    await reload();
+  }
+
+  /// Removes one relationship, leaving both people in place.
+  Future<void> removeRelationship(String relationshipId) async {
+    await ref.read(familyRepositoryProvider).deleteRelationship(relationshipId);
     await reload();
   }
 }

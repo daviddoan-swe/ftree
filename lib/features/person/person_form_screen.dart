@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
 import '../../app/issue_text.dart';
 import '../../app/providers.dart';
+import '../../app/validation_prompts.dart';
 import '../../domain/genealogical_date.dart';
 import '../../domain/ids.dart';
 import '../../domain/person.dart';
@@ -134,7 +135,7 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
       setState(() => _result = result);
       return;
     }
-    if (result.hasIssues && !await _confirmWarnings(result)) {
+    if (result.hasIssues && !await confirmWarnings(context, result)) {
       setState(() => _result = result);
       return;
     }
@@ -143,38 +144,6 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
         .read(familySnapshotProvider(widget.familyId).notifier)
         .savePerson(person);
     if (mounted) Navigator.of(context).pop();
-  }
-
-  Future<bool> _confirmWarnings(ValidationResult result) async {
-    final text = AppText.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(text.validationCheckBeforeSaving),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            for (final issue in result.warnings)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text('• ${issueText(dialogContext, issue.code)}'),
-              ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(text.actionReview),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(text.actionSaveAnyway),
-          ),
-        ],
-      ),
-    );
-    return confirmed ?? false;
   }
 
   @override
