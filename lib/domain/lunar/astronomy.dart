@@ -29,8 +29,15 @@ const double vietnamTimeZone = 7;
 /// Mean length of a synodic month, in days.
 const double synodicMonth = 29.530588853;
 
-/// Julian Day Number of 1900-01-01, the epoch new-moon indices count from.
-const int _epoch1900 = 2415021;
+/// Julian Day Number of 1900-01-01.
+const int julianDay1900 = 2415021;
+
+/// The precise Julian Day the new-moon index is measured from.
+///
+/// Not the integer 1900-01-01: new moon zero falls a fraction of a day later,
+/// and rounding that away shifts the index by one for dates near a month
+/// boundary — which then reports a lunar day of zero.
+const double newMoonEpoch = 2415021.076998695;
 
 const double _degreesToRadians = pi / 180;
 
@@ -148,9 +155,16 @@ double newMoonInstant(int k) {
 int newMoonDay(int k, {double timeZone = vietnamTimeZone}) =>
     (newMoonInstant(k) + 0.5 + timeZone / 24).floor();
 
-/// The number of complete new moons between 1900-01-01 and [julianDay].
-int newMoonIndexBefore(int julianDay) =>
-    ((julianDay - _epoch1900) / synodicMonth).floor();
+/// The index of the last new moon falling at or before [julianDay].
+int newMoonIndexBefore(num julianDay) =>
+    ((julianDay - newMoonEpoch) / synodicMonth).floor();
+
+/// The index of the new moon nearest [julianDay], rounding to the closest.
+///
+/// Used when [julianDay] is already known to be a month start, where rounding
+/// to the nearest avoids a boundary landing on the previous month.
+int newMoonIndexNearest(num julianDay) =>
+    ((julianDay - newMoonEpoch) / synodicMonth + 0.5).floor();
 
 /// The sun's ecliptic longitude, expressed as one of twelve 30° sectors.
 ///
