@@ -41,6 +41,12 @@ mixin _SyncColumns on Table {
 }
 
 /// A managed family-tree dataset — a boundary, not a kinship group.
+///
+/// The row class is named `FamilyRow`, not `Family`: the generated name would
+/// otherwise collide with the domain entity, and every file translating between
+/// the two would need an import prefix. The suffix also makes it obvious at a
+/// glance which side of the boundary a value is on.
+@DataClassName('FamilyRow')
 class Families extends Table with _SyncColumns {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -60,6 +66,7 @@ class Families extends Table with _SyncColumns {
 /// Twelve date columns — six per date — rather than one blob each. Explicit
 /// columns keep the ISO text sortable, which is the reason §4.1 chose that
 /// format over JSON.
+@DataClassName('PersonRow')
 class Persons extends Table with _SyncColumns {
   TextColumn get id => text()();
 
@@ -117,6 +124,7 @@ class Persons extends Table with _SyncColumns {
 /// `parentChild`, and merely the lower and higher id for `spouse`, which is
 /// stored in canonical order (§5.1). The unique key below only rejects a
 /// duplicate spouse because of that ordering.
+@DataClassName('RelationshipRow')
 class Relationships extends Table with _SyncColumns {
   TextColumn get id => text()();
 
