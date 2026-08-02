@@ -238,6 +238,325 @@ void main() {
     });
   });
 
+  group('placement', () {
+    const metrics = LayoutMetrics();
+
+    /// Fails if any two boxes share space. The property a coordinate assertion
+    /// cannot express, and the one a reader of the chart notices first.
+    void expectNoOverlap(TreeLayout layout) {
+      for (var i = 0; i < layout.nodes.length; i++) {
+        for (var j = i + 1; j < layout.nodes.length; j++) {
+          final a = layout.nodes[i];
+          final b = layout.nodes[j];
+
+          final overlapsHorizontally =
+              a.x < b.x + metrics.nodeWidth && b.x < a.x + metrics.nodeWidth;
+          final overlapsVertically =
+              a.y < b.y + metrics.nodeHeight && b.y < a.y + metrics.nodeHeight;
+
+          expect(
+            overlapsHorizontally && overlapsVertically,
+            isFalse,
+            reason:
+                '${a.person.id} at (${a.x}, ${a.y}) overlaps '
+                '${b.person.id} at (${b.x}, ${b.y})',
+          );
+        }
+      }
+    }
+
+    double centreOf(TreeLayout layout, String id) =>
+        layout.nodeFor(id)!.x + metrics.nodeWidth / 2;
+
+    test('a lone root sits at the origin', () {
+      final layout = layoutDescendants(
+        graphOf(<String>['a'], const <Relationship>[]),
+        'a',
+      );
+
+      expect(layout.nodeFor('a')!.x, 0);
+      expect(layout.nodeFor('a')!.y, 0);
+    });
+
+    test('an unknown root gives an empty chart', () {
+      final layout = layoutDescendants(
+        graphOf(<String>['a'], const <Relationship>[]),
+        'nobody',
+      );
+
+      expect(layout.nodes, isEmpty);
+      expect(layout.edges, isEmpty);
+    });
+
+    test('generations are stacked by depth', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b', 'c'],
+          <Relationship>[parentOf('a', 'b'), parentOf('b', 'c')],
+        ),
+        'a',
+      );
+
+      expect(layout.nodeFor('a')!.y, 0);
+      expect(layout.nodeFor('b')!.y, metrics.generationHeight);
+      expect(layout.nodeFor('c')!.y, 2 * metrics.generationHeight);
+    });
+
+    test('siblings sit side by side without touching', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b', 'c'],
+          <Relationship>[parentOf('a', 'b'), parentOf('a', 'c')],
+        ),
+        'a',
+      );
+
+      final gap =
+          (layout.nodeFor('c')!.x - layout.nodeFor('b')!.x).abs();
+      expect(gap, metrics.slotWidth);
+      expectNoOverlap(layout);
+    });
+
+    test('a parent is centred over its children', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b', 'c'],
+          <Relationship>[parentOf('a', 'b'), parentOf('a', 'c')],
+        ),
+        'a',
+      );
+
+      final childMidpoint =
+          (centreOf(layout, 'b') + centreOf(layout, 'c')) / 2;
+      expect(centreOf(layout, 'a'), closeTo(childMidpoint, 0.001));
+    });
+
+    test('a spouse is drawn closer than a sibling would be', () {
+      // What makes a couple read as a couple rather than as two neighbours.
+      final layout = layoutDescendants(
+        graphOf(<String>['a', 'w'], <Relationship>[spouseOf('a', 'w')]),
+        'a',
+      );
+
+      final gap = (layout.nodeFor('w')!.x - layout.nodeFor('a')!.x).abs();
+      expect(gap, metrics.spouseSlotWidth);
+      expect(gap, lessThan(metrics.slotWidth));
+      expect(layout.nodeFor('w')!.y, layout.nodeFor('a')!.y);
+    });
+
+    test('children hang below the couple, not below one partner', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'b', 'c'],
+          <Relationship>[
+            spouseOf('a', 'w'),
+            parentOf('a', 'b'),
+            parentOf('w', 'b'),
+            parentOf('a', 'c'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(layout.nodeFor('b')!.generation, 1);
+      expect(layout.nodeFor('c')!.generation, 1);
+      expectNoOverlap(layout);
+    });
+
+    test('a child of both parents is drawn once', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'b'],
+          <Relationship>[
+            spouseOf('a', 'w'),
+            parentOf('a', 'b'),
+            parentOf('w', 'b'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(layout.nodes.where((n) => n.person.id == 'b').length, 1);
+    });
+
+    test('nothing overlaps in a lopsided tree', () {
+      // One branch three deep, another a single leaf. Uneven depth is where a
+      // naive placement starts colliding.
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b', 'c', 'd', 'e'],
+          <Relationship>[
+            parentOf('a', 'b'),
+            parentOf('b', 'c'),
+            parentOf('c', 'd'),
+            parentOf('a', 'e'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(layout.nodes.length, 5);
+      expectNoOverlap(layout);
+    });
+
+    test('nothing overlaps across several marriages and half siblings', () {
+      // The shape the M4 exit criterion names. a marries w1 and w2; each
+      // marriage has children, who are half siblings to each other.
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w1', 'w2', 'c1', 'c2', 'c3'],
+          <Relationship>[
+            spouseOf('a', 'w1'),
+            spouseOf('a', 'w2'),
+            parentOf('a', 'c1'),
+            parentOf('w1', 'c1'),
+            parentOf('a', 'c2'),
+            parentOf('w2', 'c2'),
+            parentOf('a', 'c3'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(layout.nodes.length, 6);
+      expectNoOverlap(layout);
+    });
+
+    test('nothing overlaps in a wide, deep family', () {
+      final ids = <String>['root'];
+      final edges = <Relationship>[];
+      for (var branch = 0; branch < 4; branch++) {
+        final child = 'c$branch';
+        ids.add(child);
+        edges.add(parentOf('root', child));
+        for (var leaf = 0; leaf < 3; leaf++) {
+          final grandchild = 'g$branch$leaf';
+          ids.add(grandchild);
+          edges.add(parentOf(child, grandchild));
+        }
+      }
+
+      final layout = layoutDescendants(graphOf(ids, edges), 'root');
+
+      expect(layout.nodes.length, 17);
+      expect(layout.generationCount, 3);
+      expectNoOverlap(layout);
+    });
+
+    test('is deterministic across runs', () {
+      final graph = graphOf(
+        <String>['a', 'b', 'c', 'd'],
+        <Relationship>[
+          parentOf('a', 'b'),
+          parentOf('a', 'c'),
+          parentOf('b', 'd'),
+        ],
+      );
+
+      final first = layoutDescendants(graph, 'a');
+      final second = layoutDescendants(graph, 'a');
+
+      for (final node in first.nodes) {
+        expect(second.nodeFor(node.person.id)!.x, node.x);
+        expect(second.nodeFor(node.person.id)!.y, node.y);
+      }
+    });
+
+    test('honours custom metrics', () {
+      const wide = LayoutMetrics(nodeWidth: 300, verticalGap: 200);
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b'],
+          <Relationship>[parentOf('a', 'b')],
+        ),
+        'a',
+        metrics: wide,
+      );
+
+      expect(layout.nodeFor('b')!.y, wide.generationHeight);
+      expect(layout.width, greaterThanOrEqualTo(300));
+    });
+  });
+
+  group('edges', () {
+    test('join each parent to each child', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b', 'c'],
+          <Relationship>[parentOf('a', 'b'), parentOf('a', 'c')],
+        ),
+        'a',
+      );
+
+      final parentEdges = layout.edges
+          .where((e) => e.kind == LayoutEdgeKind.parentChild)
+          .map((e) => '${e.fromPersonId}->${e.toPersonId}')
+          .toSet();
+
+      expect(parentEdges, <String>{'a->b', 'a->c'});
+    });
+
+    test('join a couple', () {
+      final layout = layoutDescendants(
+        graphOf(<String>['a', 'w'], <Relationship>[spouseOf('a', 'w')]),
+        'a',
+      );
+
+      final spouseEdges =
+          layout.edges.where((e) => e.kind == LayoutEdgeKind.spouse).toList();
+
+      expect(spouseEdges.length, 1);
+      expect(
+        <String>{spouseEdges.single.fromPersonId, spouseEdges.single.toPersonId},
+        <String>{'a', 'w'},
+      );
+    });
+
+    test('never name someone who is not on the chart', () {
+      // A line to nowhere would crash the renderer or draw off the page.
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'b'],
+          <Relationship>[spouseOf('a', 'w'), parentOf('a', 'b')],
+        ),
+        'a',
+      );
+
+      for (final edge in layout.edges) {
+        expect(layout.nodeFor(edge.fromPersonId), isNotNull);
+        expect(layout.nodeFor(edge.toPersonId), isNotNull);
+      }
+    });
+  });
+
+  group('placement on a corrupt graph', () {
+    test('a loop finishes and draws each person once', () {
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'b', 'c'],
+          <Relationship>[
+            parentOf('a', 'b'),
+            parentOf('b', 'c'),
+            parentOf('c', 'a'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(layout.nodes.length, 3);
+      expect(layout.nodes.map((n) => n.person.id).toSet().length, 3);
+    });
+
+    test('someone recorded as their own parent finishes', () {
+      final layout = layoutDescendants(
+        graphOf(<String>['a'], <Relationship>[parentOf('a', 'a')]),
+        'a',
+      );
+
+      expect(layout.nodes.length, 1);
+    });
+  });
+
   group('TreeLayout', () {
     const metrics = LayoutMetrics();
 

@@ -152,6 +152,165 @@ final class TreeLayout {
             metrics.nodeHeight;
 }
 
+/// Arranges a family into a descendant chart.
+///
+/// Two passes over two independent axes. [GenerationAssignment] decides the
+/// vertical position; this decides the horizontal one.
+///
+/// The horizontal pass is the classic tidy-tree shape: walk depth-first, give
+/// each childless unit the next free column, and centre every parent over the
+/// span of its children. Because columns are handed out left to right and never
+/// reused, nothing can overlap.
+///
+/// A **unit** is a person together with the spouses drawn beside them, so a
+/// couple is placed as one thing and their children hang below the pair rather
+/// than below one of them.
+///
+/// Known limitation, and a deliberate one: a family graph is not a tree. Someone
+/// with parents in two different branches is reachable twice, and this draws
+/// them once, under whichever branch reaches them first. Drawing them twice, or
+/// joining across the chart, is a harder problem than a first layout needs.
+TreeLayout layoutDescendants(
+  FamilyGraph graph,
+  String rootId, {
+  LayoutMetrics metrics = const LayoutMetrics(),
+}) {
+  final assignment = GenerationAssignment.fromRoot(graph, rootId);
+  if (assignment.length == 0) {
+    return TreeLayout(
+      nodes: const <LayoutNode>[],
+      edges: const <LayoutEdge>[],
+      metrics: metrics,
+    );
+  }
+
+  final placer = _Placer(graph, assignment, metrics);
+  placer.run(rootId);
+
+  return TreeLayout(
+    nodes: placer.nodes,
+    edges: placer.edges,
+    metrics: metrics,
+  );
+}
+
+/// Runs the horizontal pass, accumulating placed nodes and the lines between
+/// them.
+final class _Placer {
+  _Placer(this._graph, this._assignment, this._metrics);
+
+  final FamilyGraph _graph;
+  final GenerationAssignment _assignment;
+  final LayoutMetrics _metrics;
+
+  final List<LayoutNode> nodes = <LayoutNode>[];
+  final List<LayoutEdge> edges = <LayoutEdge>[];
+
+  /// Everyone already given a column, so nobody is drawn twice and a loop
+  /// cannot run forever (§6.2).
+  final Set<String> _placed = <String>{};
+
+  /// Left edge of the next free column.
+  double _nextColumn = 0;
+
+  void run(String rootId) {
+    _placeUnit(rootId);
+  }
+
+  /// Places [personId] with their spouses, then their children below, and
+  /// returns the horizontal centre of the whole unit.
+  double _placeUnit(String personId) {
+    final person = _graph.personById(personId);
+    if (person == null || !_placed.add(personId)) return _nextColumn;
+
+    final generation = _assignment.generationOf(personId)!;
+
+    // The people drawn side by side: this person, then any spouse not already
+    // on the chart elsewhere.
+    final partners = <Person>[
+      for (final spouse in _graph.spouses(personId))
+        if (_placed.add(spouse.id)) spouse,
+    ];
+
+    // Children of the whole couple, gathered before any column is claimed so
+    // that the parents can be centred over them afterwards.
+    final childIds = <String>[
+      for (final member in <String>[personId, ...partners.map((p) => p.id)])
+        for (final child in _graph.children(member))
+          if (!_placed.contains(child.id)) child.id,
+    ];
+
+    final childCentres = <double>[
+      for (final childId in _seenOnce(childIds)) _placeUnit(childId),
+    ];
+
+    final unitWidth =
+        _metrics.nodeWidth +
+        partners.length * _metrics.spouseSlotWidth;
+
+    final double unitLeft;
+    if (childCentres.isEmpty) {
+      // A leaf claims the next free column.
+      unitLeft = _nextColumn;
+      _nextColumn += unitWidth + _metrics.horizontalGap;
+    } else {
+      // Centre the couple over the span its children occupy, but never to the
+      // left of a column already used.
+      final span = (childCentres.first + childCentres.last) / 2;
+      unitLeft = _atLeast(span - unitWidth / 2, 0);
+      _nextColumn = _atLeast(_nextColumn, unitLeft + unitWidth + _metrics.horizontalGap);
+    }
+
+    final y = generation * _metrics.generationHeight;
+
+    nodes.add(
+      LayoutNode(person: person, generation: generation, x: unitLeft, y: y),
+    );
+
+    var x = unitLeft;
+    var previousId = personId;
+    for (final partner in partners) {
+      x += _metrics.spouseSlotWidth;
+      nodes.add(
+        LayoutNode(person: partner, generation: generation, x: x, y: y),
+      );
+      edges.add(
+        LayoutEdge(
+          kind: LayoutEdgeKind.spouse,
+          fromPersonId: previousId,
+          toPersonId: partner.id,
+        ),
+      );
+      previousId = partner.id;
+    }
+
+    for (final childId in _seenOnce(childIds)) {
+      edges.add(
+        LayoutEdge(
+          kind: LayoutEdgeKind.parentChild,
+          fromPersonId: personId,
+          toPersonId: childId,
+        ),
+      );
+    }
+
+    return unitLeft + unitWidth / 2;
+  }
+
+  /// Removes repeats while keeping the first occurrence, so a child of both
+  /// members of a couple is drawn once.
+  List<String> _seenOnce(List<String> ids) {
+    final seen = <String>{};
+    return <String>[
+      for (final id in ids)
+        if (seen.add(id)) id,
+    ];
+  }
+
+  static double _atLeast(double value, double floor) =>
+      value < floor ? floor : value;
+}
+
 /// The people to draw, and how far each sits from the root.
 ///
 /// Separated from placement because the two axes are independent problems:
