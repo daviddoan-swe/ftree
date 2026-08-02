@@ -1,0 +1,59 @@
+{
+  "@@locale": "vi",
+
+  "appTitle": "Gia Phả",
+  "@appTitle": {
+    "description": "Tên ứng dụng hiển thị trên thanh tiêu đề"
+  },
+
+  "familiesTitle": "Gia đình",
+  "@familiesTitle": {
+    "description": "Tiêu đề màn hình danh sách gia đình"
+  },
+  "familiesEmpty": "Chưa có gia đình nào",
+  "familiesEmptyHint": "Tạo một gia đình để bắt đầu ghi gia phả",
+  "familyCreate": "Tạo gia đình",
+  "familyName": "Tên gia đình",
+  "familyNameHint": "Ví dụ: Họ Nguyễn",
+  "familyDescription": "Ghi chú",
+  "familyUsesLunarCalendar": "Dùng âm lịch",
+  "@familyUsesLunarCalendar": {
+    "description": "Bật để nhập và hiển thị ngày âm lịch cho gia đình này"
+  },
+  "familyUsesLunarCalendarHint": "Ghi kèm ngày âm và tính ngày giỗ",
+  "familyPersonCount": "{count, plural, =0{Chưa có ai} =1{1 người} other{{count} người}}",
+  "@familyPersonCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "actionSave": "Lưu",
+  "actionCancel": "Huỷ",
+  "actionSaveAnyway": "Vẫn lưu",
+  "actionReview": "Xem lại",
+
+  "validationCannotSave": "Không thể lưu",
+  "@validationCannotSave": {
+    "description": "Tiêu đề khi có lỗi chặn việc lưu"
+  },
+  "validationCheckBeforeSaving": "Có điều cần xem lại",
+  "@validationCheckBeforeSaving": {
+    "description": "Tiêu đề khi chỉ có cảnh báo — người dùng vẫn lưu được"
+  },
+
+  "issueFamilyNameEmpty": "Gia đình phải có tên",
+  "issueDisplayNameEmpty": "Người này phải có tên hiển thị",
+  "issueRelationshipSelfReference": "Không thể tạo quan hệ của một người với chính mình",
+  "issueRelationshipDuplicate": "Quan hệ này đã tồn tại",
+  "issueRelationshipFamilyIdMismatch": "Quan hệ này thuộc gia đình khác",
+  "issuePersonsInDifferentFamilies": "Hai người thuộc hai gia đình khác nhau",
+  "issueRelationshipEndpointMissing": "Không tìm thấy một trong hai người",
+  "issueRelationshipCreatesCycle": "Quan hệ này khiến một người thành tổ tiên của chính mình",
+  "issueDeathBeforeBirth": "Ngày mất trước ngày sinh",
+  "issueImplausibleLifespan": "Tuổi thọ dài bất thường",
+  "issueParentBornAfterChild": "Cha mẹ sinh sau con",
+  "issueChildBornLongAfterParentDeath": "Con sinh khá lâu sau khi cha mẹ mất",
+  "issueImplausibleParentAge": "Tuổi làm cha mẹ bất thường",
+  "issueSpouseIsAncestorOrDescendant": "Hai vợ chồng là tổ tiên và hậu duệ của nhau"
+}

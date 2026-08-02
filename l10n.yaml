@@ -1,0 +1,11 @@
+# Interface strings are externalised from the first screen rather than
+# hardcoded and extracted later (PRODUCT.md §1.1).
+#
+# Vietnamese is the template: it is the first audience, and writing the source
+# strings in the language they will actually be read in avoids translating
+# through English.
+arb-dir: lib/l10n
+template-arb-file: app_vi.arb
+output-localization-file: app_localizations.dart
+output-class: AppText
+nullable-getter: false

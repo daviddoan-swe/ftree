@@ -36,6 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   drift: ^2.34.3
   drift_flutter: ^0.3.1
+  flutter_riverpod: ^2.6.1
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +59,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  # Builds lib/l10n/*.arb into the AppText class. Configured in l10n.yaml.
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

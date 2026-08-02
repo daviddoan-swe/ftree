@@ -1,0 +1,44 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Family Tree",
+
+  "familiesTitle": "Families",
+  "familiesEmpty": "No families yet",
+  "familiesEmptyHint": "Create a family to start recording it",
+  "familyCreate": "Create family",
+  "familyName": "Family name",
+  "familyNameHint": "For example: the Nguyễn family",
+  "familyDescription": "Notes",
+  "familyUsesLunarCalendar": "Use the lunar calendar",
+  "familyUsesLunarCalendarHint": "Record lunar dates and work out giỗ",
+  "familyPersonCount": "{count, plural, =0{Nobody yet} =1{1 person} other{{count} people}}",
+  "@familyPersonCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionSaveAnyway": "Save anyway",
+  "actionReview": "Review",
+
+  "validationCannotSave": "Cannot save",
+  "validationCheckBeforeSaving": "Worth checking",
+
+  "issueFamilyNameEmpty": "A family needs a name",
+  "issueDisplayNameEmpty": "This person needs a display name",
+  "issueRelationshipSelfReference": "A person cannot be related to themselves",
+  "issueRelationshipDuplicate": "This relationship already exists",
+  "issueRelationshipFamilyIdMismatch": "This relationship belongs to another family",
+  "issuePersonsInDifferentFamilies": "These two people are in different families",
+  "issueRelationshipEndpointMissing": "One of the two people could not be found",
+  "issueRelationshipCreatesCycle": "This would make someone their own ancestor",
+  "issueDeathBeforeBirth": "Died before being born",
+  "issueImplausibleLifespan": "An unusually long life",
+  "issueParentBornAfterChild": "The parent was born after the child",
+  "issueChildBornLongAfterParentDeath": "Born well after the parent died",
+  "issueImplausibleParentAge": "An unusual age to become a parent",
+  "issueSpouseIsAncestorOrDescendant": "These spouses are ancestor and descendant"
+}
