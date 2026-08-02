@@ -30,8 +30,17 @@ Conceptual fields:
 * id
 * name
 * description
+* usesLunarCalendar
 
 Timestamps are not domain fields — see §15.2.
+
+`usesLunarCalendar` is a property of the family, not of whoever is looking at
+it. A giỗ is a fact about the family: a grandchild abroad, reading the
+application in another language, must still see it. Deciding from the viewer's
+locale would hide the one feature that matters most to relatives far from home.
+
+It defaults to false, because the domain cannot read a locale and must not try.
+The UI seeds it at creation and lets the user change it.
 
 A Family contains:
 

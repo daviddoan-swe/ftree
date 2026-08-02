@@ -110,5 +110,41 @@ void main() {
         isNot(Family(id: newId(), name: 'Họ Lê')),
       );
     });
+
+    test('the lunar calendar flag is part of equality', () {
+      expect(
+        Family(id: id, name: 'Họ Lê', usesLunarCalendar: true),
+        isNot(Family(id: id, name: 'Họ Lê')),
+      );
+    });
+  });
+
+  group('lunar calendar', () {
+    test('defaults to off, because the domain cannot read a locale', () {
+      expect(Family(id: id, name: 'Smith').usesLunarCalendar, isFalse);
+    });
+
+    test('can be turned on', () {
+      expect(
+        Family(id: id, name: 'Họ Nguyễn', usesLunarCalendar: true)
+            .usesLunarCalendar,
+        isTrue,
+      );
+    });
+
+    test('is not a validation concern either way', () {
+      // It records how a family keeps its dates, not whether the data is
+      // correct. Both settings are perfectly valid.
+      expect(
+        Family(id: id, name: 'Họ Nguyễn', usesLunarCalendar: true)
+            .validate()
+            .hasIssues,
+        isFalse,
+      );
+      expect(
+        Family(id: id, name: 'Smith').validate().hasIssues,
+        isFalse,
+      );
+    });
   });
 }

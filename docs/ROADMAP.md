@@ -226,6 +226,13 @@ Implement:
 Person entry must support partial dates and must surface validation warnings as
 confirmable rather than blocking.
 
+Interface strings are externalised from the first screen, not hardcoded and
+extracted later (PRODUCT.md §1.1). Vietnamese and English at minimum.
+
+Date entry offers both calendars when the family uses the lunar one, and shows
+both readings wherever a date is displayed. The conversion for this lands at
+M1.5, so these screens can be built dual-calendar rather than retrofitted.
+
 Exit criteria:
 
 A complete family tree can be created and explored locally on iOS and Android.

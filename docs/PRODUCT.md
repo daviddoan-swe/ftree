@@ -13,6 +13,31 @@ Initial platforms:
 
 The application is intended for relatively small trusted groups rather than public social networking.
 
+## 1.1 Audience and culture
+
+The application is multicultural from the start. Vietnamese families are the
+first audience, but nothing may assume a Vietnamese family.
+
+What follows from that:
+
+**Interface strings are externalised from the first screen.** Retrofitting
+localisation means unpicking several hundred strings out of widgets. Unlike the
+decisions in DOMAIN.md §18 this loses no data, but it is avoidable work.
+
+**Culture-specific features are opt-in per family, not per viewer.** The lunar
+calendar is the case that exists today: `Family.usesLunarCalendar` travels with
+the tree, so a relative abroad reading the application in another language
+still sees the family's giỗ.
+
+**Name display order follows the reader, name storage does not.** Storing
+`displayName` as entered rather than composing it from parts (DOMAIN.md §3.1)
+already sidesteps the Western given-then-family versus East Asian
+family-then-given problem. Only the suggestion offered at data entry needs to
+follow the locale.
+
+**Search must ignore diacritics.** "Nguyen" has to find "Nguyễn". Relevant when
+search is built, not before.
+
 ---
 
 ## 2. Primary Users
