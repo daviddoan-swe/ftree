@@ -9,6 +9,15 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# Stricter type checking than the Dart defaults. Enabled at M0 while the
+# codebase is empty: turning these on later means fixing every violation at
+# once. `strict-casts` in particular catches implicit downcasts from `dynamic`,
+# which is the failure mode when mapping database rows into domain objects.
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
@@ -21,8 +30,11 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # Catches Futures that are never awaited — a real correctness bug, not a
+    # style preference. Relevant once repositories and sync work land.
+    - unawaited_futures
+    - always_declare_return_types
+    - prefer_final_locals
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
