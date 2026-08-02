@@ -719,15 +719,29 @@ matter of relabelling.
 
 ## 15. Deletion
 
-### 15.1 Local integrity — decided, at the persistence milestone
+### 15.1 Deletion is soft; the cascade is a safety net
 
-Relationship rows are removed when either endpoint Person is deleted, via
-`ON DELETE CASCADE` on both foreign keys.
+Deleting anything writes a tombstone. Nothing in normal operation removes a row.
 
-Orphaned edges — relationships pointing at a person that no longer exists — are
-the most common corruption mode for this schema shape, and they surface as
-crashes or blank nodes in the tree. Preventing them locally is one schema clause
-and does not require settling the synchronization question.
+Orphaned edges — relationships pointing at a person who is gone — are the most
+common corruption for this schema shape, and they surface as crashes or blank
+nodes in the tree. Two separate mechanisms guard against them, and it matters
+which does the work:
+
+**The repository is the mechanism.** Deleting a Person sets `deletedAt` on that
+Person *and on every relationship naming them*, in one transaction. Without the
+second half, the edges stay live: reads would skip them as unresolvable, but
+synchronization would still carry them to other devices as real relationships
+pointing at somebody who is not there.
+
+**`ON DELETE CASCADE` on both foreign keys is the safety net.** It only fires on
+a physical delete, and soft deletion never performs one — so in normal operation
+it never runs at all. It exists for a purge, a migration, or a defect that
+removes a row outright.
+
+An earlier version of this section named the cascade as the mechanism, which
+cannot be true alongside §15.2: a row that is never physically deleted never
+triggers one.
 
 ### 15.2 Tombstones and change metadata — decided, at the persistence milestone
 
@@ -736,7 +750,9 @@ Every synchronizable table carries:
 * `updatedAt`
 * `deletedAt` — nullable; a set value means deleted
 
-Deletion sets `deletedAt`. Repositories filter deleted rows on read.
+Deletion sets `deletedAt`. Repositories filter deleted rows on read, and stamp
+`updatedAt` at the same time — a tombstone that left `updatedAt` behind would
+look older than the row it replaces, and synchronization orders by change.
 
 **The domain entities do not carry these fields.** This is a persistence-layer
 concern and the domain stays clean.

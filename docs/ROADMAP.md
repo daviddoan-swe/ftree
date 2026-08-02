@@ -105,6 +105,11 @@ Must use the **Vietnamese** lunar calendar, based on UTC+7. The Chinese
 calendar uses UTC+8 and differs by a day for some dates, so a Chinese
 implementation cannot be adopted without verification.
 
+**Complete** — tagged `m1.5`. One caveat carried forward: the Tết and
+can-chi reference tables in the tests are still provisional, written from
+memory rather than checked against a published almanac. Replace them before
+anyone relies on a computed giỗ date.
+
 ---
 
 ## M2 — Family Graph
@@ -136,6 +141,9 @@ Exit criteria:
 
 Genealogical relationships can be queried without UI or database dependencies,
 and a corrupt graph cannot hang the traversals.
+
+**Complete** — tagged `m2`. Six deliberately looped graphs are tested, including
+one where a clean branch hangs off the loop and must still be reported in full.
 
 ---
 
@@ -172,6 +180,10 @@ Exit criteria:
 Application can create, close, reopen, and recover family data locally.
 Deleting a person leaves no orphaned relationships, and deletions leave
 tombstones.
+
+**Complete** — tagged `m3`. Reopening is verified against a real file on disk,
+not an in-memory database, since only that proves the data was written rather
+than remembered.
 
 ---
 
