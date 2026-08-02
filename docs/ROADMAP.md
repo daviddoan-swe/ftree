@@ -60,6 +60,46 @@ relationship invariants are covered by tests.
 
 ---
 
+## M1.5 — Lunar Calendar
+
+Still pure Dart: no UI, no persistence, no dependencies.
+
+Implement:
+
+* Vietnamese lunar ↔ Gregorian conversion
+* can-chi (Đinh Hợi, Giáp Tý…) derived from a lunar year, and the reverse
+  lookup given a century
+* the next Gregorian date on which a given lunar date falls — the calculation
+  giỗ rests on
+
+Tests:
+
+* conversion verified against a published table of Tết dates across several
+  decades
+* leap months (tháng nhuận) in both directions
+* round trip Gregorian → lunar → Gregorian
+* dates either side of Tết, where the lunar year changes mid-Gregorian-year
+
+Exit criteria:
+
+A lunar date can be converted in both directions and verified against an
+external reference, and the next occurrence of a lunar anniversary can be
+computed.
+
+Why here rather than later: without conversion, a user transcribing a family
+record must leave the application, convert each date by hand on some other
+site, and type it back. A tree of 200 people means up to 400 manual
+conversions, and every one of them can be wrong — producing bad Gregorian data
+that nothing can later detect. Landing this before the M5 data-entry screens
+also means those screens are built dual-calendar from the start rather than
+retrofitted.
+
+Must use the **Vietnamese** lunar calendar, based on UTC+7. The Chinese
+calendar uses UTC+8 and differs by a day for some dates, so a Chinese
+implementation cannot be adopted without verification.
+
+---
+
 ## M2 — Family Graph
 
 Implement graph operations:

@@ -131,6 +131,33 @@ what links them into their parents' branch.
 
 The exact schema is defined in DOMAIN.md.
 
+### 6.1 Lunar calendar and giỗ
+
+Vietnamese family records are written in the lunar calendar, and giỗ — the
+death anniversary — is observed on the lunar date. Modern documents use the
+Gregorian calendar. A single tree will contain both, sometimes for the same
+person.
+
+Three requirements follow.
+
+**Entry in either calendar.** The user chooses which calendar they are typing
+in and the application converts. Requiring Gregorian only would force someone
+transcribing a family record to leave the application, convert each date by
+hand elsewhere, and type it back — hundreds of times for a real tree, with a
+chance of error each time.
+
+**Display in both.** A date is shown as Gregorian with its lunar reading
+alongside: *07/04/1960 (12/3 âm lịch, năm Canh Tý)*. Older relatives read the
+lunar date, younger ones the Gregorian; neither should have to convert in their
+head.
+
+**Upcoming giỗ.** A list of death anniversaries falling soon, each shown as the
+lunar date it is fixed to and the Gregorian date it lands on this year. This is
+what makes the application worth opening every year rather than once.
+
+The conversion this rests on is built at M1.5. Whether the giỗ list itself
+ships in V1 is not yet decided — the capability exists either way.
+
 ---
 
 ## 7. Relationships
