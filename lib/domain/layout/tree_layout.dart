@@ -94,6 +94,7 @@ final class LayoutEdge {
     required this.kind,
     required this.fromPersonId,
     required this.toPersonId,
+    required this.fromAnchorX,
   });
 
   final LayoutEdgeKind kind;
@@ -105,8 +106,20 @@ final class LayoutEdge {
   /// The child, for [LayoutEdgeKind.parentChild]; otherwise the right-hand.
   final String toPersonId;
 
+  /// Where the line should leave the upper end, horizontally.
+  ///
+  /// For a parent with a spouse this is the centre of the couple, not the
+  /// centre of [fromPersonId]. Children belong to both partners, and a line
+  /// dropping from one of them makes them look like that partner's alone.
+  ///
+  /// Supplied by the layout rather than worked out by the renderer: grouping
+  /// spouses is the layout's job (§16), and a renderer recomputing it would be
+  /// rebuilding structure the layout already knows.
+  final double fromAnchorX;
+
   @override
-  String toString() => 'LayoutEdge(${kind.name}, $fromPersonId → $toPersonId)';
+  String toString() =>
+      'LayoutEdge(${kind.name}, $fromPersonId → $toPersonId @ $fromAnchorX)';
 }
 
 /// A finished arrangement, ready to draw.
@@ -217,8 +230,14 @@ final class _Placer {
     _placeUnit(rootId);
   }
 
-  /// Places [personId] with their spouses, then their children below, and
-  /// returns the horizontal centre of the whole unit.
+  /// Places [personId] with their spouses, then their children below.
+  ///
+  /// Returns the centre of **this person's own box**, not of the unit. Those
+  /// are different once a spouse is drawn alongside, and the caller needs the
+  /// person: a parent's connector meets its child's box, so the parent must
+  /// centre over the boxes it actually joins to. Centring over unit centres
+  /// instead leaves the vertical line off the middle of its own horizontal bar
+  /// whenever a child is married.
   double _placeUnit(String personId) {
     final person = _graph.personById(personId);
     if (person == null || !_placed.add(personId)) return _nextColumn;
@@ -232,16 +251,15 @@ final class _Placer {
         if (_placed.add(spouse.id)) spouse,
     ];
 
-    // Children of the whole couple, gathered before any column is claimed so
-    // that the parents can be centred over them afterwards.
-    final childIds = <String>[
-      for (final member in <String>[personId, ...partners.map((p) => p.id)])
-        for (final child in _graph.children(member))
-          if (!_placed.contains(child.id)) child.id,
-    ];
+    // Which marriage each child came from, so each can hang from its own
+    // couple rather than from the middle of everybody. The order of the
+    // children is left exactly as the data gives it.
+    final marriageOfChild = _marriageOfChild(personId, partners);
+    final childIds = marriageOfChild.keys.toList();
 
+    // Centres of the child *boxes*, which is what the connectors will join.
     final childCentres = <double>[
-      for (final childId in _seenOnce(childIds)) _placeUnit(childId),
+      for (final childId in childIds) _placeUnit(childId),
     ];
 
     final unitWidth =
@@ -254,11 +272,15 @@ final class _Placer {
       unitLeft = _nextColumn;
       _nextColumn += unitWidth + _metrics.horizontalGap;
     } else {
-      // Centre the couple over the span its children occupy, but never to the
+      // Put the unit's middle over the middle of the children's boxes, so the
+      // vertical line meets the centre of its own horizontal bar. Never to the
       // left of a column already used.
       final span = (childCentres.first + childCentres.last) / 2;
       unitLeft = _atLeast(span - unitWidth / 2, 0);
-      _nextColumn = _atLeast(_nextColumn, unitLeft + unitWidth + _metrics.horizontalGap);
+      _nextColumn = _atLeast(
+        _nextColumn,
+        unitLeft + unitWidth + _metrics.horizontalGap,
+      );
     }
 
     final y = generation * _metrics.generationHeight;
@@ -269,6 +291,7 @@ final class _Placer {
 
     var x = unitLeft;
     var previousId = personId;
+    var previousX = unitLeft;
     for (final partner in partners) {
       x += _metrics.spouseSlotWidth;
       nodes.add(
@@ -279,32 +302,70 @@ final class _Placer {
           kind: LayoutEdgeKind.spouse,
           fromPersonId: previousId,
           toPersonId: partner.id,
+          fromAnchorX: previousX + _metrics.nodeWidth / 2,
         ),
       );
       previousId = partner.id;
+      previousX = x;
     }
 
-    for (final childId in _seenOnce(childIds)) {
+    // Each child hangs from its own marriage. Drawing them all from the middle
+    // of the whole unit would say nothing about which wife they belong to —
+    // information the data holds and a gia phả cares about.
+    //
+    // A child with no recorded second parent hangs from the middle of the whole
+    // unit rather than from this person alone. Anchoring them on the person
+    // would assert that they came from no marriage at all, when the usual
+    // reading is that the other parent is simply unrecorded — and with a single
+    // spouse it would also cross the lines of their own siblings for no reason.
+    final personCentre = unitLeft + _metrics.nodeWidth / 2;
+    final unitCentre = unitLeft + unitWidth / 2;
+
+    for (final entry in marriageOfChild.entries) {
+      final partnerIndex = entry.value;
       edges.add(
         LayoutEdge(
           kind: LayoutEdgeKind.parentChild,
           fromPersonId: personId,
-          toPersonId: childId,
+          toPersonId: entry.key,
+          fromAnchorX: partnerIndex == null
+              ? unitCentre
+              : personCentre + (partnerIndex + 1) * _metrics.spouseSlotWidth / 2,
         ),
       );
     }
 
-    return unitLeft + unitWidth / 2;
+    return personCentre;
   }
 
-  /// Removes repeats while keeping the first occurrence, so a child of both
-  /// members of a couple is drawn once.
-  List<String> _seenOnce(List<String> ids) {
-    final seen = <String>{};
-    return <String>[
-      for (final id in ids)
-        if (seen.add(id)) id,
-    ];
+  /// Which marriage each child came from, keyed by child id.
+  ///
+  /// A null value means no second parent is recorded among the partners drawn
+  /// here — which usually means the other parent is simply unknown, not that
+  /// the child came from outside every marriage.
+  ///
+  /// Insertion order is the order the children will be placed, and it is the
+  /// order the data gives. Birth order is the first thing a gia phả is read by
+  /// — Con Cả before Con Thứ — so it survives even though regrouping by
+  /// marriage instead would guarantee connectors never cross.
+  Map<String, int?> _marriageOfChild(String personId, List<Person> partners) {
+    final marriages = <String, int?>{};
+
+    for (final child in _graph.children(personId)) {
+      if (_placed.contains(child.id)) continue;
+      marriages[child.id] = null;
+    }
+
+    for (var index = 0; index < partners.length; index++) {
+      for (final child in _graph.children(partners[index].id)) {
+        if (_placed.contains(child.id)) continue;
+        // Assigning to an existing key updates which marriage it belongs to
+        // without moving it, so the order above survives.
+        marriages[child.id] = index;
+      }
+    }
+
+    return marriages;
   }
 
   static double _atLeast(double value, double floor) =>

@@ -512,6 +512,224 @@ void main() {
       );
     });
 
+    test('drop from the couple’s middle, not from one partner', () {
+      // Children belong to both partners. A line leaving the husband's box
+      // makes them look like his alone — the defect the rendered preview
+      // exposed and that no coordinate assertion had caught.
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'c1', 'c2'],
+          <Relationship>[
+            spouseOf('a', 'w'),
+            parentOf('a', 'c1'),
+            parentOf('w', 'c1'),
+            parentOf('a', 'c2'),
+            parentOf('w', 'c2'),
+          ],
+        ),
+        'a',
+      );
+
+      final husband = layout.nodeFor('a')!;
+      final wife = layout.nodeFor('w')!;
+      final coupleCentre =
+          (husband.x + wife.x + metrics.nodeWidth) / 2;
+
+      for (final edge in layout.edges.where(
+        (e) => e.kind == LayoutEdgeKind.parentChild,
+      )) {
+        expect(
+          edge.fromAnchorX,
+          closeTo(coupleCentre, 0.001),
+          reason: 'child ${edge.toPersonId}',
+        );
+        expect(
+          edge.fromAnchorX,
+          isNot(closeTo(husband.x + metrics.nodeWidth / 2, 0.001)),
+          reason: 'must not sit on the husband alone',
+        );
+      }
+    });
+
+    test('the anchor sits over the middle of the children', () {
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'c1', 'c2'],
+          <Relationship>[
+            spouseOf('a', 'w'),
+            parentOf('a', 'c1'),
+            parentOf('w', 'c1'),
+            parentOf('a', 'c2'),
+            parentOf('w', 'c2'),
+          ],
+        ),
+        'a',
+      );
+
+      double centre(String id) =>
+          layout.nodeFor(id)!.x + metrics.nodeWidth / 2;
+      final childMidpoint = (centre('c1') + centre('c2')) / 2;
+
+      final anchor = layout.edges
+          .firstWhere((e) => e.kind == LayoutEdgeKind.parentChild)
+          .fromAnchorX;
+
+      expect(anchor, closeTo(childMidpoint, 0.001));
+    });
+
+    test('a parent with no spouse anchors on their own centre', () {
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'c'],
+          <Relationship>[parentOf('a', 'c')],
+        ),
+        'a',
+      );
+
+      final anchor = layout.edges.single.fromAnchorX;
+      expect(
+        anchor,
+        closeTo(layout.nodeFor('a')!.x + metrics.nodeWidth / 2, 0.001),
+      );
+    });
+
+    test('meet the middle of their own horizontal bar', () {
+      // The second defect the preview exposed. A connector joins a child's
+      // box, so the parent must centre over those boxes. Centring over child
+      // *units* instead — child plus their spouse — leaves the vertical line
+      // off to one side of the bar it draws, but only once a child is married,
+      // which is why no earlier test saw it.
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['root', 'married', 'spouse', 'single'],
+          <Relationship>[
+            parentOf('root', 'married'),
+            parentOf('root', 'single'),
+            spouseOf('married', 'spouse'),
+          ],
+        ),
+        'root',
+      );
+
+      double centre(String id) =>
+          layout.nodeFor(id)!.x + metrics.nodeWidth / 2;
+
+      final barMidpoint = (centre('married') + centre('single')) / 2;
+      final anchors = layout.edges
+          .where((e) => e.kind == LayoutEdgeKind.parentChild)
+          .map((e) => e.fromAnchorX)
+          .toSet();
+
+      expect(anchors.length, 1, reason: 'both children share one drop point');
+      expect(anchors.single, closeTo(barMidpoint, 0.001));
+    });
+
+    test('hang each marriage’s children from that marriage', () {
+      // Which wife a child belongs to is information the data holds and a gia
+      // phả cares about. Hanging everyone from the middle of the whole group
+      // would flatten it away.
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w1', 'w2', 'c1', 'c2'],
+          <Relationship>[
+            spouseOf('a', 'w1'),
+            spouseOf('a', 'w2'),
+            parentOf('a', 'c1'),
+            parentOf('w1', 'c1'),
+            parentOf('a', 'c2'),
+            parentOf('w2', 'c2'),
+          ],
+        ),
+        'a',
+      );
+
+      double centre(String id) =>
+          layout.nodeFor(id)!.x + metrics.nodeWidth / 2;
+      double anchorTo(String childId) => layout.edges
+          .firstWhere(
+            (e) =>
+                e.kind == LayoutEdgeKind.parentChild &&
+                e.toPersonId == childId,
+          )
+          .fromAnchorX;
+
+      expect(
+        anchorTo('c1'),
+        closeTo((centre('a') + centre('w1')) / 2, 0.001),
+        reason: 'first wife’s child',
+      );
+      expect(
+        anchorTo('c2'),
+        closeTo((centre('a') + centre('w2')) / 2, 0.001),
+        reason: 'second wife’s child',
+      );
+      expect(anchorTo('c1'), isNot(closeTo(anchorTo('c2'), 0.001)));
+    });
+
+    test('keep children in the order the data records them', () {
+      // Birth order is the first thing a gia phả is read by. Regrouping the
+      // children by marriage would guarantee the connectors never cross, but
+      // it would put Con Thứ before Con Cả, which is worse.
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'eldest', 'second'],
+          <Relationship>[
+            spouseOf('a', 'w'),
+            // The eldest has a recorded mother; the second does not.
+            parentOf('a', 'eldest'),
+            parentOf('w', 'eldest'),
+            parentOf('a', 'second'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(
+        layout.nodeFor('eldest')!.x,
+        lessThan(layout.nodeFor('second')!.x),
+      );
+    });
+
+    test('a child with no recorded second parent hangs from the whole unit',
+        () {
+      // Anchoring them on the person alone would assert they came from no
+      // marriage, when the usual reading is that the other parent is simply
+      // unrecorded. With one spouse it would also cross their siblings' lines
+      // for no reason: here both children share the same anchor.
+      const metrics = LayoutMetrics();
+      final layout = layoutDescendants(
+        graphOf(
+          <String>['a', 'w', 'shared', 'unrecorded'],
+          <Relationship>[
+            spouseOf('a', 'w'),
+            parentOf('a', 'shared'),
+            parentOf('w', 'shared'),
+            parentOf('a', 'unrecorded'),
+          ],
+        ),
+        'a',
+      );
+
+      double centre(String id) =>
+          layout.nodeFor(id)!.x + metrics.nodeWidth / 2;
+      double anchorTo(String childId) => layout.edges
+          .firstWhere(
+            (e) =>
+                e.kind == LayoutEdgeKind.parentChild &&
+                e.toPersonId == childId,
+          )
+          .fromAnchorX;
+
+      final coupleCentre = (centre('a') + centre('w')) / 2;
+      expect(anchorTo('shared'), closeTo(coupleCentre, 0.001));
+      expect(anchorTo('unrecorded'), closeTo(coupleCentre, 0.001));
+    });
+
     test('never name someone who is not on the chart', () {
       // A line to nowhere would crash the renderer or draw off the page.
       final layout = layoutDescendants(
