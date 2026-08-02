@@ -1,11 +1,11 @@
 {
-    "name": "ftree",
-    "short_name": "ftree",
+    "name": "Ftree",
+    "short_name": "Ftree",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Ftree — a private, offline-capable family tree app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

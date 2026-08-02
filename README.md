@@ -1,17 +1,64 @@
-# ftree
+# Ftree
 
-A new Flutter project.
+A private, offline-capable family tree application for iOS and Android.
 
-## Getting Started
+Ftree lets a family record and explore its history across multiple generations,
+with the data staying under the family's own control. It is not a social
+network and has no public discovery features.
 
-This project is a starting point for a Flutter application.
+## Status
 
-A few resources to get you started if this is your first Flutter project:
+Pre-release. See [docs/ROADMAP.md](docs/ROADMAP.md) for the current milestone.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+The local-only version comes first: domain model, family graph, local
+persistence, and tree rendering. Cloud sync and sharing follow once the local
+application is stable.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [docs/PRODUCT.md](docs/PRODUCT.md) | What the product is, who it's for, V1 scope |
+| [docs/DOMAIN.md](docs/DOMAIN.md) | Domain model, invariants, and the decisions locked for V1 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, persistence, cloud, and cost strategy |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones M0–M12 |
+| [CLAUDE.md](CLAUDE.md) | Working agreement for AI-assisted development |
+
+Read DOMAIN.md §18 before changing the schema — it lists the decisions that are
+expensive or impossible to reverse once real data exists.
+
+## Technology
+
+| Layer | Choice |
+| --- | --- |
+| Client | Flutter / Dart |
+| State management | Riverpod |
+| Local persistence | Drift / SQLite |
+| Cloud (later) | Supabase — PostgreSQL, Auth, Storage |
+
+Platform targets are iOS and Android. `web/` is kept as a development
+convenience for inspecting graph and layout output quickly; it is not a
+supported release target.
+
+## Getting started
+
+Requires the Flutter SDK on the stable channel.
+
+```sh
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
+
+## Layering
+
+```
+Presentation  →  Application  →  Domain  →  Repository abstractions
+                                              ↑
+                                        Infrastructure
+```
+
+The domain layer is pure Dart and must not import Flutter, Riverpod, Drift,
+SQLite, Supabase, or platform APIs. This is enforced by
+`test/architecture/domain_purity_test.dart`, not by convention alone.
