@@ -448,12 +448,19 @@ class TreePainter extends CustomPainter {
         Paint()
           ..color = selected ? colors.primaryContainer : colors.surface,
       )
+      // The border carries the person's colour — grey once they have died.
+      // The border rather than the fill: a few hundred tinted boxes would
+      // fight the connector lines, which are what the chart is for, and pale
+      // washes behind text make the names harder to read.
+      //
+      // Selection overrides it. Being told which box is selected matters more
+      // for the moment it lasts than being told the sex again.
       ..drawRRect(
         rect,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = selected ? 3 : 1.5
-          ..color = selected ? colors.primary : colors.outlineVariant,
+          ..strokeWidth = selected ? 3 : 2
+          ..color = selected ? colors.primary : personColor(node.person),
       );
 
     final years = lifeYears(node.person);
