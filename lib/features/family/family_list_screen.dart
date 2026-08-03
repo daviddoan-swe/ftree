@@ -56,17 +56,18 @@ class _FamilyList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SlidableAutoCloseBehavior(
-      // One card holding every family, not a card each: a device holds a
-      // handful of trees, and the list is short enough to build at once.
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
-        children: <Widget>[
-          const AvatarHeader(initials: 'FTree'),
-          GroupedSection(
-            children: <Widget>[
-              for (final family in families) _familyRow(context, ref, family),
-            ],
+      // One card holding every family, not a card each, and built row by row
+      // as it scrolls — the same treatment the people list gets, so the two
+      // do not diverge as this one grows.
+      child: CustomScrollView(
+        slivers: <Widget>[
+          const SliverToBoxAdapter(child: AvatarHeader(initials: 'FTree')),
+          GroupedSliverSection(
+            itemCount: families.length,
+            itemBuilder: (context, index) =>
+                _familyRow(context, ref, families[index]),
           ),
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );
