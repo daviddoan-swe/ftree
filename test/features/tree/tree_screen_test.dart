@@ -213,6 +213,102 @@ void main() {
     });
   });
 
+  group('the opening view', () {
+    double scaleOf(WidgetTester tester) => tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!
+        .value
+        .getMaxScaleOnAxis();
+
+    /// The scale that would show the whole chart, never magnifying it.
+    double wholeChartScale(WidgetTester tester) {
+      final layout = drawnLayout(tester);
+      final viewport = tester.getSize(find.byType(InteractiveViewer));
+      return <double>[
+        viewport.width / (layout.width + 80),
+        viewport.height / (layout.height + 80),
+        1,
+      ].reduce((a, b) => a < b ? a : b);
+    }
+
+    testWidgets('shows a family whole when it is still readable that way', (
+      tester,
+    ) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      // Five children: wider than the viewport, but not so wide that fitting
+      // makes it unreadable.
+      for (var n = 2; n <= 6; n++) {
+        await seedPerson(n, 'Con $n');
+        await link(1, n);
+      }
+      await openTree(tester);
+
+      final whole = wholeChartScale(tester);
+      expect(whole, inExclusiveRange(0.6, 1), reason: 'the case being tested');
+      expect(scaleOf(tester), closeTo(whole, 0.01));
+    });
+
+    testWidgets('opens a large family readable rather than whole', (
+      tester,
+    ) async {
+      // Eight generations measure some 2900 units across. Fitted to a phone
+      // that is a scale of 0.13 — names under two pixels, which is not an
+      // overview of anything.
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      var next = 2;
+      var generation = <int>[1];
+      for (var depth = 0; depth < 7; depth++) {
+        final born = <int>[];
+        for (final parent in generation) {
+          for (var child = 0; child < 2; child++) {
+            await seedPerson(next, 'Đời ${depth + 2} · $next');
+            await link(parent, next);
+            born.add(next);
+            next++;
+          }
+        }
+        generation = born;
+        if (next > 40) break;
+      }
+
+      await openTree(tester);
+
+      expect(
+        wholeChartScale(tester),
+        lessThan(0.6),
+        reason: 'the chart really is too wide to read when fitted',
+      );
+      expect(scaleOf(tester), greaterThanOrEqualTo(0.6));
+    });
+
+    testWidgets('the fit button then shows everything, however small', (
+      tester,
+    ) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      for (var n = 2; n <= 30; n++) {
+        await seedPerson(n, 'Con $n');
+        await link(1, n);
+      }
+
+      await openTree(tester);
+      expect(scaleOf(tester), greaterThanOrEqualTo(0.6));
+
+      await tester.tap(find.byIcon(Icons.fit_screen_outlined));
+      await tester.pumpAndSettle();
+
+      expect(scaleOf(tester), closeTo(wholeChartScale(tester), 0.01));
+    });
+  });
+
   testWidgets('survives a graph with an ancestry loop in it', (tester) async {
     // Two devices editing offline can produce this (DOMAIN.md §6.2). It must
     // draw something rather than hang.

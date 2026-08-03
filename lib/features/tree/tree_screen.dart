@@ -48,6 +48,20 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   /// moment anything else on the screen changes.
   Object? _fittedTo;
 
+  /// Whether the next fit should show everything, however small.
+  ///
+  /// Set by the fit button, which is the reader asking for the shape of the
+  /// whole tree and accepting that the names go with it.
+  bool _showEverything = false;
+
+  /// The smallest scale worth opening at.
+  ///
+  /// Eight generations measure some 2900 units across, which fits an iPhone
+  /// only at 0.13 — names at under two pixels. A chart nobody can read is not
+  /// an overview, so a large tree opens readable at its root instead, and the
+  /// fit button is there when the shape is what is wanted.
+  static const double _readableScale = 0.6;
+
   @override
   void dispose() {
     _view.dispose();
@@ -67,32 +81,63 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
     return graph.persons.firstOrNull?.id;
   }
 
-  /// Scales and centres the chart so the whole family is visible at once.
+  /// Places the chart in the viewport, once per chart.
   ///
-  /// Opening onto the top-left corner of a chart several screens wide tells the
-  /// reader nothing about where anybody is. Never magnified past its natural
-  /// size, because a family of three blown up to fill a tablet looks broken.
+  /// A chart that fits is shown whole. One that does not opens at its root,
+  /// readable, and is explored by panning — the founding ancestor is where a
+  /// gia phả is read from, so it is the one place worth landing on.
+  ///
+  /// Never magnified past natural size: a family of three blown up to fill a
+  /// tablet looks broken.
   void _fitOnce(TreeLayout layout, String rootId, Size viewport) {
     final key = <Object>[rootId, layout.nodes.length, viewport];
     if (_fittedTo.toString() == key.toString()) return;
     _fittedTo = key;
 
+    final everything = _showEverything;
+    _showEverything = false;
+
     final chartWidth = layout.width + _Chart.padding * 2;
     final chartHeight = layout.height + _Chart.padding * 2;
     if (chartWidth <= 0 || chartHeight <= 0 || viewport.isEmpty) return;
 
-    final scale = <double>[
+    final whole = <double>[
       viewport.width / chartWidth,
       viewport.height / chartHeight,
       1,
     ].reduce((a, b) => a < b ? a : b);
+    final scale = everything || whole >= _readableScale
+        ? whole
+        : _readableScale;
 
-    // Centred across, but against the top rather than centred down: a tree is
-    // read from its founding ancestor downwards, and a wide short chart floated
-    // into the middle of a tall screen puts the ancestor nowhere in particular.
+    // Across: the whole chart when it fits, otherwise the root's own box, so
+    // the reader lands on the ancestor rather than on whichever branch happens
+    // to sit at the left edge.
+    final scaledWidth = chartWidth * scale;
+    final double dx;
+    if (scaledWidth <= viewport.width) {
+      dx = (viewport.width - scaledWidth) / 2;
+    } else {
+      final root = layout.nodeFor(rootId);
+      final rootCentre =
+          (root?.x ?? 0) + layout.metrics.nodeWidth / 2 + _Chart.padding;
+      dx = (viewport.width / 2 - rootCentre * scale).clamp(
+        viewport.width - scaledWidth,
+        0,
+      );
+    }
+
+    // Down: against the top rather than centred. A tree is read from its
+    // ancestor downwards, and a wide short chart floated into the middle of a
+    // tall screen puts that ancestor nowhere in particular.
     final matrix = Matrix4.identity()
-      ..translateByDouble((viewport.width - chartWidth * scale) / 2, 0, 0, 1)
-      ..scaleByDouble(scale, scale, 1, 1);
+      ..translateByDouble(dx, 0, 0, 1)
+      // All three axes, as InteractiveViewer does itself. Leaving z at 1 still
+      // draws correctly, but the viewer reads the scale back with
+      // `getMaxScaleOnAxis`, which takes the largest of the three — so it would
+      // believe a chart shown at 0.15 was at 1.0 and clamp pinches against the
+      // wrong number.
+      ..scaleByDouble(scale, scale, scale, 1);
 
     // After this frame: the viewer is still being laid out, and assigning to a
     // controller mid-build would rebuild what is already building.
@@ -114,7 +159,10 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
           IconButton(
             icon: const Icon(Icons.fit_screen_outlined),
             tooltip: text.treeFit,
-            onPressed: () => setState(() => _fittedTo = null),
+            onPressed: () => setState(() {
+              _showEverything = true;
+              _fittedTo = null;
+            }),
           ),
         ],
       ),
