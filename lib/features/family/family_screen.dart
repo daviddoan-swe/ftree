@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
-import '../../domain/genealogical_date.dart';
 import '../../domain/name_search.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
@@ -162,6 +161,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                         padding: const EdgeInsets.only(right: 16, bottom: 4),
                         child: FloatingActionButton(
                           heroTag: null,
+                          // A circle, not Material 3's rounded square: it sits
+                          // beside round icon buttons and a pill.
+                          shape: const CircleBorder(),
                           onPressed: () => showTreeScreen(context, familyId),
                           tooltip: text.treeTitle,
                           child: const Icon(Icons.account_tree_rounded),
@@ -197,7 +199,7 @@ class _PersonTile extends StatelessWidget {
     icon: personIcon(person),
     iconColor: personColor(person),
     title: person.displayName,
-    subtitle: _lifespan(person),
+    subtitle: lifeYears(person),
     // The profile, not the form. Reading is the common case, and editing is
     // one tap further in.
     onTap: () => showPersonProfile(
@@ -207,25 +209,6 @@ class _PersonTile extends StatelessWidget {
     ),
   );
 
-  /// `~1782–1851`, with whichever end is known.
-  ///
-  /// Years only, even where the full date is recorded: a row read at a glance
-  /// wants the span, and mixing precisions gives `1835–1902-04`, which reads
-  /// like two different kinds of thing. The full dates are one tap away.
-  ///
-  /// No space around the dash, so a missing end reads as unrecorded rather than
-  /// as a value that failed to load. The tilde carries "about" through
-  /// (DOMAIN.md §4.2).
-  static String? _lifespan(Person person) {
-    String? show(GenealogicalDate? date) => date == null
-        ? null
-        : '${date.isApproximate ? '~' : ''}${date.year}';
-
-    final born = show(person.birthDate);
-    final died = show(person.deathDate);
-    if (born == null && died == null) return null;
-    return '${born ?? ''}–${died ?? ''}';
-  }
 }
 
 class _NoPeopleYet extends StatelessWidget {

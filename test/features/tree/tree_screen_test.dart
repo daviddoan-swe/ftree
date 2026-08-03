@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -149,6 +150,10 @@ void main() {
               node.y + 40 + layout.metrics.nodeHeight / 2,
             ),
       );
+      // A single tap only resolves once the double-tap window closes: the
+      // chart listens for both, and the gesture arena has to wait to know
+      // which it was.
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
     }
 
@@ -169,6 +174,7 @@ void main() {
 
       // The top-left corner of the canvas is padding, never a box.
       await tester.tapAt(tester.getTopLeft(chart) + const Offset(4, 4));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(FilledButton, 'Profile'), findsNothing);
@@ -204,6 +210,42 @@ void main() {
       // The ancestors are above this root, so a descendant chart drops them.
       expect(layout.nodeFor(personId(1)), isNull);
       expect(find.text('2 not on this branch'), findsOneWidget);
+    });
+
+    testWidgets('a double tap redraws from that person', (tester) async {
+      await seedFamily();
+      await openTree(tester);
+
+      final layout = drawnLayout(tester);
+      final node = layout.nodeFor(personId(3))!;
+      final at =
+          tester.getTopLeft(chart) +
+          Offset(
+            node.x + 40 + layout.metrics.nodeWidth / 2,
+            node.y + 40 + layout.metrics.nodeHeight / 2,
+          );
+
+      await tester.tapAt(at);
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.tapAt(at);
+      await tester.pumpAndSettle();
+
+      expect(drawnLayout(tester).nodeFor(personId(3))!.generation, 0);
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNull);
+    });
+
+    testWidgets('a double tap on empty space redraws nothing', (tester) async {
+      await seedFamily();
+      await openTree(tester);
+      final before = drawnLayout(tester).nodes.length;
+
+      final at = tester.getTopLeft(chart) + const Offset(4, 4);
+      await tester.tapAt(at);
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.tapAt(at);
+      await tester.pumpAndSettle();
+
+      expect(drawnLayout(tester).nodes, hasLength(before));
     });
 
     testWidgets('the root is not offered as a new root', (tester) async {
@@ -330,6 +372,7 @@ void main() {
             node.y + 40 + layout.metrics.nodeHeight / 2,
           ),
     );
+    await tester.pump(kDoubleTapTimeout);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
     await tester.pumpAndSettle();

@@ -606,10 +606,11 @@ OutlineInputBorder _pillBorder(Color color) => OutlineInputBorder(
 Widget? circleBackButton(BuildContext context) {
   if (!Navigator.of(context).canPop()) return null;
 
+  // Same metrics as the action button opposite it, so the two corners match.
   return Padding(
     padding: const EdgeInsets.only(left: 8),
     child: IconButton.filledTonal(
-      icon: const Icon(Icons.chevron_left, size: 26),
+      icon: const Icon(Icons.chevron_left),
       tooltip: MaterialLocalizations.of(context).backButtonTooltip,
       onPressed: () => Navigator.of(context).maybePop(),
     ),

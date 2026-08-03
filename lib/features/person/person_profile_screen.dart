@@ -158,7 +158,7 @@ class _Profile extends StatelessWidget {
         AvatarHeader(
           initials: initialsOf(person.displayName),
           subtitle: _age(context),
-          badge: CountBadge(icon: sexIcon(person.sex)),
+          badge: CountBadge(icon: personIcon(person)),
           color: personColor(person),
         ),
         GroupedSection(children: names),

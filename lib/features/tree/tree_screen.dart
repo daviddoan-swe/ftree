@@ -16,6 +16,7 @@ import '../../domain/layout/tree_layout.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
 import '../person/person_profile_screen.dart';
+import '../person/person_style.dart';
 
 /// Opens the tree for [familyId].
 Future<void> showTreeScreen(BuildContext context, String familyId) =>
@@ -147,6 +148,16 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
     });
   }
 
+  /// Redraws the chart with [personId] at the top.
+  ///
+  /// Reached two ways — the button on the selection bar, and a double tap on
+  /// the box itself. The gesture is the quick one for somebody exploring; the
+  /// button is how anyone finds out the gesture exists.
+  void _drawFrom(String personId) => setState(() {
+    _rootId = personId;
+    _selectedId = personId;
+  });
+
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
@@ -209,6 +220,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
                 view: _view,
                 onTapPerson: (personId) =>
                     setState(() => _selectedId = personId),
+                onDrawFrom: _drawFrom,
               );
             },
           ),
@@ -233,7 +245,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
                 familyId: widget.familyId,
                 personId: selected.id,
               ),
-              onDrawFrom: () => setState(() => _rootId = selected.id),
+              onDrawFrom: () => _drawFrom(selected.id),
             ),
           ),
       ],
@@ -242,12 +254,13 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
 }
 
 /// The chart itself: pan, zoom, and a tap that lands on a box.
-class _Chart extends StatelessWidget {
+class _Chart extends StatefulWidget {
   const _Chart({
     required this.layout,
     required this.selectedId,
     required this.view,
     required this.onTapPerson,
+    required this.onDrawFrom,
   });
 
   final TreeLayout layout;
@@ -255,18 +268,32 @@ class _Chart extends StatelessWidget {
   final TransformationController view;
   final ValueChanged<String?> onTapPerson;
 
+  /// Double-tapping a box redraws the chart from that person.
+  final ValueChanged<String> onDrawFrom;
+
   /// Room around the drawing, so the outermost boxes are not against the edge.
   static const double padding = 40;
 
   @override
+  State<_Chart> createState() => _ChartState();
+}
+
+class _ChartState extends State<_Chart> {
+  /// Where the second tap landed. A double tap reports no position of its own,
+  /// so the one from the tap that preceded it is kept.
+  Offset? _doubleTapAt;
+
+  @override
   Widget build(BuildContext context) {
+    final layout = widget.layout;
+    const padding = _Chart.padding;
     final size = Size(
       layout.width + padding * 2,
       layout.height + padding * 2,
     );
 
     return InteractiveViewer(
-      transformationController: view,
+      transformationController: widget.view,
       // Generous margin: without it the chart cannot be dragged away from the
       // corner it starts in, which on a tall tree means the lower generations
       // are unreachable.
@@ -277,12 +304,18 @@ class _Chart extends StatelessWidget {
       child: GestureDetector(
         // The gesture sits inside the viewer, so the position it reports is
         // already in chart coordinates whatever the zoom.
-        onTapUp: (details) => onTapPerson(_personAt(details.localPosition)),
+        onTapUp: (details) =>
+            widget.onTapPerson(_personAt(details.localPosition)),
+        onDoubleTapDown: (details) => _doubleTapAt = details.localPosition,
+        onDoubleTap: () {
+          final person = _personAt(_doubleTapAt ?? Offset.zero);
+          if (person != null) widget.onDrawFrom(person);
+        },
         child: CustomPaint(
           size: size,
           painter: TreePainter(
             layout: layout,
-            selectedId: selectedId,
+            selectedId: widget.selectedId,
             colors: Theme.of(context).colorScheme,
             padding: padding,
           ),
@@ -293,11 +326,12 @@ class _Chart extends StatelessWidget {
 
   /// The box under [point], or null for the space between boxes.
   String? _personAt(Offset point) {
+    final layout = widget.layout;
     final metrics = layout.metrics;
     for (final node in layout.nodes) {
       final rect = Rect.fromLTWH(
-        node.x + padding,
-        node.y + padding,
+        node.x + _Chart.padding,
+        node.y + _Chart.padding,
         metrics.nodeWidth,
         metrics.nodeHeight,
       );
@@ -422,11 +456,25 @@ class TreePainter extends CustomPainter {
           ..color = selected ? colors.primary : colors.outlineVariant,
       );
 
-    final years = _years(node.person);
+    final years = lifeYears(node.person);
+    // The sex glyph is set inline in the same paragraph rather than drawn
+    // separately: an icon is a character in a font, so the line wraps and
+    // centres as one piece instead of needing its own geometry.
+    final glyph = personIcon(node.person);
+
     final label = TextPainter(
       text: TextSpan(
         style: TextStyle(fontSize: 13, color: colors.onSurface),
         children: <InlineSpan>[
+          TextSpan(
+            text: '${String.fromCharCode(glyph.codePoint)} ',
+            style: TextStyle(
+              fontFamily: glyph.fontFamily,
+              package: glyph.fontPackage,
+              fontSize: 13,
+              color: personColor(node.person),
+            ),
+          ),
           TextSpan(text: node.person.displayName),
           if (years != null)
             TextSpan(
@@ -448,21 +496,6 @@ class TreePainter extends CustomPainter {
         rect.center.dy - label.height / 2,
       ),
     );
-  }
-
-  /// `1887–1960`, or `1887–` with only a birth, or `–1960` with only a death.
-  ///
-  /// No space around the dash, and none where a year is missing: `1918 –` reads
-  /// like something failed to load, where `1918–` is the ordinary genealogical
-  /// way of saying no death is recorded.
-  ///
-  /// Years only: a box this size cannot carry a full date, and the year is what
-  /// places a person in a generation at a glance.
-  static String? _years(Person person) {
-    final born = person.birthDate?.year;
-    final died = person.deathDate?.year;
-    if (born == null && died == null) return null;
-    return '${born ?? ''}–${died ?? ''}';
   }
 
   @override

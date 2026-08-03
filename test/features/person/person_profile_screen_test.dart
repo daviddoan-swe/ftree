@@ -123,16 +123,17 @@ void main() {
     await seedPerson(3, 'Người Không Rõ');
 
     await openProfile(tester, 1);
-    expect(find.byIcon(Icons.male), findsOneWidget);
+    expect(find.byIcon(Icons.man), findsOneWidget);
     expect(find.text('Sex'), findsNothing);
     expect(find.text('Male'), findsNothing);
 
     await openProfile(tester, 2);
-    expect(find.byIcon(Icons.female), findsOneWidget);
+    expect(find.byIcon(Icons.woman), findsOneWidget);
 
-    // A question mark, not a cross: a cross on a badge reads as "remove".
+    // The same figure the family list uses, so one person is not drawn two
+    // ways on two screens.
     await openProfile(tester, 3);
-    expect(find.byIcon(Icons.question_mark_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.person), findsOneWidget);
   });
 
   group('the age under the portrait', () {

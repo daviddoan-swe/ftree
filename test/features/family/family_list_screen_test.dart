@@ -40,7 +40,7 @@ void main() {
   }
 
   Future<void> openCreateSheet(WidgetTester tester) async {
-    await tester.tap(find.widgetWithText(FloatingActionButton, 'Create family'));
+    await tester.tap(find.byTooltip('Create family'));
     await tester.pumpAndSettle();
   }
 
@@ -49,10 +49,7 @@ void main() {
       await pumpApp(tester);
 
       expect(find.text('No families yet'), findsOneWidget);
-      expect(
-        find.widgetWithText(FloatingActionButton, 'Create family'),
-        findsOneWidget,
-      );
+      expect(find.byTooltip('Create family'), findsOneWidget);
     });
   });
 

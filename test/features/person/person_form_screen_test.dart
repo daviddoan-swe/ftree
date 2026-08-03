@@ -35,7 +35,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FloatingActionButton, 'Create family'));
+    await tester.tap(find.byTooltip('Create family'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Family name'),

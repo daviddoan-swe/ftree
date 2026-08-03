@@ -203,7 +203,7 @@ void main() {
       );
       await openFamily(tester);
 
-      expect(find.text('1835–~1902'), findsOneWidget);
+      expect(find.text('1835 – ~1902'), findsOneWidget);
       expect(find.textContaining('1902-04'), findsNothing);
     });
 
@@ -218,10 +218,12 @@ void main() {
       );
       await openFamily(tester);
 
-      expect(find.text('~1782–1851'), findsOneWidget);
+      expect(find.text('~1782 – 1851'), findsOneWidget);
     });
 
-    testWidgets('leaves the end that is unrecorded empty', (tester) async {
+    testWidgets('is the birth year alone when no death is recorded', (
+      tester,
+    ) async {
       await seedPerson(
         1,
         'Nguyễn Văn Hải',
@@ -229,7 +231,9 @@ void main() {
       );
       await openFamily(tester);
 
-      expect(find.text('1978–'), findsOneWidget);
+      // Not `1978–`, which claims the person is still living — a missing
+      // death date is far more often a death nobody wrote down.
+      expect(find.text('1978'), findsOneWidget);
     });
 
     testWidgets('is absent entirely when neither end is known', (tester) async {

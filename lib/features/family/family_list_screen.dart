@@ -23,10 +23,11 @@ class FamilyListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(text.familiesTitle)),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
+        shape: const CircleBorder(),
         onPressed: () => showFamilyFormSheet(context),
-        icon: const Icon(Icons.add),
-        label: Text(text.familyCreate),
+        tooltip: text.familyCreate,
+        child: const Icon(Icons.add),
       ),
       body: families.when(
         loading: () => const Center(child: CircularProgressIndicator()),
