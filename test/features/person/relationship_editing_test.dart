@@ -77,7 +77,7 @@ void main() {
     required String role,
     required String name,
   }) async {
-    await tester.tap(find.widgetWithText(FloatingActionButton, 'Add relationship'));
+    await tester.tap(find.byTooltip('Add relationship'));
     await tester.pumpAndSettle();
     await tester.tap(find.text(role));
     await tester.pumpAndSettle();
@@ -136,9 +136,7 @@ void main() {
     ) async {
       await seed();
       await openProfile(tester, 1);
-      await tester.tap(
-        find.widgetWithText(FloatingActionButton, 'Add relationship'),
-      );
+      await tester.tap(find.byTooltip('Add relationship'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add a parent'));
       await tester.pumpAndSettle();
@@ -151,9 +149,7 @@ void main() {
       await seed();
       await seedPerson(3, 'Cụ C');
       await openProfile(tester, 1);
-      await tester.tap(
-        find.widgetWithText(FloatingActionButton, 'Add relationship'),
-      );
+      await tester.tap(find.byTooltip('Add relationship'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add a parent'));
       await tester.pumpAndSettle();

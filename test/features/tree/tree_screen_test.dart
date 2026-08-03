@@ -183,7 +183,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PersonProfileScreen), findsOneWidget);
-      expect(find.text('Relatives'), findsOneWidget);
+      // Their own relatives, so the profile really did build for this person
+      // rather than merely appearing.
+      expect(find.text('Parents'), findsOneWidget);
+      expect(find.text('Children'), findsOneWidget);
     });
 
     testWidgets('redrawing from the selected person moves them to the top', (

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../app/confirm.dart';
+import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
 import '../../l10n/app_localizations.dart';
@@ -54,54 +55,66 @@ class _FamilyList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return SlidableAutoCloseBehavior(
+      // One card holding every family, not a card each: a device holds a
+      // handful of trees, and the list is short enough to build at once.
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
+        children: <Widget>[
+          const AvatarHeader(initials: 'FTree'),
+          GroupedSection(
+            children: <Widget>[
+              for (final family in families) _familyRow(context, ref, family),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _familyRow(BuildContext context, WidgetRef ref, Family family) {
     final text = AppText.of(context);
     final colors = Theme.of(context).colorScheme;
 
-    return SlidableAutoCloseBehavior(
-      child: ListView.separated(
-        itemCount: families.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final family = families[index];
-
-          return Slidable(
-            // Keyed by id so an open pane follows its family when the list is
-            // reordered or one above it is removed.
-            key: ValueKey<String>(family.id),
-            endActionPane: ActionPane(
-              motion: const DrawerMotion(),
-              extentRatio: 0.5,
-              children: <Widget>[
-                SlidableAction(
-                  onPressed: (_) =>
-                      showFamilyFormSheet(context, editing: family),
-                  icon: Icons.edit_outlined,
-                  label: text.actionEdit,
-                  backgroundColor: colors.secondaryContainer,
-                  foregroundColor: colors.onSecondaryContainer,
-                ),
-                SlidableAction(
-                  onPressed: (_) => _confirmAndDelete(context, ref, family),
-                  icon: Icons.delete_outline,
-                  label: text.actionDelete,
-                  backgroundColor: colors.errorContainer,
-                  foregroundColor: colors.onErrorContainer,
-                ),
-              ],
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.account_tree_outlined),
-              title: Text(family.name),
-              subtitle: family.description == null
-                  ? null
-                  : Text(family.description!),
-              trailing: family.usesLunarCalendar
-                  ? const Icon(Icons.brightness_2_outlined, size: 18)
-                  : null,
-              onTap: () => showFamilyScreen(context, family),
-            ),
-          );
-        },
+    return Slidable(
+      // Keyed by id so an open pane follows its family when the list is
+      // reordered or one above it is removed.
+      key: ValueKey<String>(family.id),
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.5,
+        children: <Widget>[
+          SlidableAction(
+            onPressed: (_) => showFamilyFormSheet(context, editing: family),
+            icon: Icons.edit_outlined,
+            label: text.actionEdit,
+            backgroundColor: colors.secondaryContainer,
+            foregroundColor: colors.onSecondaryContainer,
+          ),
+          SlidableAction(
+            onPressed: (_) => _confirmAndDelete(context, ref, family),
+            icon: Icons.delete_outline,
+            label: text.actionDelete,
+            backgroundColor: colors.errorContainer,
+            foregroundColor: colors.onErrorContainer,
+          ),
+        ],
+      ),
+      child: GroupedRow(
+        icon: Icons.account_tree,
+        iconColor: GroupedColors.green,
+        title: family.name,
+        subtitle: family.description,
+        // The moon says this family keeps the lunar calendar, which changes
+        // what its dates mean.
+        trailing: family.usesLunarCalendar
+            ? Icon(
+                Icons.brightness_2_outlined,
+                size: 16,
+                color: GroupedColors.secondaryLabel(context),
+              )
+            : null,
+        onTap: () => showFamilyScreen(context, family),
       ),
     );
   }

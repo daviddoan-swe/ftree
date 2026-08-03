@@ -96,9 +96,12 @@ void main() {
     expect(find.text('Place of death'), findsNothing);
   });
 
-  testWidgets('names a recorded sex but stays quiet about an unknown one', (
+  testWidgets('shows sex as a glyph on the portrait, not as a row', (
     tester,
   ) async {
+    // One of three states does not need a label and a value; and `unknown` is
+    // a recorded answer rather than a blank (DOMAIN.md §3.2), so it gets a
+    // glyph too instead of quietly vanishing.
     await seedFamily();
     await repository.savePerson(
       Person(
@@ -108,13 +111,26 @@ void main() {
         sex: Sex.male,
       ),
     );
-    await seedPerson(2, 'Người Không Rõ');
+    await repository.savePerson(
+      Person(
+        id: personId(2),
+        familyId: familyId,
+        displayName: 'Nguyễn Thị B',
+        sex: Sex.female,
+      ),
+    );
+    await seedPerson(3, 'Người Không Rõ');
 
     await openProfile(tester, 1);
-    expect(find.text('Male'), findsOneWidget);
+    expect(find.byIcon(Icons.male), findsOneWidget);
+    expect(find.text('Sex'), findsNothing);
+    expect(find.text('Male'), findsNothing);
 
     await openProfile(tester, 2);
-    expect(find.text('Sex'), findsNothing);
+    expect(find.byIcon(Icons.female), findsOneWidget);
+
+    await openProfile(tester, 3);
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
   });
 
   testWidgets('shows a year-only date as a year, not an invented January', (

@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
 import '../../app/confirm.dart';
+import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
 import '../../domain/family_graph.dart';
 import '../../domain/family_repository.dart';
-import '../../domain/genealogical_date.dart';
 import '../../domain/person.dart';
 import '../../domain/relationship.dart';
 import '../../l10n/app_localizations.dart';
@@ -54,31 +54,25 @@ class PersonProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(person?.displayName ?? ''),
         actions: <Widget>[
+          // Adding a relative is the one thing done from here often enough to
+          // earn the corner. Editing is rarer and waits at the foot of the
+          // screen, where a change follows reading what is already recorded.
           if (person != null && data != null)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: AppText.of(context).personEdit,
-              onPressed: () => showPersonForm(
-                context,
-                familyId: familyId,
-                usesLunarCalendar: data.family.usesLunarCalendar,
-                editing: person,
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton.filledTonal(
+                icon: const Icon(Icons.add_link),
+                tooltip: AppText.of(context).relationshipAdd,
+                onPressed: () => addRelative(
+                  context,
+                  ref,
+                  snapshot: data,
+                  subject: person,
+                ),
               ),
             ),
         ],
       ),
-      floatingActionButton: person == null || data == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => addRelative(
-                context,
-                ref,
-                snapshot: data,
-                subject: person,
-              ),
-              icon: const Icon(Icons.link),
-              label: Text(AppText.of(context).relationshipAdd),
-            ),
       body: switch (snapshot) {
         AsyncLoading<FamilySnapshot?>() => const Center(
           child: CircularProgressIndicator(),
@@ -117,51 +111,83 @@ class _Profile extends StatelessWidget {
         children.isEmpty &&
         siblings.isEmpty;
 
-    return ListView(
-      // Room for the floating button, which otherwise sits on the last rows —
-      // and the last row is now the delete button, which must not be tapped by
-      // somebody aiming at the one that adds a relationship.
-      padding: const EdgeInsets.only(bottom: 120),
-      children: <Widget>[
-        _Section(title: text.personProfile),
-        _Field(label: text.personDisplayName, value: person.displayName),
-        _Field(label: text.personGivenName, value: person.givenName),
-        _Field(
-          label: text.personAdditionalNames,
-          value: person.additionalNames,
-        ),
-        _Field(label: text.personFamilyName, value: person.familyName),
-        _Field(
-          label: text.personBirthFamilyName,
-          value: person.birthFamilyName,
-        ),
-        // Left out when unknown. "We do not know" and "not filled in" are the
-        // same statement here (DOMAIN.md §3.2), and a row saying so is a row
-        // carrying nothing, on a screen that omits every other empty field.
-        if (person.sex != Sex.unknown)
-          _Field(label: text.personSex, value: _sexLabel(text, person.sex)),
-        _DateField(
-          label: text.personBirth,
-          date: person.birthDate,
-          usesLunarCalendar: family.usesLunarCalendar,
-        ),
-        _Field(label: text.personBirthPlace, value: person.birthPlace),
-        _DateField(
-          label: text.personDeath,
-          date: person.deathDate,
-          usesLunarCalendar: family.usesLunarCalendar,
-        ),
-        _Field(label: text.personDeathPlace, value: person.deathPlace),
-        _Field(label: text.personBiography, value: person.biography),
+    // Grouped the way the information is read: who they are, then when they
+    // lived, then what was written about them. A screen of identical rows makes
+    // the reader do that sorting themselves.
+    final names = <Widget>[
+      ?_pair(
+        context,
+        text.personGivenName,
+        person.givenName,
+        text.personFamilyName,
+        person.familyName,
+      ),
+      ?_pair(
+        context,
+        text.personAdditionalNames,
+        person.additionalNames,
+        text.personBirthFamilyName,
+        person.birthFamilyName,
+      ),
+    ];
 
-        _Section(title: text.personRelatives),
+    final life = <Widget>[
+      ?_dates(context),
+      ?_pair(
+        context,
+        text.personBirthPlace,
+        person.birthPlace,
+        text.personDeathPlace,
+        person.deathPlace,
+      ),
+    ];
+
+    return ListView(
+      // Nothing floats over this screen any more, so the tail is just breathing
+      // room under the last button.
+      padding: const EdgeInsets.only(bottom: 40),
+      children: <Widget>[
+        // No heading and no name: the bar above carries the name, and a line
+        // repeating it is a line saying nothing. Sex rides in the badge rather
+        // than taking a row of its own — one of three states does not need a
+        // label and a value, and `unknown` is a real answer here, not a blank
+        // (DOMAIN.md §3.2).
+        AvatarHeader(
+          initials: initialsOf(person.displayName),
+          subtitle: _lifespan(context),
+          badge: CountBadge(icon: _sexIcon(person.sex)),
+        ),
+        GroupedSection(children: names),
+        GroupedSection(children: life),
+        if (person.biography case final notes?
+            when notes.trim().isNotEmpty)
+          GroupedSection(
+            header: text.personBiography,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Text(
+                  notes,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
+            ],
+          ),
+
         if (alone)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              text.personNoRelatives,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+          GroupedSection(
+            header: text.personRelatives,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Text(
+                  text.personNoRelatives,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: GroupedColors.secondaryLabel(context),
+                  ),
+                ),
+              ),
+            ],
           ),
         _Relatives(
           label: text.relationParents,
@@ -210,17 +236,90 @@ class _Profile extends StatelessWidget {
     );
   }
 
-  static String _sexLabel(AppText text, Sex sex) => switch (sex) {
-    Sex.male => text.sexMale,
-    Sex.female => text.sexFemale,
-    Sex.unknown => text.sexUnknown,
+  /// Mars, Venus, or a cross for the third case.
+  ///
+  /// `unknown` gets its own glyph rather than an empty space: it is a recorded
+  /// answer, and leaving the badge off would make it indistinguishable from a
+  /// screen that forgot to draw one.
+  static IconData _sexIcon(Sex sex) => switch (sex) {
+    Sex.male => Icons.male,
+    Sex.female => Icons.female,
+    Sex.unknown => Icons.close_rounded,
   };
+
+  /// One row carrying up to two short values, or nothing when neither is
+  /// recorded.
+  ///
+  /// A given name and a family name are a few characters each; a row apiece
+  /// spreads them over a screen of white space and makes the reader scroll past
+  /// what they could have taken in at a glance.
+  Widget? _pair(
+    BuildContext context,
+    String labelA,
+    String? valueA,
+    String? labelB,
+    String? valueB,
+  ) {
+    final a = valueA?.trim();
+    final b = valueB?.trim();
+    final hasA = a != null && a.isNotEmpty;
+    final hasB = labelB != null && b != null && b.isNotEmpty;
+    if (!hasA && !hasB) return null;
+
+    return FieldRow(
+      children: <Widget>[
+        if (hasA) InfoField(label: labelA, value: a),
+        if (hasB) InfoField(label: labelB, value: b),
+      ],
+    );
+  }
+
+  /// Born and died side by side, each with its lunar reading underneath.
+  Widget? _dates(BuildContext context) {
+    final text = AppText.of(context);
+    final lunar = family.usesLunarCalendar;
+    final birth = person.birthDate;
+    final death = person.deathDate;
+    if (birth == null && death == null) return null;
+
+    return FieldRow(
+      children: <Widget>[
+        if (birth != null)
+          InfoField(
+            label: text.personBirth,
+            value: formatDate(context, birth),
+            note: formatLunar(context, birth, usesLunarCalendar: lunar),
+          ),
+        if (death != null)
+          InfoField(
+            label: text.personDeath,
+            value: formatDate(context, death),
+            note: formatLunar(context, death, usesLunarCalendar: lunar),
+          ),
+      ],
+    );
+  }
+
+  /// `1887–1960` under the name, or nothing when neither year is recorded.
+  ///
+  /// Years only: the portrait is a glance, and the full dates are a few
+  /// centimetres below.
+  String? _lifespan(BuildContext context) {
+    final born = person.birthDate?.year;
+    final died = person.deathDate?.year;
+    if (born == null && died == null) return null;
+    return '${born ?? ''}–${died ?? ''}';
+  }
 }
 
-/// Removing this person from the family.
+/// What can be done to this person, at the foot of everything recorded.
 ///
-/// Soft, like every deletion here: the row is tombstoned rather than erased, so
-/// the deletion still exists to be synchronised (DOMAIN.md §15.2). The
+/// Editing is an ordinary button — bordered and filled — because it is an
+/// ordinary act. Deleting is bare red text: no border to invite a thumb, and
+/// it comes last.
+///
+/// Deletion is soft, like every deletion here: the row is tombstoned rather
+/// than erased, so it still exists to be synchronised (DOMAIN.md §15.2). The
 /// application offers no way back, which is what the confirmation says.
 class _DeletePerson extends ConsumerWidget {
   const _DeletePerson({required this.person, required this.snapshot});
@@ -236,7 +335,29 @@ class _DeletePerson extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const Divider(height: 48),
+        const SizedBox(height: 28),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              backgroundColor: GroupedColors.card(context),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(color: GroupedColors.separator(context)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: const Icon(Icons.edit_outlined),
+            label: Text(text.personEdit),
+            onPressed: () => showPersonForm(
+              context,
+              familyId: person.familyId,
+              usesLunarCalendar: snapshot.family.usesLunarCalendar,
+              editing: person,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TextButton.icon(
@@ -277,88 +398,6 @@ class _DeletePerson extends ConsumerWidget {
   }
 }
 
-/// A heading between groups of rows.
-class _Section extends StatelessWidget {
-  const _Section({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-    child: Text(
-      title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-        color: Theme.of(context).colorScheme.primary,
-      ),
-    ),
-  );
-}
-
-/// One recorded value, or nothing at all when it is absent.
-///
-/// An empty field is omitted rather than shown as "unknown". Most fields are
-/// empty for most people in an old gia phả, and a screen of blanks buries what
-/// is actually known.
-class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.value});
-
-  final String label;
-  final String? value;
-
-  @override
-  Widget build(BuildContext context) {
-    final shown = value?.trim();
-    if (shown == null || shown.isEmpty) return const SizedBox.shrink();
-
-    return ListTile(
-      dense: true,
-      title: Text(label, style: Theme.of(context).textTheme.labelMedium),
-      subtitle: Text(shown, style: Theme.of(context).textTheme.bodyLarge),
-    );
-  }
-}
-
-/// A date, with its lunar reading underneath where the family keeps one.
-class _DateField extends StatelessWidget {
-  const _DateField({
-    required this.label,
-    required this.date,
-    required this.usesLunarCalendar,
-  });
-
-  final String label;
-  final GenealogicalDate? date;
-  final bool usesLunarCalendar;
-
-  @override
-  Widget build(BuildContext context) {
-    if (date == null) return const SizedBox.shrink();
-
-    final lunar = formatLunar(
-      context,
-      date,
-      usesLunarCalendar: usesLunarCalendar,
-    );
-
-    return ListTile(
-      dense: true,
-      title: Text(label, style: Theme.of(context).textTheme.labelMedium),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            formatDate(context, date),
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          if (lunar != null)
-            Text(lunar, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
-    );
-  }
-}
-
 /// One kind of relative, each tappable through to their own profile.
 class _Relatives extends ConsumerWidget {
   const _Relatives({
@@ -388,27 +427,28 @@ class _Relatives extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (people.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return GroupedSection(
+      header: label,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Text(label, style: Theme.of(context).textTheme.labelMedium),
-        ),
         for (final (index, person) in people.indexed)
-          ListTile(
-            leading: CircleAvatar(
-              child: Text(person.displayName.characters.firstOrNull ?? '?'),
-            ),
-            title: Text(person.displayName),
-            subtitle: switch (subtitles?.elementAtOrNull(index)) {
-              final String subtitle => Text(subtitle),
-              null => null,
+          GroupedRow(
+            icon: switch (person.sex) {
+              Sex.male => Icons.man,
+              Sex.female => Icons.woman,
+              Sex.unknown => Icons.person,
             },
+            iconColor: switch (person.sex) {
+              Sex.male => GroupedColors.blue,
+              Sex.female => GroupedColors.pink,
+              Sex.unknown => GroupedColors.grey,
+            },
+            title: person.displayName,
+            subtitle: subtitles?.elementAtOrNull(index),
             trailing: switch (removes) {
               final RelationshipType type => IconButton(
-                icon: const Icon(Icons.link_off),
+                icon: const Icon(Icons.link_off, size: 20),
                 tooltip: AppText.of(context).actionRemove,
+                color: GroupedColors.secondaryLabel(context),
                 onPressed: () => removeRelative(
                   context,
                   ref,

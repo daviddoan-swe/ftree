@@ -50,7 +50,7 @@ void main() {
 
     await tester.tap(find.text('Họ Nguyễn'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FloatingActionButton, 'Add person'));
+    await tester.tap(find.byTooltip('Add person'));
     await tester.pumpAndSettle();
   }
 
