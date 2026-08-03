@@ -331,6 +331,28 @@ Two defects found by running it rather than by testing it:
   buttons was showing. Both were rewritten and then checked by breaking the
   code they cover.
 
+From the schema review: **nothing was indexed but the primary keys.** Loading a
+family scanned the whole `persons` and `relationships` tables, and deleting a
+person scanned `relationships` to find their edges. Schema v2 adds four indexes
+and, more importantly, establishes how migrations are proved — captured schema
+history, replayed in tests, and checked on a real device database that held 34
+people (ARCHITECTURE.md §8.1, §8.2).
+
+Doing this before the M11 hardening pass was deliberate. The index is standard
+practice rather than speculative tuning, but the reason to spend the time now
+is that M7 brings Postgres and a run of schema changes, and until this landed
+nothing had ever demonstrated that a migration works. What it does *not* answer
+is how much time the index saves; that still belongs to the measurement task.
+
+From the domain review: **sibling order was not modelled.** `children()`
+returned the order the parent-child edges happened to be created in, while the
+layout treated that as birth order — so entering Con Thứ first drew a chart
+that read wrong, and two devices editing offline could disagree. Children are
+now ordered by recorded birth date wherever the dates decide it, and left alone
+wherever they do not (DOMAIN.md §13.3). An explicit order field on the
+relationship was considered and deferred: it costs a column and a migration,
+and is only worth it if this proves insufficient on real data.
+
 ---
 
 ## M7 — Cloud Foundation
@@ -436,7 +458,8 @@ Implement/review:
 * privacy
 * security
 * performance
-* database indexes
+* database indexes — the read and delete paths were indexed at M6
+  (ARCHITECTURE.md §8.1); what remains is whatever measurement turns up
 * backup strategy
 * logging
 * crash reporting as appropriate

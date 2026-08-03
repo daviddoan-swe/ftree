@@ -1,0 +1,13 @@
+# Timestamps are stored as ISO-8601 text, not as Unix integers
+# (ARCHITECTURE.md §8, and the reasoning on AppDatabase.options).
+#
+# Declared here as well as at runtime because code generation needs to know.
+# Without it the schema helpers generated for migration tests emit INTEGER
+# columns for every DateTime, so the tests validate against a schema no device
+# has ever had — which is worse than having no migration test at all.
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          store_date_time_values_as_text: true

@@ -64,8 +64,8 @@ void main() {
       );
 
   group('schema', () {
-    test('opens at version 1 and creates every table', () async {
-      expect(db.schemaVersion, 1);
+    test('opens at version 2 and creates every table', () async {
+      expect(db.schemaVersion, 2);
 
       // Touching each table proves it exists.
       expect(await db.select(db.families).get(), isEmpty);

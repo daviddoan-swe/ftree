@@ -2455,6 +2455,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FamiliesTable families = $FamiliesTable(this);
   late final $PersonsTable persons = $PersonsTable(this);
   late final $RelationshipsTable relationships = $RelationshipsTable(this);
+  late final Index personsByFamily = Index(
+    'persons_by_family',
+    'CREATE INDEX persons_by_family ON persons (family_id, deleted_at)',
+  );
+  late final Index relationshipsByFamily = Index(
+    'relationships_by_family',
+    'CREATE INDEX relationships_by_family ON relationships (family_id, deleted_at)',
+  );
+  late final Index relationshipsByPersonA = Index(
+    'relationships_by_person_a',
+    'CREATE INDEX relationships_by_person_a ON relationships (person_a_id)',
+  );
+  late final Index relationshipsByPersonB = Index(
+    'relationships_by_person_b',
+    'CREATE INDEX relationships_by_person_b ON relationships (person_b_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2463,6 +2479,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     families,
     persons,
     relationships,
+    personsByFamily,
+    relationshipsByFamily,
+    relationshipsByPersonA,
+    relationshipsByPersonB,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2495,6 +2515,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       result: [TableUpdate('relationships', kind: UpdateKind.delete)],
     ),
   ]);
+  @override
+  DriftDatabaseOptions get options =>
+      const DriftDatabaseOptions(storeDateTimeAsText: true);
 }
 
 typedef $$FamiliesTableCreateCompanionBuilder =

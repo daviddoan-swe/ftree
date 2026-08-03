@@ -66,6 +66,14 @@ class Families extends Table with _SyncColumns {
 /// Twelve date columns — six per date — rather than one blob each. Explicit
 /// columns keep the ISO text sortable, which is the reason §4.1 chose that
 /// format over JSON.
+/// Every read of a person filters by family and skips tombstones, so the index
+/// covers both columns rather than just the foreign key. `IS NULL` is a usable
+/// index constraint in SQLite, so the whole `WHERE` is served.
+///
+/// Not a partial index over the live rows only, tempting though the smaller
+/// index is: synchronisation has to read exactly the tombstones a partial index
+/// would leave out (§15.2), and that is a trap which only springs later.
+@TableIndex(name: 'persons_by_family', columns: <Symbol>{#familyId, #deletedAt})
 @DataClassName('PersonRow')
 class Persons extends Table with _SyncColumns {
   TextColumn get id => text()();
@@ -124,6 +132,22 @@ class Persons extends Table with _SyncColumns {
 /// `parentChild`, and merely the lower and higher id for `spouse`, which is
 /// stored in canonical order (§5.1). The unique key below only rejects a
 /// duplicate spouse because of that ordering.
+/// Three indexes, for three different reads.
+///
+/// By family, for loading a tree and for deleting one — the same shape as
+/// [Persons].
+///
+/// By each endpoint, because deleting a person tombstones every relationship
+/// naming them (§15.1) and that query is `person_a_id = ? OR person_b_id = ?`.
+/// With an index on each side SQLite can serve both halves of the `OR`; with
+/// neither it scans the whole table on every person deleted. SQLite does not
+/// index a foreign key on its own, so nothing here comes for free.
+@TableIndex(
+  name: 'relationships_by_family',
+  columns: <Symbol>{#familyId, #deletedAt},
+)
+@TableIndex(name: 'relationships_by_person_a', columns: <Symbol>{#personAId})
+@TableIndex(name: 'relationships_by_person_b', columns: <Symbol>{#personBId})
 @DataClassName('RelationshipRow')
 class Relationships extends Table with _SyncColumns {
   TextColumn get id => text()();
@@ -161,8 +185,9 @@ class Relationships extends Table with _SyncColumns {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
+  /// 2 — indexes on the columns every read filters by.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -182,6 +207,18 @@ class AppDatabase extends _$AppDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) => m.createAll(),
+
+    /// A device that already holds data gets the same schema a fresh install
+    /// gets. The two paths drifting apart is the classic migration defect, and
+    /// a test compares them rather than trusting this.
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await m.create(personsByFamily);
+        await m.create(relationshipsByFamily);
+        await m.create(relationshipsByPersonA);
+        await m.create(relationshipsByPersonB);
+      }
+    },
     beforeOpen: (OpeningDetails details) async {
       // SQLite ignores foreign keys unless asked, per connection. Without this
       // the CASCADE clauses above are decoration and deleting a person would

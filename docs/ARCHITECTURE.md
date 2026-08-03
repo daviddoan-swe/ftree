@@ -200,6 +200,51 @@ reverse once real data exists (see DOMAIN.md §18):
 None of these require synchronization to be designed. All of them are painful or
 impossible to add after users have entered data.
 
+### 8.1 Indexes — schema v2
+
+SQLite indexes nothing but primary keys and unique constraints on its own; a
+foreign key gets no index unless one is declared. Every read filters by one:
+
+| Index                                          | Serves                                                     |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `persons (family_id, deleted_at)`               | loading a family, deleting one                              |
+| `relationships (family_id, deleted_at)`         | the same                                                    |
+| `relationships (person_a_id)`                   | deleting a person, whose edges are found from either end    |
+| `relationships (person_b_id)`                   | the same                                                    |
+
+Both columns, not just the foreign key, because `deleted_at IS NULL` is part of
+every read and `IS NULL` is a usable index constraint in SQLite. The leftmost
+prefix still serves the queries that ask by family alone.
+
+Deliberately **not** partial indexes over the live rows. The smaller index is
+tempting, but synchronisation has to read exactly the tombstones a partial
+index leaves out (DOMAIN.md §15.2), and that is a trap which only springs
+later.
+
+`families` is left unindexed: a device holds a handful of them, and scanning
+five rows beats consulting an index.
+
+### 8.2 Migrations are verified against the schema that shipped
+
+Schema history lives in `drift_schemas/` as one JSON file per version, captured
+with `drift_dev schema dump`, and `drift_dev schema generate` turns those into
+the helpers the migration tests run against. A schema mistake costs a migration
+on every installed device (DOMAIN.md §18), so the tests replay the real v1 and
+migrate it rather than approximating v1 by hand.
+
+Every migration is expected to prove three things:
+
+* the upgraded schema matches the new version
+* data written under the old version survives
+* a fresh install ends up where an upgraded device ends up — the classic defect
+  is `onCreate` and `onUpgrade` drifting apart, which leaves new users on a
+  schema nobody else has
+
+`store_date_time_values_as_text` is set in `build.yaml`, not only as a runtime
+option. Without it the generated historical schemas declare every timestamp as
+`INTEGER` while real devices have `TEXT`, and the migration tests then validate
+against a schema that never existed — worse than having no test at all.
+
 ---
 
 # 9. Cloud
