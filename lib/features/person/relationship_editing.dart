@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
+import '../../app/confirm.dart';
 import '../../app/providers.dart';
 import '../../app/validation_prompts.dart';
 import '../../domain/family_repository.dart';
@@ -145,27 +146,16 @@ Future<void> removeRelative(
   if (relationship == null) return;
 
   final text = AppText.of(context);
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(text.relationshipRemoveTitle),
-      content: Text(
-        text.relationshipRemoveBody(subject.displayName, other.displayName),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(text.actionCancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(text.actionRemove),
-        ),
-      ],
+  final confirmed = await confirmDestructive(
+    context,
+    title: text.relationshipRemoveTitle,
+    body: text.relationshipRemoveBody(
+      subject.displayName,
+      other.displayName,
     ),
+    confirmLabel: text.actionRemove,
   );
-
-  if (confirmed != true) return;
+  if (!confirmed) return;
   await ref
       .read(familySnapshotProvider(subject.familyId).notifier)
       .removeRelationship(relationship.id);

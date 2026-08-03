@@ -258,6 +258,141 @@ void main() {
     });
   });
 
+  group('deleting a person', () {
+    /// A father, a mother, and their child.
+    Future<void> seedHousehold() async {
+      await seedFamily();
+      await seedPerson(1, 'Cha');
+      await seedPerson(2, 'Mẹ');
+      await seedPerson(3, 'Con');
+
+      await repository.saveRelationship(
+        Relationship.spouse(
+          id: 'r0000000-0000-7000-8000-000000000001',
+          familyId: familyId,
+          personA: personId(1),
+          personB: personId(2),
+        ),
+      );
+      for (final parent in <int>[1, 2]) {
+        await repository.saveRelationship(
+          Relationship.parentChild(
+            id: 'r0000000-0000-7000-8000-00000000000$parent'
+                '0',
+            familyId: familyId,
+            parent: personId(parent),
+            child: personId(3),
+          ),
+        );
+      }
+    }
+
+    /// Reaches the button, which is deliberately below everything recorded.
+    Future<void> tapDelete(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        find.text('Delete this person'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Delete this person'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('says how many relationships go with them', (tester) async {
+      await seedHousehold();
+      await openProfile(tester, 1);
+      await tapDelete(tester);
+
+      expect(find.text('Delete Cha?'), findsOneWidget);
+      expect(
+        find.textContaining('Removes 2 relationships as well'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('tombstones the row rather than erasing it', (tester) async {
+      await seedHousehold();
+      await openProfile(tester, 3);
+      await tapDelete(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      // The row survives, carrying its tombstone: a row erased outright leaves
+      // no record of the deletion to synchronise (DOMAIN.md §15.2).
+      final rows = await db.select(db.persons).get();
+      expect(rows.length, 3);
+      expect(
+        rows.singleWhere((r) => r.id == personId(3)).deletedAt,
+        isNotNull,
+      );
+
+      final snapshot = await repository.loadFamily(familyId);
+      expect(snapshot!.graph.personById(personId(3)), isNull);
+    });
+
+    testWidgets('takes their relationships with them', (tester) async {
+      await seedHousehold();
+      await openProfile(tester, 3);
+      await tapDelete(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      // Nobody is left holding an edge to somebody who is gone.
+      final snapshot = await repository.loadFamily(familyId);
+      expect(snapshot!.graph.children(personId(1)), isEmpty);
+      expect(snapshot.graph.relationships.length, 1, reason: 'the marriage');
+    });
+
+    testWidgets('cancelling changes nothing', (tester) async {
+      await seedHousehold();
+      await openProfile(tester, 3);
+      await tapDelete(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      final snapshot = await repository.loadFamily(familyId);
+      expect(snapshot!.graph.persons.length, 3);
+      expect(snapshot.graph.relationships.length, 3);
+    });
+
+    testWidgets('leaves the profile once the person is gone', (tester) async {
+      await seedHousehold();
+      // Pushed onto a route, so there is somewhere to go back to.
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[databaseProvider.overrideWithValue(db)],
+          child: MaterialApp(
+            localizationsDelegates: AppText.localizationsDelegates,
+            supportedLocales: AppText.supportedLocales,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => showPersonProfile(
+                    context,
+                    familyId: familyId,
+                    personId: personId(3),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PersonProfileScreen), findsOneWidget);
+
+      await tapDelete(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PersonProfileScreen), findsNothing);
+      expect(find.text('open'), findsOneWidget);
+    });
+  });
+
   testWidgets('shows nothing rather than crashing for an absent person', (
     tester,
   ) async {

@@ -309,6 +309,41 @@ void main() {
     });
   });
 
+  testWidgets('picks a new root when the chosen one is deleted', (
+    tester,
+  ) async {
+    // Not the default root — a root the reader picked, which is the case the
+    // guard in _body exists for. Deleting that person from their profile is a
+    // few taps away, and the tree screen stays in the stack while it happens.
+    await seedFamily();
+    await openTree(tester);
+
+    final layout = drawnLayout(tester);
+    final node = layout.nodeFor(personId(3))!;
+    await tester.tapAt(
+      tester.getTopLeft(chart) +
+          Offset(
+            node.x + 40 + layout.metrics.nodeWidth / 2,
+            node.y + 40 + layout.metrics.nodeHeight / 2,
+          ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
+    await tester.pumpAndSettle();
+    expect(drawnLayout(tester).nodeFor(personId(3))!.generation, 0);
+
+    await repository.deletePerson(personId(3));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TreeScreen)),
+    );
+    await container.read(familySnapshotProvider(familyId).notifier).reload();
+    await tester.pumpAndSettle();
+
+    final after = drawnLayout(tester);
+    expect(after.nodeFor(personId(3)), isNull);
+    expect(after.nodes, isNotEmpty, reason: 'a chart is still drawn');
+  });
+
   testWidgets('survives a graph with an ancestry loop in it', (tester) async {
     // Two devices editing offline can produce this (DOMAIN.md §6.2). It must
     // draw something rather than hang.

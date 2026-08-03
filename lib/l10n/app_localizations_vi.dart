@@ -45,10 +45,40 @@ class AppTextVi extends AppText {
       locale: localeName,
       other: '$count người',
       one: '1 người',
-      zero: 'Chưa có ai',
+      zero: 'chưa có ai',
     );
     return '$_temp0';
   }
+
+  @override
+  String familyRelationshipCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count quan hệ',
+      one: '1 quan hệ',
+      zero: 'chưa có quan hệ nào',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get familyEdit => 'Sửa gia đình';
+
+  @override
+  String get familyDelete => 'Xoá gia đình';
+
+  @override
+  String familyDeleteBody(String people, String relationships) {
+    return 'Xoá gia đình này cùng $people và $relationships. Không thể hoàn tác.';
+  }
+
+  @override
+  String get familyDeleteEmptyBody =>
+      'Gia đình này chưa có ai. Không thể hoàn tác.';
+
+  @override
+  String get familyDeleteTypeName => 'Gõ tên gia đình để xác nhận';
 
   @override
   String get actionSave => 'Lưu';
@@ -70,6 +100,17 @@ class AppTextVi extends AppText {
 
   @override
   String get actionRemove => 'Gỡ';
+
+  @override
+  String get actionEdit => 'Sửa';
+
+  @override
+  String get actionDelete => 'Xoá';
+
+  @override
+  String deleteTitle(String name) {
+    return 'Xoá $name?';
+  }
 
   @override
   String get peopleEmpty => 'Chưa có ai trong gia đình này';
@@ -130,6 +171,21 @@ class AppTextVi extends AppText {
 
   @override
   String get personBiography => 'Ghi chép';
+
+  @override
+  String get personDelete => 'Xoá người này';
+
+  @override
+  String personDeleteBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Gỡ luôn $count quan hệ của người này. Không thể hoàn tác.',
+      one: 'Gỡ luôn 1 quan hệ của người này. Không thể hoàn tác.',
+      zero: 'Không thể hoàn tác.',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get personProfile => 'Hồ sơ';

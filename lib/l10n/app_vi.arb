@@ -21,11 +21,31 @@
     "description": "Bật để nhập và hiển thị ngày âm lịch cho gia đình này"
   },
   "familyUsesLunarCalendarHint": "Ghi kèm ngày âm và tính ngày giỗ",
-  "familyPersonCount": "{count, plural, =0{Chưa có ai} =1{1 người} other{{count} người}}",
+  "familyPersonCount": "{count, plural, =0{chưa có ai} =1{1 người} other{{count} người}}",
   "@familyPersonCount": {
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+  "familyRelationshipCount": "{count, plural, =0{chưa có quan hệ nào} =1{1 quan hệ} other{{count} quan hệ}}",
+  "@familyRelationshipCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "familyEdit": "Sửa gia đình",
+  "familyDelete": "Xoá gia đình",
+  "familyDeleteBody": "Xoá gia đình này cùng {people} và {relationships}. Không thể hoàn tác.",
+  "@familyDeleteBody": {
+    "placeholders": {
+      "people": { "type": "String" },
+      "relationships": { "type": "String" }
+    }
+  },
+  "familyDeleteEmptyBody": "Gia đình này chưa có ai. Không thể hoàn tác.",
+  "familyDeleteTypeName": "Gõ tên gia đình để xác nhận",
+  "@familyDeleteTypeName": {
+    "description": "Ma sát tỉ lệ với thiệt hại: xoá cả một gia phả thì phải gõ đúng tên"
   },
 
   "actionSave": "Lưu",
@@ -35,6 +55,17 @@
   "actionClose": "Đóng",
   "actionAdd": "Thêm",
   "actionRemove": "Gỡ",
+  "actionEdit": "Sửa",
+  "actionDelete": "Xoá",
+  "@actionDelete": {
+    "description": "Xoá hẳn một người hoặc một gia đình — khác 'Gỡ', chỉ tháo một quan hệ"
+  },
+  "deleteTitle": "Xoá {name}?",
+  "@deleteTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
 
   "peopleEmpty": "Chưa có ai trong gia đình này",
   "peopleEmptyHint": "Thêm người đầu tiên để bắt đầu dựng cây",
@@ -59,6 +90,13 @@
   "personBirthPlace": "Nơi sinh",
   "personDeathPlace": "Nơi mất",
   "personBiography": "Ghi chép",
+  "personDelete": "Xoá người này",
+  "personDeleteBody": "{count, plural, =0{Không thể hoàn tác.} =1{Gỡ luôn 1 quan hệ của người này. Không thể hoàn tác.} other{Gỡ luôn {count} quan hệ của người này. Không thể hoàn tác.}}",
+  "@personDeleteBody": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "personProfile": "Hồ sơ",
   "personRelatives": "Quan hệ",

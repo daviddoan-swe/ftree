@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
+import '../../app/confirm.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
 import '../../domain/family_graph.dart';
@@ -117,8 +118,10 @@ class _Profile extends StatelessWidget {
         siblings.isEmpty;
 
     return ListView(
-      // Room for the floating button, which otherwise sits on the last rows.
-      padding: const EdgeInsets.only(bottom: 96),
+      // Room for the floating button, which otherwise sits on the last rows —
+      // and the last row is now the delete button, which must not be tapped by
+      // somebody aiming at the one that adds a relationship.
+      padding: const EdgeInsets.only(bottom: 120),
       children: <Widget>[
         _Section(title: text.personProfile),
         _Field(label: text.personDisplayName, value: person.displayName),
@@ -198,6 +201,11 @@ class _Profile extends StatelessWidget {
               text.siblingSharedParents(s.sharedParentCount),
           ],
         ),
+
+        // Last, after everything recorded about this person has been scrolled
+        // past. Deleting somebody is a decision that should follow reading, not
+        // precede it.
+        _DeletePerson(person: person, snapshot: snapshot),
       ],
     );
   }
@@ -207,6 +215,66 @@ class _Profile extends StatelessWidget {
     Sex.female => text.sexFemale,
     Sex.unknown => text.sexUnknown,
   };
+}
+
+/// Removing this person from the family.
+///
+/// Soft, like every deletion here: the row is tombstoned rather than erased, so
+/// the deletion still exists to be synchronised (DOMAIN.md §15.2). The
+/// application offers no way back, which is what the confirmation says.
+class _DeletePerson extends ConsumerWidget {
+  const _DeletePerson({required this.person, required this.snapshot});
+
+  final Person person;
+  final FamilySnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = AppText.of(context);
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const Divider(height: 48),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
+            icon: const Icon(Icons.delete_outline),
+            label: Text(text.personDelete),
+            onPressed: () => _confirmAndDelete(context, ref),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final text = AppText.of(context);
+    final navigator = Navigator.of(context);
+
+    // Counted here rather than left to the repository, because the number is
+    // the whole point of asking: relationships go with the person.
+    final losing = snapshot.graph.relationships
+        .where((r) => r.involves(person.id))
+        .length;
+
+    final confirmed = await confirmDestructive(
+      context,
+      title: text.deleteTitle(person.displayName),
+      body: text.personDeleteBody(losing),
+      confirmLabel: text.actionDelete,
+    );
+    if (!confirmed) return;
+
+    await ref
+        .read(familySnapshotProvider(person.familyId).notifier)
+        .removePerson(person.id);
+    navigator.pop();
+  }
 }
 
 /// A heading between groups of rows.

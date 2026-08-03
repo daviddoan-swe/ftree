@@ -12,12 +12,29 @@
   "familyDescription": "Notes",
   "familyUsesLunarCalendar": "Use the lunar calendar",
   "familyUsesLunarCalendarHint": "Record lunar dates and work out giỗ",
-  "familyPersonCount": "{count, plural, =0{Nobody yet} =1{1 person} other{{count} people}}",
+  "familyPersonCount": "{count, plural, =0{nobody} =1{1 person} other{{count} people}}",
   "@familyPersonCount": {
     "placeholders": {
       "count": { "type": "int" }
     }
   },
+  "familyRelationshipCount": "{count, plural, =0{no relationships} =1{1 relationship} other{{count} relationships}}",
+  "@familyRelationshipCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "familyEdit": "Edit family",
+  "familyDelete": "Delete family",
+  "familyDeleteBody": "Deletes this family along with {people} and {relationships}. This cannot be undone.",
+  "@familyDeleteBody": {
+    "placeholders": {
+      "people": { "type": "String" },
+      "relationships": { "type": "String" }
+    }
+  },
+  "familyDeleteEmptyBody": "This family has nobody in it. This cannot be undone.",
+  "familyDeleteTypeName": "Type the family name to confirm",
 
   "actionSave": "Save",
   "actionCancel": "Cancel",
@@ -26,6 +43,14 @@
   "actionClose": "Close",
   "actionAdd": "Add",
   "actionRemove": "Remove",
+  "actionEdit": "Edit",
+  "actionDelete": "Delete",
+  "deleteTitle": "Delete {name}?",
+  "@deleteTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
 
   "peopleEmpty": "Nobody in this family yet",
   "peopleEmptyHint": "Add the first person to start building the tree",
@@ -47,6 +72,13 @@
   "personBirthPlace": "Place of birth",
   "personDeathPlace": "Place of death",
   "personBiography": "Notes",
+  "personDelete": "Delete this person",
+  "personDeleteBody": "{count, plural, =0{This cannot be undone.} =1{Removes 1 relationship as well. This cannot be undone.} other{Removes {count} relationships as well. This cannot be undone.}}",
+  "@personDeleteBody": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "personProfile": "Profile",
   "personRelatives": "Relatives",

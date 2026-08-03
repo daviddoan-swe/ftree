@@ -46,10 +46,40 @@ class AppTextEn extends AppText {
       locale: localeName,
       other: '$count people',
       one: '1 person',
-      zero: 'Nobody yet',
+      zero: 'nobody',
     );
     return '$_temp0';
   }
+
+  @override
+  String familyRelationshipCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count relationships',
+      one: '1 relationship',
+      zero: 'no relationships',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get familyEdit => 'Edit family';
+
+  @override
+  String get familyDelete => 'Delete family';
+
+  @override
+  String familyDeleteBody(String people, String relationships) {
+    return 'Deletes this family along with $people and $relationships. This cannot be undone.';
+  }
+
+  @override
+  String get familyDeleteEmptyBody =>
+      'This family has nobody in it. This cannot be undone.';
+
+  @override
+  String get familyDeleteTypeName => 'Type the family name to confirm';
 
   @override
   String get actionSave => 'Save';
@@ -71,6 +101,17 @@ class AppTextEn extends AppText {
 
   @override
   String get actionRemove => 'Remove';
+
+  @override
+  String get actionEdit => 'Edit';
+
+  @override
+  String get actionDelete => 'Delete';
+
+  @override
+  String deleteTitle(String name) {
+    return 'Delete $name?';
+  }
 
   @override
   String get peopleEmpty => 'Nobody in this family yet';
@@ -133,6 +174,21 @@ class AppTextEn extends AppText {
 
   @override
   String get personBiography => 'Notes';
+
+  @override
+  String get personDelete => 'Delete this person';
+
+  @override
+  String personDeleteBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Removes $count relationships as well. This cannot be undone.',
+      one: 'Removes 1 relationship as well. This cannot be undone.',
+      zero: 'This cannot be undone.',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get personProfile => 'Profile';

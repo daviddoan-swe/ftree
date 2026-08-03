@@ -63,6 +63,22 @@ final class FamilyListNotifier extends AsyncNotifier<List<Family>> {
       return repository.listFamilies();
     });
   }
+
+  /// Tombstones a family together with its people and their relationships.
+  ///
+  /// Also discards the cached snapshot. [familySnapshotProvider] is not
+  /// autoDispose, so without this the deleted family's graph would sit in the
+  /// cache for the lifetime of the application and be handed to anything that
+  /// asked for it again.
+  Future<void> removeFamily(String familyId) async {
+    final repository = ref.read(familyRepositoryProvider);
+    state = const AsyncValue<List<Family>>.loading();
+    state = await AsyncValue.guard(() async {
+      await repository.deleteFamily(familyId);
+      return repository.listFamilies();
+    });
+    ref.invalidate(familySnapshotProvider(familyId));
+  }
 }
 
 /// One family with its graph, or null if it is absent or deleted.
@@ -98,6 +114,15 @@ final class FamilySnapshotNotifier
   /// lives (DOMAIN.md §9).
   Future<void> savePerson(Person person) async {
     await ref.read(familyRepositoryProvider).savePerson(person);
+    await reload();
+  }
+
+  /// Tombstones [personId] and rebuilds the graph.
+  ///
+  /// Every relationship naming them goes too, in one transaction — the
+  /// repository's doing, not this notifier's (DOMAIN.md §15.1).
+  Future<void> removePerson(String personId) async {
+    await ref.read(familyRepositoryProvider).deletePerson(personId);
     await reload();
   }
 

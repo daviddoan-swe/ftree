@@ -160,8 +160,44 @@ abstract class AppText {
   /// No description provided for @familyPersonCount.
   ///
   /// In vi, this message translates to:
-  /// **'{count, plural, =0{Chưa có ai} =1{1 người} other{{count} người}}'**
+  /// **'{count, plural, =0{chưa có ai} =1{1 người} other{{count} người}}'**
   String familyPersonCount(int count);
+
+  /// No description provided for @familyRelationshipCount.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =0{chưa có quan hệ nào} =1{1 quan hệ} other{{count} quan hệ}}'**
+  String familyRelationshipCount(int count);
+
+  /// No description provided for @familyEdit.
+  ///
+  /// In vi, this message translates to:
+  /// **'Sửa gia đình'**
+  String get familyEdit;
+
+  /// No description provided for @familyDelete.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoá gia đình'**
+  String get familyDelete;
+
+  /// No description provided for @familyDeleteBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoá gia đình này cùng {people} và {relationships}. Không thể hoàn tác.'**
+  String familyDeleteBody(String people, String relationships);
+
+  /// No description provided for @familyDeleteEmptyBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gia đình này chưa có ai. Không thể hoàn tác.'**
+  String get familyDeleteEmptyBody;
+
+  /// Ma sát tỉ lệ với thiệt hại: xoá cả một gia phả thì phải gõ đúng tên
+  ///
+  /// In vi, this message translates to:
+  /// **'Gõ tên gia đình để xác nhận'**
+  String get familyDeleteTypeName;
 
   /// No description provided for @actionSave.
   ///
@@ -204,6 +240,24 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Gỡ'**
   String get actionRemove;
+
+  /// No description provided for @actionEdit.
+  ///
+  /// In vi, this message translates to:
+  /// **'Sửa'**
+  String get actionEdit;
+
+  /// Xoá hẳn một người hoặc một gia đình — khác 'Gỡ', chỉ tháo một quan hệ
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoá'**
+  String get actionDelete;
+
+  /// No description provided for @deleteTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoá {name}?'**
+  String deleteTitle(String name);
 
   /// No description provided for @peopleEmpty.
   ///
@@ -324,6 +378,18 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Ghi chép'**
   String get personBiography;
+
+  /// No description provided for @personDelete.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoá người này'**
+  String get personDelete;
+
+  /// No description provided for @personDeleteBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =0{Không thể hoàn tác.} =1{Gỡ luôn 1 quan hệ của người này. Không thể hoàn tác.} other{Gỡ luôn {count} quan hệ của người này. Không thể hoàn tác.}}'**
+  String personDeleteBody(int count);
 
   /// No description provided for @personProfile.
   ///
