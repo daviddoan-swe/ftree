@@ -13,6 +13,7 @@ import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
 import '../person/person_form_screen.dart';
 import '../person/person_profile_screen.dart';
+import '../person/person_style.dart';
 import '../tree/tree_screen.dart';
 
 /// Opens the screen for [family].
@@ -51,6 +52,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: circleBackButton(context),
         title: Text(data?.family.name ?? ''),
         actions: <Widget>[
           if (data != null)
@@ -192,16 +194,8 @@ class _PersonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GroupedRow(
-    icon: switch (person.sex) {
-      Sex.male => Icons.man,
-      Sex.female => Icons.woman,
-      Sex.unknown => Icons.person,
-    },
-    iconColor: switch (person.sex) {
-      Sex.male => GroupedColors.blue,
-      Sex.female => GroupedColors.pink,
-      Sex.unknown => GroupedColors.grey,
-    },
+    icon: personIcon(person),
+    iconColor: personColor(person),
     title: person.displayName,
     subtitle: _lifespan(person),
     // The profile, not the form. Reading is the common case, and editing is

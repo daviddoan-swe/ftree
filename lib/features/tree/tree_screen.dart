@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
+import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../domain/family_graph.dart';
 import '../../domain/family_repository.dart';
@@ -154,6 +155,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: circleBackButton(context),
         title: Text(text.treeTitle),
         actions: <Widget>[
           IconButton(

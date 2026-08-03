@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
@@ -132,6 +133,88 @@ void main() {
     // A question mark, not a cross: a cross on a badge reads as "remove".
     await openProfile(tester, 3);
     expect(find.byIcon(Icons.question_mark_rounded), findsOneWidget);
+  });
+
+  group('the age under the portrait', () {
+    testWidgets('is the life span when the person died', (tester) async {
+      await seedFamily();
+      await seedPerson(
+        1,
+        'Nguyễn Văn A',
+        birthDate: GenealogicalDate(year: 1808),
+        deathDate: GenealogicalDate(year: 1874),
+      );
+      await openProfile(tester, 1);
+
+      expect(find.text('66 years old'), findsOneWidget);
+    });
+
+    testWidgets('is absent when there is no birth to count from', (
+      tester,
+    ) async {
+      await seedFamily();
+      await seedPerson(
+        1,
+        'Nguyễn Văn A',
+        deathDate: GenealogicalDate(year: 1874),
+      );
+      await openProfile(tester, 1);
+
+      expect(find.textContaining('years old'), findsNothing);
+    });
+
+    testWidgets('is absent when it would be an impossible age today', (
+      tester,
+    ) async {
+      // No death date does not mean living (ARCHITECTURE §11.1). Somebody born
+      // in 1782 is not two hundred and something; nothing is better.
+      await seedFamily();
+      await seedPerson(
+        1,
+        'Cụ Tổ',
+        birthDate: GenealogicalDate(year: 1782),
+      );
+      await openProfile(tester, 1);
+
+      expect(find.textContaining('years old'), findsNothing);
+    });
+  });
+
+  group('somebody who has died', () {
+    testWidgets('is drawn back in grey, on the portrait and in a list', (
+      tester,
+    ) async {
+      await seedFamily();
+      await seedPerson(
+        1,
+        'Người Đã Mất',
+        birthDate: GenealogicalDate(year: 1912),
+        deathDate: GenealogicalDate(year: 1988),
+      );
+      await openProfile(tester, 1);
+
+      final avatar = tester.widget<AvatarHeader>(find.byType(AvatarHeader));
+      expect(avatar.color, GroupedColors.grey);
+    });
+
+    testWidgets('a living person keeps the colour of their sex', (
+      tester,
+    ) async {
+      await seedFamily();
+      await repository.savePerson(
+        Person(
+          id: personId(1),
+          familyId: familyId,
+          displayName: 'Người Còn Sống',
+          sex: Sex.female,
+          birthDate: GenealogicalDate(year: 1982),
+        ),
+      );
+      await openProfile(tester, 1);
+
+      final avatar = tester.widget<AvatarHeader>(find.byType(AvatarHeader));
+      expect(avatar.color, GroupedColors.pink);
+    });
   });
 
   testWidgets('shows a year-only date as a year, not an invented January', (

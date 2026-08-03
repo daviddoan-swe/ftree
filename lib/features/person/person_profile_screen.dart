@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import '../../app/confirm.dart';
 import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
+import '../../domain/age.dart';
 import '../../domain/family.dart';
 import '../../domain/family_graph.dart';
 import '../../domain/family_repository.dart';
@@ -15,6 +16,7 @@ import '../../domain/relationship.dart';
 import '../../l10n/app_localizations.dart';
 import 'date_display.dart';
 import 'person_form_screen.dart';
+import 'person_style.dart';
 import 'relationship_editing.dart';
 
 /// Opens the profile of [personId] within [familyId].
@@ -52,6 +54,7 @@ class PersonProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: circleBackButton(context),
         title: Text(person?.displayName ?? ''),
         actions: <Widget>[
           // Adding a relative is the one thing done from here often enough to
@@ -154,8 +157,9 @@ class _Profile extends StatelessWidget {
         // (DOMAIN.md §3.2).
         AvatarHeader(
           initials: initialsOf(person.displayName),
-          subtitle: _lifespan(context),
-          badge: CountBadge(icon: _sexIcon(person.sex)),
+          subtitle: _age(context),
+          badge: CountBadge(icon: sexIcon(person.sex)),
+          color: personColor(person),
         ),
         GroupedSection(children: names),
         GroupedSection(children: life),
@@ -236,18 +240,6 @@ class _Profile extends StatelessWidget {
     );
   }
 
-  /// Mars, Venus, or a question mark for the third case.
-  ///
-  /// `unknown` gets its own glyph rather than an empty space: it is a recorded
-  /// answer, and leaving the badge off would make it indistinguishable from a
-  /// screen that forgot to draw one. A question mark rather than a cross — a
-  /// cross on a badge reads as "remove", not as "we do not know".
-  static IconData _sexIcon(Sex sex) => switch (sex) {
-    Sex.male => Icons.male,
-    Sex.female => Icons.female,
-    Sex.unknown => Icons.question_mark_rounded,
-  };
-
   /// One row carrying up to two short values, or nothing when neither is
   /// recorded.
   ///
@@ -301,15 +293,17 @@ class _Profile extends StatelessWidget {
     );
   }
 
-  /// `1887–1960` under the name, or nothing when neither year is recorded.
+  /// `48 tuổi` under the portrait, or nothing when it cannot be told.
   ///
-  /// Years only: the portrait is a glance, and the full dates are a few
-  /// centimetres below.
-  String? _lifespan(BuildContext context) {
-    final born = person.birthDate?.year;
-    final died = person.deathDate?.year;
-    if (born == null && died == null) return null;
-    return '${born ?? ''}–${died ?? ''}';
+  /// An age says more at a glance than a pair of years: how long a life was,
+  /// or how old somebody is now. The years themselves are two rows below.
+  String? _age(BuildContext context) {
+    final years = ageInYears(
+      birth: person.birthDate,
+      death: person.deathDate,
+      currentYear: DateTime.now().year,
+    );
+    return years == null ? null : AppText.of(context).personAge(years);
   }
 }
 
@@ -437,16 +431,8 @@ class _Relatives extends ConsumerWidget {
       children: <Widget>[
         for (final (index, person) in people.indexed)
           GroupedRow(
-            icon: switch (person.sex) {
-              Sex.male => Icons.man,
-              Sex.female => Icons.woman,
-              Sex.unknown => Icons.person,
-            },
-            iconColor: switch (person.sex) {
-              Sex.male => GroupedColors.blue,
-              Sex.female => GroupedColors.pink,
-              Sex.unknown => GroupedColors.grey,
-            },
+            icon: personIcon(person),
+            iconColor: personColor(person),
             title: person.displayName,
             subtitle: subtitles?.elementAtOrNull(index),
             trailing: switch (removes) {

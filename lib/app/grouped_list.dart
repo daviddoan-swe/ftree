@@ -393,9 +393,16 @@ class AvatarHeader extends StatelessWidget {
     this.title,
     this.subtitle,
     this.badge,
+    this.color,
     this.diameter = 96,
     super.key,
   });
+
+  /// The circle's tint. Defaults to the theme's primary.
+  ///
+  /// A person's portrait takes the same colour as their glyph elsewhere, so a
+  /// row and a profile do not describe the same person two ways.
+  final Color? color;
 
   /// One or two letters. Empty falls back to a person glyph.
   final String initials;
@@ -411,6 +418,7 @@ class AvatarHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tint = color ?? theme.colorScheme.primary;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
@@ -424,10 +432,7 @@ class AvatarHeader extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: <Color>[
-                  theme.colorScheme.primary.withValues(alpha: 0.75),
-                  theme.colorScheme.primary,
-                ],
+                colors: <Color>[tint.withValues(alpha: 0.75), tint],
               ),
             ),
             alignment: Alignment.center,
@@ -575,16 +580,40 @@ class SearchPill extends StatelessWidget {
                       },
                     ),
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(99),
-                borderSide: BorderSide.none,
-              ),
+              // A hairline, because the fill is translucent: over a pale card
+              // the field would otherwise have no edge at all and read as
+              // part of the list behind it.
+              enabledBorder: _pillBorder(GroupedColors.separator(context)),
+              focusedBorder: _pillBorder(Theme.of(context).colorScheme.primary),
+              border: _pillBorder(GroupedColors.separator(context)),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+OutlineInputBorder _pillBorder(Color color) => OutlineInputBorder(
+  borderRadius: BorderRadius.circular(99),
+  borderSide: BorderSide(color: color),
+);
+
+/// The back arrow, in a circle, the way the phone draws it.
+///
+/// Returns null where there is nothing to go back to, so an [AppBar] falls
+/// through to no leading widget at all rather than showing a dead control.
+Widget? circleBackButton(BuildContext context) {
+  if (!Navigator.of(context).canPop()) return null;
+
+  return Padding(
+    padding: const EdgeInsets.only(left: 8),
+    child: IconButton.filledTonal(
+      icon: const Icon(Icons.chevron_left, size: 26),
+      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+      onPressed: () => Navigator.of(context).maybePop(),
+    ),
+  );
 }
 
 /// The one letter shown for a family with no picture.
