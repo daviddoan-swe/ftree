@@ -326,6 +326,17 @@ indicator that a person is living — many deceased ancestors have no recorded
 death date. A deliberate living/deceased decision is needed before cloud
 sharing, not before the local milestones.
 
+**It is already being guessed at.** Three things on screen now depend on
+knowing who is living: the age under a portrait, the grey on somebody who has
+died, and the tinted border on the chart. All three stand on the same
+placeholder — `maximumPlausibleLifespanYears` in `lib/domain/age.dart`,
+provisionally 120. That constant's real job is marking an implausible lifespan
+in validation (DOMAIN.md §9.2); deciding who might still be alive is borrowed
+work, and it is wrong in the obvious direction: an ancestor whose death nobody
+wrote down is shown as living until the arithmetic gets absurd.
+
+One constant, in one place, so the decision has a single thing to replace.
+
 ---
 
 # 12. Synchronization

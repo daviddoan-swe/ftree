@@ -1,6 +1,7 @@
 /// An individual recorded in a family tree (DOMAIN.md §3).
 library;
 
+import 'age.dart';
 import 'genealogical_date.dart';
 import 'validation.dart';
 
@@ -105,9 +106,6 @@ final class Person {
   /// for months is one nobody can satisfy (§3.3).
   final String? profileMediaRef;
 
-  /// Beyond this, a lifespan is worth questioning. The longest verified human
-  /// life was 122 years (§9.2).
-  static const int _implausibleLifespanYears = 120;
 
   /// Checks the rules that need nothing beyond this person.
   ///
@@ -135,7 +133,8 @@ final class Person {
             involvedIds: <String>[id],
           ),
         );
-      } else if (birth.spanTo(death).minimumYears > _implausibleLifespanYears) {
+      } else if (birth.spanTo(death).minimumYears >
+          maximumPlausibleLifespanYears) {
         // The minimum, not the maximum: warn only when even the shortest
         // lifespan the dates allow is implausible. Using the maximum would
         // flag 1800-1920, which may be 119 years.

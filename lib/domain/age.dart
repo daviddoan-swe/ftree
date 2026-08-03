@@ -3,9 +3,20 @@ library;
 
 import 'genealogical_date.dart';
 
-/// Beyond this, nobody is still living. The longest verified human life was
-/// 122 years (§9.2).
-const int _impossibleAge = 120;
+/// The age past which a life stops being believable.
+///
+/// The longest verified human life was 122 years (§9.2), so 120 leaves room
+/// for a genuine outlier while still catching a transcription slip.
+///
+/// **One number, two jobs, and the second is a stand-in.** It marks a lifespan
+/// as worth questioning, in `Person.validate`, which is what it is for. It also
+/// decides whether somebody with no recorded death can still be alive — and
+/// that is a guess standing where a living/deceased decision belongs
+/// (ARCHITECTURE §11.1). Three screens now lean on it: the age under a
+/// portrait, the grey on a person who has died, and the tinted border on the
+/// chart. When the real decision arrives, this constant goes back to its first
+/// job alone.
+const int maximumPlausibleLifespanYears = 120;
 
 /// Years lived, or null when it cannot be told.
 ///
@@ -20,9 +31,9 @@ const int _impossibleAge = 120;
 /// **The last rule is a heuristic, and a temporary one.** `deathDate == null`
 /// does not mean living — most recorded ancestors have no death date at all
 /// (ARCHITECTURE §11.1). So an age counted to today is only offered when it
-/// comes out plausible; beyond [_impossibleAge] the person is certainly dead
-/// and the number would be nonsense, so nothing is shown. A real
-/// living/deceased decision replaces this.
+/// comes out plausible; beyond [maximumPlausibleLifespanYears] the person is
+/// certainly dead and the number would be nonsense, so nothing is shown. A
+/// real living/deceased decision replaces this.
 ///
 /// Also null when the arithmetic comes out negative. A death before a birth is
 /// a warning the user may legitimately have overruled (§9.2), and a negative
@@ -37,6 +48,6 @@ int? ageInYears({
   final until = death?.year ?? currentYear;
   final age = until - birth.year;
   if (age < 0) return null;
-  if (death == null && age > _impossibleAge) return null;
+  if (death == null && age > maximumPlausibleLifespanYears) return null;
   return age;
 }
