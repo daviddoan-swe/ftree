@@ -1,0 +1,18 @@
+// Signing settings that belong to whoever is building, not to the project.
+//
+// Copy this file to `Local.xcconfig` — which git ignores — and fill in your
+// Apple Developer Team ID. Without it Xcode cannot sign a build for a physical
+// device; the simulator needs nothing.
+//
+// Find it in Xcode → Settings → Accounts → your Apple ID → the "Team ID"
+// column, or with:
+//
+//   security find-identity -p codesigning -v
+//
+// where it is the ten-character code in brackets after your name.
+//
+// Kept out of version control because a Team ID identifies a person, and this
+// repository is public. Nothing here is secret; it is simply not the project's
+// to publish.
+
+DEVELOPMENT_TEAM = XXXXXXXXXX

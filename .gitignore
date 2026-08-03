@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Signing settings belonging to whoever is building, not to the project.
+# See ios/Flutter/Local.xcconfig.example.
+**/ios/Flutter/Local.xcconfig

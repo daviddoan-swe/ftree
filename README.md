@@ -51,6 +51,25 @@ flutter test
 flutter run
 ```
 
+### Running on a physical iPhone
+
+The simulator needs nothing. A real device has to be code-signed, and the
+signing identity belongs to whoever is building rather than to the project:
+
+```sh
+cp ios/Flutter/Local.xcconfig.example ios/Flutter/Local.xcconfig
+# then put your Apple Developer Team ID in it
+```
+
+`Local.xcconfig` is git-ignored — a Team ID identifies a person and this
+repository is public. Nothing in it is secret; it is simply not the project's
+to publish. The build works without the file, so a fresh clone still runs on
+the simulator.
+
+Sign in first at **Xcode → Settings → Accounts**. A free Apple ID is enough
+for testing, with the caveat that it signs for seven days at a time and the
+app must be reinstalled after that.
+
 ## Layering
 
 ```
