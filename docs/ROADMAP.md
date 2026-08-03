@@ -106,9 +106,15 @@ calendar uses UTC+8 and differs by a day for some dates, so a Chinese
 implementation cannot be adopted without verification.
 
 **Complete** — tagged `m1.5`. One caveat carried forward: the Tết and
-can-chi reference tables in the tests are still provisional, written from
-memory rather than checked against a published almanac. Replace them before
-anyone relies on a computed giỗ date.
+can-chi reference tables are still provisional, written from memory rather
+than checked against a published almanac. Replace them before anyone relies
+on a computed giỗ date.
+
+Both now live in `test/support/lunar_reference.dart`, so the replacement is
+one file. They are the **only** place the lunar code is measured against the
+outside world — everything else in those tests is a self-consistency or
+structural property that holds whatever the algorithm computes. A wrong value
+there confirms a wrong implementation instead of catching it.
 
 ---
 

@@ -2,26 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ftree/domain/lunar/can_chi.dart';
 
-/// Lunar years whose names are widely known, used to calibrate the offsets.
-///
-/// ⚠️ PROVISIONAL, like the Tết table: written from memory pending an
-/// authoritative source. 2024 as Giáp Thìn and 1968 as Mậu Thân are the two
-/// easiest to check independently.
-const Map<int, String> _knownNames = <int, String>{
-  1945: 'Ất Dậu',
-  1968: 'Mậu Thân',
-  1975: 'Ất Mão',
-  2000: 'Canh Thìn',
-  2020: 'Canh Tý',
-  2024: 'Giáp Thìn',
-  2025: 'Ất Tỵ',
-  2026: 'Bính Ngọ',
-};
+import '../../support/lunar_reference.dart';
 
 void main() {
   group('naming (PROVISIONAL reference)', () {
     test('matches years whose names are widely known', () {
-      for (final entry in _knownNames.entries) {
+      for (final entry in canChiNames.entries) {
         expect(
           CanChi.ofLunarYear(entry.key).toString(),
           entry.value,

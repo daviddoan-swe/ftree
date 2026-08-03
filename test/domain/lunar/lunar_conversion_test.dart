@@ -3,31 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ftree/domain/lunar/astronomy.dart';
 import 'package:ftree/domain/lunar/lunar_conversion.dart';
 
-/// Gregorian dates of Tết — lunar 1 January — by lunar year.
-///
-/// ⚠️ PROVISIONAL. Written from memory, NOT yet checked against a published
-/// Vietnamese almanac. Replace this whole block with an authoritative table
-/// before anyone relies on a computed giỗ date.
-///
-/// This is the only external calibration in the suite. If a value here is
-/// wrong, the tests below will confirm a wrong implementation rather than
-/// catch it — which is worse than having no reference at all. Everything
-/// outside this map is a self-consistency or structural property that holds
-/// regardless.
-const Map<int, (int day, int month)> _tetDates = <int, (int, int)>{
-  2020: (25, 1),
-  2021: (12, 2),
-  2022: (1, 2),
-  2023: (22, 1),
-  2024: (10, 2),
-  2025: (29, 1),
-  2026: (17, 2),
-};
+import '../../support/lunar_reference.dart';
 
 void main() {
   group('Tết reference dates (PROVISIONAL)', () {
     test('lunar new year matches the reference table', () {
-      for (final entry in _tetDates.entries) {
+      for (final entry in tetDates.entries) {
         final (day, month, year) = lunarNewYear(entry.key);
         expect(
           (day, month, year),
@@ -38,7 +19,7 @@ void main() {
     });
 
     test('the day before Tết is the last day of the previous lunar year', () {
-      for (final entry in _tetDates.entries) {
+      for (final entry in tetDates.entries) {
         final tet = julianDayFromDate(
           entry.value.$1,
           entry.value.$2,
@@ -53,7 +34,7 @@ void main() {
     });
 
     test('Tết itself converts back to lunar 1/1', () {
-      for (final entry in _tetDates.entries) {
+      for (final entry in tetDates.entries) {
         final lunar = solarToLunar(
           entry.value.$1,
           entry.value.$2,
