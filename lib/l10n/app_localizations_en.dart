@@ -260,13 +260,13 @@ class AppTextEn extends AppText {
   String get relationshipChoosePerson => 'Choose a person';
 
   @override
-  String get relationshipSearch => 'Search by name';
+  String get searchByName => 'Search by name';
+
+  @override
+  String get searchNoMatch => 'No name matches';
 
   @override
   String get relationshipNobodyElse => 'Nobody else in this family yet';
-
-  @override
-  String get relationshipNoMatch => 'No name matches';
 
   @override
   String get relationshipRemoveTitle => 'Remove relationship?';

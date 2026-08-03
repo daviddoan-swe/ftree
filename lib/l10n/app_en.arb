@@ -110,9 +110,9 @@
   "relationshipAddSpouse": "Add a spouse",
   "relationshipAddChild": "Add a child",
   "relationshipChoosePerson": "Choose a person",
-  "relationshipSearch": "Search by name",
+  "searchByName": "Search by name",
+  "searchNoMatch": "No name matches",
   "relationshipNobodyElse": "Nobody else in this family yet",
-  "relationshipNoMatch": "No name matches",
   "relationshipRemoveTitle": "Remove relationship?",
   "relationshipRemoveBody": "Removes the link between {subject} and {other}. Both people stay in the tree.",
   "@relationshipRemoveBody": {

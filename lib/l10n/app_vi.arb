@@ -130,9 +130,12 @@
   "relationshipAddSpouse": "Thêm vợ hoặc chồng",
   "relationshipAddChild": "Thêm con",
   "relationshipChoosePerson": "Chọn người",
-  "relationshipSearch": "Tìm theo tên",
+  "searchByName": "Tìm theo tên",
+  "@searchByName": {
+    "description": "Gợi ý trong ô tìm kiếm — bỏ dấu vẫn tìm được (PRODUCT §1.1)"
+  },
+  "searchNoMatch": "Không có tên nào khớp",
   "relationshipNobodyElse": "Chưa có ai khác trong gia đình này",
-  "relationshipNoMatch": "Không có tên nào khớp",
   "relationshipRemoveTitle": "Gỡ quan hệ?",
   "relationshipRemoveBody": "Gỡ quan hệ giữa {subject} và {other}. Cả hai người vẫn còn trong gia phả.",
   "@relationshipRemoveBody": {

@@ -13,6 +13,7 @@ import '../../app/providers.dart';
 import '../../app/validation_prompts.dart';
 import '../../domain/family_repository.dart';
 import '../../domain/ids.dart';
+import '../../domain/name_search.dart';
 import '../../domain/person.dart';
 import '../../domain/relationship.dart';
 import '../../l10n/app_localizations.dart';
@@ -181,15 +182,12 @@ class _PersonPickerState extends State<_PersonPicker> {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    final needle = _query.trim().toLowerCase();
 
-    // Plain substring matching. Ignoring diacritics is a search requirement and
-    // arrives with search (PRODUCT.md §1.1); here the reader is typing a name
-    // they can see on the list in front of them.
+    // The same matching the family screen uses: diacritics ignored, so a name
+    // typed off a phone keyboard still finds its owner (PRODUCT.md §1.1).
     final matches = <Person>[
       for (final person in widget.candidates)
-        if (needle.isEmpty || person.displayName.toLowerCase().contains(needle))
-          person,
+        if (nameMatches(person.displayName, _query)) person,
     ];
 
     return Scaffold(
@@ -201,7 +199,7 @@ class _PersonPickerState extends State<_PersonPicker> {
             child: TextField(
               autofocus: true,
               decoration: InputDecoration(
-                labelText: text.relationshipSearch,
+                labelText: text.searchByName,
                 prefixIcon: const Icon(Icons.search),
                 border: const OutlineInputBorder(),
               ),
@@ -214,7 +212,7 @@ class _PersonPickerState extends State<_PersonPicker> {
                 child: Text(
                   widget.candidates.isEmpty
                       ? text.relationshipNobodyElse
-                      : text.relationshipNoMatch,
+                      : text.searchNoMatch,
                 ),
               ),
             )

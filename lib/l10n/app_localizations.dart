@@ -499,23 +499,23 @@ abstract class AppText {
   /// **'Chọn người'**
   String get relationshipChoosePerson;
 
-  /// No description provided for @relationshipSearch.
+  /// Gợi ý trong ô tìm kiếm — bỏ dấu vẫn tìm được (PRODUCT §1.1)
   ///
   /// In vi, this message translates to:
   /// **'Tìm theo tên'**
-  String get relationshipSearch;
+  String get searchByName;
+
+  /// No description provided for @searchNoMatch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không có tên nào khớp'**
+  String get searchNoMatch;
 
   /// No description provided for @relationshipNobodyElse.
   ///
   /// In vi, this message translates to:
   /// **'Chưa có ai khác trong gia đình này'**
   String get relationshipNobodyElse;
-
-  /// No description provided for @relationshipNoMatch.
-  ///
-  /// In vi, this message translates to:
-  /// **'Không có tên nào khớp'**
-  String get relationshipNoMatch;
 
   /// No description provided for @relationshipRemoveTitle.
   ///

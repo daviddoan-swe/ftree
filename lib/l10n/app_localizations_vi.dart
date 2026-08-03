@@ -257,13 +257,13 @@ class AppTextVi extends AppText {
   String get relationshipChoosePerson => 'Chọn người';
 
   @override
-  String get relationshipSearch => 'Tìm theo tên';
+  String get searchByName => 'Tìm theo tên';
+
+  @override
+  String get searchNoMatch => 'Không có tên nào khớp';
 
   @override
   String get relationshipNobodyElse => 'Chưa có ai khác trong gia đình này';
-
-  @override
-  String get relationshipNoMatch => 'Không có tên nào khớp';
 
   @override
   String get relationshipRemoveTitle => 'Gỡ quan hệ?';
