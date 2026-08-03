@@ -606,13 +606,19 @@ OutlineInputBorder _pillBorder(Color color) => OutlineInputBorder(
 Widget? circleBackButton(BuildContext context) {
   if (!Navigator.of(context).canPop()) return null;
 
-  // Same metrics as the action button opposite it, so the two corners match.
-  return Padding(
-    padding: const EdgeInsets.only(left: 8),
-    child: IconButton.filledTonal(
-      icon: const Icon(Icons.chevron_left),
-      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-      onPressed: () => Navigator.of(context).maybePop(),
+  // Sized square and centred, or the leading slot stretches it: an AppBar
+  // gives its leading widget a tight width of 56, and a filled icon button
+  // fills what it is given, so the round background comes out an oval. 40 is
+  // what the action buttons opposite come to on their own.
+  return Center(
+    child: SizedBox.square(
+      dimension: 40,
+      child: IconButton.filledTonal(
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.chevron_left),
+        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        onPressed: () => Navigator.of(context).maybePop(),
+      ),
     ),
   );
 }
