@@ -9,6 +9,7 @@ const List<IssueCode> _blockingCodes = <IssueCode>[
   IssueCode.relationshipSelfReference,
   IssueCode.relationshipDuplicate,
   IssueCode.relationshipFamilyIdMismatch,
+  IssueCode.deceasedWithoutDetail,
   IssueCode.personsInDifferentFamilies,
   IssueCode.relationshipEndpointMissing,
   IssueCode.relationshipCreatesCycle,

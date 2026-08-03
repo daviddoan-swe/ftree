@@ -300,8 +300,11 @@ Before cloud work:
 * fix UX issues
 * improve tests
 * validate larger synthetic family trees
-* decide the living/deceased policy — `deathDate == null` is not a reliable
-  indicator, and Viewer-facing privacy depends on it (ARCHITECTURE §11.1)
+* ~~decide the living/deceased policy~~ — **decided**: a death date *or* a
+  place of death means the person has died (DOMAIN.md §3.5). Derived, not
+  stored, and one-way — it proves a death, never a life. The person form now
+  refuses to record a death it cannot hold. What remains for Viewer-facing
+  privacy is per-person filtering, not the predicate (ARCHITECTURE §11.1)
 
 Exit criteria:
 

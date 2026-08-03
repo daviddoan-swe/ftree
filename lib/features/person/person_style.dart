@@ -55,12 +55,10 @@ IconData personIcon(Person person) => switch (person.sex) {
 /// they cannot be hidden; but at a glance the living are who a reader is
 /// usually looking for, and colour is the cheapest way to separate them.
 ///
-/// **`deathDate != null` is the only signal available, and it is one-way.** It
-/// proves somebody died; its absence proves nothing, so an ancestor with no
-/// recorded death still shows in colour. A real living/deceased decision has
-/// to arrive before this can be trusted the other way round (ARCHITECTURE
-/// §11.1).
-Color personColor(Person person) => person.deathDate != null
+/// Reads [Person.hasDied], which is one-way by design: it proves a death,
+/// never a life. Somebody with nothing recorded either way keeps their colour,
+/// because the record is silent, not because they are known to be living.
+Color personColor(Person person) => person.hasDied
     ? GroupedColors.grey
     : switch (person.sex) {
         Sex.male => GroupedColors.blue,

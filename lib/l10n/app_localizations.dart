@@ -661,6 +661,12 @@ abstract class AppText {
   /// **'Quan hệ này đã tồn tại'**
   String get issueRelationshipDuplicate;
 
+  /// Bật đã mất thì phải ghi được ít nhất một trong hai — app lưu sự việc, không lưu lời khẳng định suông
+  ///
+  /// In vi, this message translates to:
+  /// **'Cần ngày mất hoặc nơi mất'**
+  String get issueDeceasedWithoutDetail;
+
   /// No description provided for @issueRelationshipFamilyIdMismatch.
   ///
   /// In vi, this message translates to:

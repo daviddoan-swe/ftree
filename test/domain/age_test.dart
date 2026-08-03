@@ -26,12 +26,31 @@ void main() {
   });
 
   test('an implausible age today is not shown at all', () {
-    // A missing death date does not mean living — most recorded ancestors have
-    // none (ARCHITECTURE §11.1). Somebody born in 1782 is not 244; printing
-    // that would be worse than printing nothing.
-    expect(age(1782, null), isNull);
-    expect(age(1900, null), isNull, reason: '126 today');
-    expect(age(1910, null), 116, reason: 'old, but possible');
+    // Nothing recorded about a death does not mean living — most ancestors
+    // have nothing recorded (ARCHITECTURE §11.1). Somebody born in 1782 is not
+    // 244; printing that would be worse than printing nothing.
+    //
+    // Written against the threshold, not a fixed year, so the rule is what is
+    // tested rather than today's setting of it.
+    const now = 2026;
+    const limit = maximumPlausibleLifespanYears;
+
+    expect(age(now - limit - 1, null, now: now), isNull);
+    expect(age(now - limit, null, now: now), limit, reason: 'just possible');
+  });
+
+  test('a death recorded only as a place gives no age', () {
+    // They died — a place of death says so (Person.hasDied) — but when is not
+    // recorded, so counting to today would age a dead man.
+    expect(
+      ageInYears(
+        birth: GenealogicalDate(year: 1912),
+        death: null,
+        deceased: true,
+        currentYear: 2026,
+      ),
+      isNull,
+    );
   });
 
   test('a recorded death is trusted however long the life', () {

@@ -163,6 +163,38 @@ Relationships must be derived from Relationship entities.
 
 This avoids coupling Person to assumptions about family structure.
 
+### 3.5 Living or dead — derived, and one-way
+
+A person **has died** when a death date or a place of death is recorded:
+
+```
+hasDied = deathDate != null || deathPlace != null
+```
+
+Either field is somebody writing down that this person died. Neither is a
+record that says nothing on the subject.
+
+**Derived rather than stored.** No column can be wrong about it, no migration
+is needed, and nothing has to be back-filled: the place of death was always
+the second half of the answer, and only the date was being read.
+
+**One-way, deliberately.** It proves a death; it never proves a life.
+`!hasDied` means *nothing was recorded* — which for most of a gia phả is the
+truth. Nothing may present that as "living"; where the distinction matters,
+say "no death recorded".
+
+Consequences elsewhere:
+
+* An age is the span to the death date. Where a death is recorded without a
+  date, there is no age to show — counting to today would age a dead man.
+* A person is drawn back in grey once `hasDied`.
+* The interface may not let somebody assert a death it cannot store. The
+  person form's switch requires a date or a place before it will save, because
+  an empty claim would vanish the moment it was written.
+
+The privacy question this feeds — hiding living people from Viewers — is a
+separate matter and needs per-person filtering (ARCHITECTURE §11.1).
+
 ---
 
 ## 4. Dates

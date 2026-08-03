@@ -354,6 +354,10 @@ class AppTextEn extends AppText {
   String get issueRelationshipDuplicate => 'This relationship already exists';
 
   @override
+  String get issueDeceasedWithoutDetail =>
+      'A date or a place of death is needed';
+
+  @override
   String get issueRelationshipFamilyIdMismatch =>
       'This relationship belongs to another family';
 

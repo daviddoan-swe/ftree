@@ -193,6 +193,10 @@
   "issueDisplayNameEmpty": "Người này phải có tên hiển thị",
   "issueRelationshipSelfReference": "Không thể tạo quan hệ của một người với chính mình",
   "issueRelationshipDuplicate": "Quan hệ này đã tồn tại",
+  "issueDeceasedWithoutDetail": "Cần ngày mất hoặc nơi mất",
+  "@issueDeceasedWithoutDetail": {
+    "description": "Bật đã mất thì phải ghi được ít nhất một trong hai — app lưu sự việc, không lưu lời khẳng định suông"
+  },
   "issueRelationshipFamilyIdMismatch": "Quan hệ này thuộc gia đình khác",
   "issuePersonsInDifferentFamilies": "Hai người thuộc hai gia đình khác nhau",
   "issueRelationshipEndpointMissing": "Không tìm thấy một trong hai người",

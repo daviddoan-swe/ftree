@@ -51,6 +51,16 @@ enum IssueCode {
   /// A relationship's `familyId` differs from that of one of its endpoints.
   relationshipFamilyIdMismatch(ValidationSeverity.error),
 
+  /// A person is being marked as having died with nothing recorded about it.
+  ///
+  /// Raised by the form, not by `Person.validate`. The domain derives death
+  /// from the fields themselves (`Person.hasDied`), so it has no notion of an
+  /// assertion that nothing backs — to the entity, a person with no death date
+  /// and no place of death is simply a person nothing was written about. It is
+  /// the interface that let somebody claim otherwise, so it is the interface
+  /// that has to ask them to say what they know.
+  deceasedWithoutDetail(ValidationSeverity.error),
+
   /// The two people in a relationship belong to different families.
   personsInDifferentFamilies(ValidationSeverity.error),
 

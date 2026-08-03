@@ -350,6 +350,9 @@ class AppTextVi extends AppText {
   String get issueRelationshipDuplicate => 'Quan hệ này đã tồn tại';
 
   @override
+  String get issueDeceasedWithoutDetail => 'Cần ngày mất hoặc nơi mất';
+
+  @override
   String get issueRelationshipFamilyIdMismatch =>
       'Quan hệ này thuộc gia đình khác';
 

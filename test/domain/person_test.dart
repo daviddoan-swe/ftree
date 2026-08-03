@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ftree/domain/age.dart';
 import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/ids.dart';
 import 'package:ftree/domain/person.dart';
@@ -155,9 +156,13 @@ void main() {
 
   group('implausibleLifespan', () {
     test('warns when even the shortest possible lifespan is too long', () {
+      // Against the threshold rather than a fixed pair of years, so the rule
+      // survives the threshold being retuned.
       final result = person(
         birthDate: GenealogicalDate(year: 1800),
-        deathDate: GenealogicalDate(year: 1950),
+        deathDate: GenealogicalDate(
+          year: 1800 + maximumPlausibleLifespanYears + 2,
+        ),
       ).validate();
 
       expect(result.issues.single.code, IssueCode.implausibleLifespan);
@@ -167,18 +172,25 @@ void main() {
     test('stays silent at a long but possible age', () {
       final result = person(
         birthDate: GenealogicalDate(year: 1800, month: 1, day: 1),
-        deathDate: GenealogicalDate(year: 1919, month: 1, day: 1),
+        deathDate: GenealogicalDate(
+          year: 1800 + maximumPlausibleLifespanYears - 1,
+          month: 1,
+          day: 1,
+        ),
       ).validate();
 
       expect(result.hasIssues, isFalse);
     });
 
-    test('uses the minimum span, so an uncertain 120 stays silent', () {
-      // 1800 to 1920 could be anything from 119 to 121 years. Judging by the
-      // maximum would flag a lifespan that may well be ordinary.
+    test('uses the minimum span, so an uncertain limit stays silent', () {
+      // Year-only dates exactly the threshold apart span anything from one
+      // less to one more. Judging by the maximum would flag a lifespan that
+      // may well be ordinary.
       final result = person(
         birthDate: GenealogicalDate(year: 1800),
-        deathDate: GenealogicalDate(year: 1920),
+        deathDate: GenealogicalDate(
+          year: 1800 + maximumPlausibleLifespanYears,
+        ),
       ).validate();
 
       expect(result.hasIssues, isFalse);

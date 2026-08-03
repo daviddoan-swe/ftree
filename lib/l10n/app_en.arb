@@ -156,6 +156,7 @@
   "issueDisplayNameEmpty": "This person needs a display name",
   "issueRelationshipSelfReference": "A person cannot be related to themselves",
   "issueRelationshipDuplicate": "This relationship already exists",
+  "issueDeceasedWithoutDetail": "A date or a place of death is needed",
   "issueRelationshipFamilyIdMismatch": "This relationship belongs to another family",
   "issuePersonsInDifferentFamilies": "These two people are in different families",
   "issueRelationshipEndpointMissing": "One of the two people could not be found",

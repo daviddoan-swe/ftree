@@ -321,21 +321,30 @@ Nothing structural is built for this now, but two cheap hedges apply:
   particular, "the server did not send Person X" must never be interpreted as
   "X was deleted".
 
-Related open product question: `deathDate == null` is **not** a reliable
-indicator that a person is living — many deceased ancestors have no recorded
-death date. A deliberate living/deceased decision is needed before cloud
-sharing, not before the local milestones.
+**Living/deceased — decided.** A person has died when a **death date or a
+place of death** is recorded: `Person.hasDied` (DOMAIN.md §3.5). Derived, not
+stored — no column can be wrong about it, no migration is needed, and nothing
+has to be back-filled, because the place of death was always the second half
+of the answer and only the date was being read.
 
-**It is already being guessed at.** Three things on screen now depend on
-knowing who is living: the age under a portrait, the grey on somebody who has
-died, and the tinted border on the chart. All three stand on the same
-placeholder — `maximumPlausibleLifespanYears` in `lib/domain/age.dart`,
-provisionally 120. That constant's real job is marking an implausible lifespan
-in validation (DOMAIN.md §9.2); deciding who might still be alive is borrowed
-work, and it is wrong in the obvious direction: an ancestor whose death nobody
-wrote down is shown as living until the arithmetic gets absurd.
+It stays one-way on purpose. It proves a death; it never proves a life.
+`!hasDied` means *nothing was recorded*, which for most of a gia phả is the
+truth, so nothing in the interface may say "living" — only "no death
+recorded".
 
-One constant, in one place, so the decision has a single thing to replace.
+The interface makes the rule reachable: the person form has a switch that
+reveals the death fields, and turning it on requires one of the two to be
+filled in. An assertion the record cannot hold is refused rather than
+silently dropped.
+
+What remains for cloud sharing is the *privacy* question this section opens
+with — hiding people from Viewers needs per-person filtering, whatever the
+predicate says.
+
+`maximumPlausibleLifespanYears` in `lib/domain/age.dart` keeps only its first
+job, flagging an implausible lifespan (DOMAIN.md §9.2), plus one narrow guard:
+an age counted to today is withheld past the threshold, so a record that says
+nothing about a death does not present a two-hundred-year-old.
 
 ---
 

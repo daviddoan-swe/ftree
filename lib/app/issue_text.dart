@@ -24,7 +24,8 @@ String issueText(BuildContext context, IssueCode code) {
     IssueCode.relationshipSelfReference =>
       text.issueRelationshipSelfReference,
     IssueCode.relationshipDuplicate => text.issueRelationshipDuplicate,
-    IssueCode.relationshipFamilyIdMismatch =>
+    IssueCode.deceasedWithoutDetail => text.issueDeceasedWithoutDetail,
+  IssueCode.relationshipFamilyIdMismatch =>
       text.issueRelationshipFamilyIdMismatch,
     IssueCode.personsInDifferentFamilies =>
       text.issuePersonsInDifferentFamilies,

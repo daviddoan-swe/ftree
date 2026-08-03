@@ -301,6 +301,7 @@ class _Profile extends StatelessWidget {
     final years = ageInYears(
       birth: person.birthDate,
       death: person.deathDate,
+      deceased: person.hasDied,
       currentYear: DateTime.now().year,
     );
     return years == null ? null : AppText.of(context).personAge(years);

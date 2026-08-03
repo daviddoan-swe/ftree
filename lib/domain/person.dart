@@ -106,6 +106,23 @@ final class Person {
   /// for months is one nobody can satisfy (§3.3).
   final String? profileMediaRef;
 
+  /// Whether this person has died.
+  ///
+  /// **A recorded death date or a recorded place of death.** Either one is
+  /// somebody writing down that this person died; neither is a record that
+  /// says nothing on the subject.
+  ///
+  /// This is the living/deceased rule (ARCHITECTURE §11.1), and it is derived
+  /// rather than stored. No column can be wrong about it, no migration is
+  /// needed, and nothing has to be back-filled for the ancestors already
+  /// entered — a place of death was always the second half of the answer, and
+  /// only the date was being read.
+  ///
+  /// It stays one-way, and deliberately so: it proves a death, never a life.
+  /// `!hasDied` means *nothing was recorded*, which for most of a gia phả is
+  /// exactly the truth. Anywhere the difference matters, say "no death
+  /// recorded" rather than "living".
+  bool get hasDied => deathDate != null || deathPlace != null;
 
   /// Checks the rules that need nothing beyond this person.
   ///
