@@ -181,7 +181,7 @@ void main() {
   });
 
   group('children', () {
-    test('come back in the order their relationships were supplied', () {
+    test('with no dates keep the order their relationships were supplied', () {
       final graph = FamilyGraph(
         persons: <Person>[
           personOf(aliceId),
@@ -210,6 +210,155 @@ void main() {
       );
 
       expect(graph.children(bobId), isEmpty);
+    });
+  });
+
+  group('birth order', () {
+    Person born(String id, GenealogicalDate? birth, {GenealogicalDate? death}) =>
+        Person(
+          id: id,
+          familyId: familyId,
+          displayName: 'Person $id',
+          birthDate: birth,
+          deathDate: death,
+        );
+
+    /// One parent over the children given, with the edges in the order listed.
+    FamilyGraph familyOf(List<Person> children) => FamilyGraph(
+      persons: <Person>[personOf(aliceId), ...children],
+      relationships: <Relationship>[
+        for (final child in children) parentOf(aliceId, child.id),
+      ],
+    );
+
+    test('puts the earlier birth first, whatever order it was entered in', () {
+      // Con Thứ typed before Con Cả. A gia phả is read eldest first, and which
+      // row the transcriber happened to fill in first says nothing about that.
+      final graph = familyOf(<Person>[
+        born(carolId, GenealogicalDate(year: 1915)),
+        born(bobId, GenealogicalDate(year: 1912)),
+        born(daveId, GenealogicalDate(year: 1920)),
+      ]);
+
+      expect(idsOf(graph.children(aliceId)), <String>[bobId, carolId, daveId]);
+    });
+
+    test('reads the birth date, never the death date', () {
+      // The elder died first. Ordering on death would swap them, and would
+      // also quietly make the order depend on who is still alive.
+      final graph = familyOf(<Person>[
+        born(
+          carolId,
+          GenealogicalDate(year: 1920),
+          death: GenealogicalDate(year: 2010),
+        ),
+        born(
+          bobId,
+          GenealogicalDate(year: 1912),
+          death: GenealogicalDate(year: 1960),
+        ),
+      ]);
+
+      expect(idsOf(graph.children(aliceId)), <String>[bobId, carolId]);
+    });
+
+    test('leaves overlapping dates alone', () {
+      // 1900 covers the whole year, and 1900-03 sits inside it. Which came
+      // first is not knowable, so nothing moves (§4.3).
+      final graph = familyOf(<Person>[
+        born(carolId, GenealogicalDate(year: 1900, month: 3)),
+        born(bobId, GenealogicalDate(year: 1900)),
+      ]);
+
+      expect(idsOf(graph.children(aliceId)), <String>[carolId, bobId]);
+    });
+
+    test('moves nobody past a child with no birth date', () {
+      // Passing them would be a reordering with nothing behind it. Most people
+      // in an old gia phả have no recorded birth, so this is the common case,
+      // not the corner.
+      final graph = familyOf(<Person>[
+        born(carolId, null),
+        born(bobId, GenealogicalDate(year: 1912)),
+      ]);
+
+      expect(idsOf(graph.children(aliceId)), <String>[carolId, bobId]);
+    });
+
+    test('still orders the dated children among themselves', () {
+      final graph = familyOf(<Person>[
+        born(carolId, null),
+        born(daveId, GenealogicalDate(year: 1920)),
+        born(bobId, GenealogicalDate(year: 1912)),
+      ]);
+
+      expect(idsOf(graph.children(aliceId)), <String>[
+        carolId,
+        bobId,
+        daveId,
+      ]);
+    });
+
+    test('is the same every time the graph is built', () {
+      List<String> build() => idsOf(
+        familyOf(<Person>[
+          born(carolId, null),
+          born(bobId, GenealogicalDate(year: 1912)),
+          born(daveId, null),
+          born(eveId, GenealogicalDate(year: 1905)),
+        ]).children(aliceId),
+      );
+
+      expect(build(), build());
+    });
+
+    test('siblings follow it too', () {
+      final children = <Person>[
+        born(carolId, GenealogicalDate(year: 1915)),
+        born(bobId, GenealogicalDate(year: 1912)),
+        born(daveId, GenealogicalDate(year: 1920)),
+      ];
+      final graph = familyOf(children);
+
+      // Asked from the middle child: the other two, eldest first.
+      expect(
+        graph.siblings(carolId).map((s) => s.person.id).toList(),
+        <String>[bobId, daveId],
+      );
+    });
+
+    test('descendants come back in it as well', () {
+      final graph = FamilyGraph(
+        persons: <Person>[
+          personOf(aliceId),
+          born(carolId, GenealogicalDate(year: 1915)),
+          born(bobId, GenealogicalDate(year: 1912)),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, carolId),
+          parentOf(aliceId, bobId),
+        ],
+      );
+
+      expect(idsOf(graph.descendants(aliceId)), <String>[bobId, carolId]);
+    });
+
+    test('a graph with a loop in it still terminates', () {
+      // Ordering must not disturb the guarantee of §6.2.
+      final graph = FamilyGraph(
+        persons: <Person>[
+          born(aliceId, GenealogicalDate(year: 1900)),
+          born(bobId, GenealogicalDate(year: 1930)),
+          born(carolId, GenealogicalDate(year: 1960)),
+        ],
+        relationships: <Relationship>[
+          parentOf(aliceId, bobId),
+          parentOf(bobId, carolId),
+          parentOf(carolId, aliceId),
+        ],
+      );
+
+      expect(idsOf(graph.descendants(aliceId)), <String>[bobId, carolId]);
     });
   });
 

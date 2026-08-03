@@ -358,8 +358,9 @@ final class _Placer {
   /// the child came from outside every marriage.
   ///
   /// Insertion order is the order the children will be placed, and it is the
-  /// order the data gives. Birth order is the first thing a gia phả is read by
-  /// — Con Cả before Con Thứ — so it survives even though regrouping by
+  /// order [FamilyGraph.children] gives — eldest first as far as the recorded
+  /// dates say (§13.3). Birth order is the first thing a gia phả is read by —
+  /// Con Cả before Con Thứ — so it survives here even though regrouping by
   /// marriage instead would guarantee connectors never cross.
   Map<String, int?> _marriageOfChild(String personId, List<Person> partners) {
     final marriages = <String, int?>{};

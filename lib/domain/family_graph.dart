@@ -1,6 +1,7 @@
 /// Genealogical queries over one family (DOMAIN.md §13).
 library;
 
+import 'genealogical_date.dart';
 import 'person.dart';
 import 'relationship.dart';
 import 'relationship_rules.dart';
@@ -83,6 +84,26 @@ final class FamilyGraph {
       if (relationship.personBId != relationship.personAId) {
         _index(relationship.personBId, relationship);
       }
+
+      if (relationship.type == RelationshipType.parentChild) {
+        // Children the family does not contain are dropped, as everywhere else
+        // a damaged edge is met.
+        if (_personsById[relationship.childId] case final child?) {
+          (_childrenByParent[relationship.parentId] ??= <Person>[]).add(child);
+        }
+      }
+    }
+
+    // Ordered once, here, rather than on every call. The graph is immutable
+    // (§13.2) and [children] is asked repeatedly — once per parent by
+    // [siblings], once per node by [descendants], and again by the layout.
+    for (final parentId in _childrenByParent.keys.toList()) {
+      _childrenByParent[parentId] = List<Person>.unmodifiable(
+        _byBirthWhereKnown<Person>(
+          _childrenByParent[parentId]!,
+          (person) => person.birthDate,
+        ),
+      );
     }
   }
 
@@ -99,6 +120,9 @@ final class FamilyGraph {
   /// would be three things able to disagree.
   final Map<String, List<Relationship>> _edgesByPerson =
       <String, List<Relationship>>{};
+
+  /// Each parent's children, already in the order they should be read.
+  final Map<String, List<Person>> _childrenByParent = <String, List<Person>>{};
 
   /// Everyone in the family, in the order supplied.
   List<Person> get persons => _persons;
@@ -123,17 +147,12 @@ final class FamilyGraph {
         .map((r) => r.parentId),
   );
 
-  /// The children of [personId], in the order their relationships were
-  /// supplied.
-  List<Person> children(String personId) => _resolve(
-    _edges(personId)
-        .where(
-          (r) =>
-              r.type == RelationshipType.parentChild &&
-              r.parentId == personId,
-        )
-        .map((r) => r.childId),
-  );
+  /// The children of [personId], eldest first as far as the dates say (§13.3).
+  ///
+  /// Where a birth date is missing or the two overlap, the order the
+  /// relationships were supplied is kept.
+  List<Person> children(String personId) =>
+      _childrenByParent[personId] ?? const <Person>[];
 
   /// The spouses of [personId], across a whole lifetime.
   ///
@@ -177,11 +196,53 @@ final class FamilyGraph {
       }
     }
 
-    return <Sibling>[
+    return _byBirthWhereKnown(<Sibling>[
       for (final id in order)
         if (_personsById[id] case final person?)
           Sibling(person: person, sharedParentCount: counts[id]!),
-    ];
+    ], (s) => s.person.birthDate);
+  }
+
+  /// Puts what is known to be earlier first, and moves nothing else (§13.3).
+  ///
+  /// An insertion pass rather than a sort, because there is no total order to
+  /// sort by. Comparing partial dates yields *before*, *after*, or *cannot
+  /// tell* (§4.3), and a comparator answering "equal" to the third case is not
+  /// transitive: with 1900, an unrecorded date, and 1800 it produces a cycle,
+  /// and `List.sort` — which is not stable either — would return an arbitrary
+  /// arrangement.
+  ///
+  /// So an element only moves past a neighbour when [GenealogicalDate
+  /// .definitelyBefore] says so, and stops at the first one it cannot pass.
+  /// Being blocked by an undated sibling is the point, not a shortcoming:
+  /// passing them would be a reordering with nothing behind it.
+  ///
+  /// The result can therefore be incomplete, never wrong — the same bargain
+  /// §4.3 makes when it keeps a warning silent rather than guess.
+  ///
+  /// Quadratic in the number of children, which is a number under twenty.
+  static List<T> _byBirthWhereKnown<T>(
+    List<T> items,
+    GenealogicalDate? Function(T) birthOf,
+  ) {
+    final ordered = List<T>.of(items);
+
+    for (var i = 1; i < ordered.length; i++) {
+      final moving = ordered[i];
+      final birth = birthOf(moving);
+      if (birth == null) continue;
+
+      var at = i;
+      while (at > 0) {
+        final ahead = birthOf(ordered[at - 1]);
+        if (ahead == null || !birth.definitelyBefore(ahead)) break;
+        ordered[at] = ordered[at - 1];
+        at--;
+      }
+      ordered[at] = moving;
+    }
+
+    return ordered;
   }
 
   /// Everyone [personId] descends from, nearest generation first (§10).

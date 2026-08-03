@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ftree/domain/family_graph.dart';
+import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/layout/tree_layout.dart';
 import 'package:ftree/domain/person.dart';
 import 'package:ftree/domain/relationship.dart';
@@ -721,10 +722,11 @@ void main() {
       }
     });
 
-    test('keep children in the order the data records them', () {
-      // Birth order is the first thing a gia phả is read by. Regrouping the
-      // children by marriage would guarantee the connectors never cross, but
-      // it would put Con Thứ before Con Cả, which is worse.
+    test('keep children in the order the graph gives them', () {
+      // Regrouping the children by marriage would guarantee the connectors
+      // never cross, but it would put Con Thứ before Con Cả, which is worse.
+      // With no dates recorded, that order is the one the data was entered in
+      // (§13.3), and the layout must not shuffle it.
       final layout = layoutDescendants(
         graphOf(
           <String>['a', 'w', 'eldest', 'second'],
@@ -734,6 +736,40 @@ void main() {
             parentOf('a', 'eldest'),
             parentOf('w', 'eldest'),
             parentOf('a', 'second'),
+          ],
+        ),
+        'a',
+      );
+
+      expect(
+        layout.nodeFor('eldest')!.x,
+        lessThan(layout.nodeFor('second')!.x),
+      );
+    });
+
+    test('draw the eldest leftmost even when entered last', () {
+      // The whole reason the graph orders children by birth: a transcriber
+      // filling in Con Thứ first must not produce a chart that reads wrong.
+      final layout = layoutDescendants(
+        FamilyGraph(
+          persons: <Person>[
+            Person(id: 'a', familyId: 'f', displayName: 'Cha'),
+            Person(
+              id: 'second',
+              familyId: 'f',
+              displayName: 'Con Thứ',
+              birthDate: GenealogicalDate(year: 1915),
+            ),
+            Person(
+              id: 'eldest',
+              familyId: 'f',
+              displayName: 'Con Cả',
+              birthDate: GenealogicalDate(year: 1912),
+            ),
+          ],
+          relationships: <Relationship>[
+            parentOf('a', 'second'),
+            parentOf('a', 'eldest'),
           ],
         ),
         'a',

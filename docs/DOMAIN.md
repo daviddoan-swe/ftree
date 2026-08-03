@@ -475,6 +475,8 @@ to the implementation.
   **not** included.
 * With only one recorded parent, full and half siblings are indistinguishable.
   This is a limitation of the data, not a defect.
+* Results come back eldest first as far as the recorded birth dates say, by the
+  rule in §13.3.
 
 ---
 
@@ -690,6 +692,44 @@ Consequences, all of them simplifying:
 * Every database question is deferred until there are real measurements
 
 If a family ever grows past what fits comfortably, this is revisited with data.
+
+### 13.3 Children come back eldest first, as far as the dates say
+
+A gia phả is read from Con Cả down. Which row the transcriber happened to fill
+in first says nothing about who was born first, so `children(p)` — and
+`siblings(p)`, which is built from it — order by recorded birth date.
+
+The death date takes no part. Neither does whether anyone is living: ordering
+must not change as people die.
+
+**Only where there is evidence.** Comparing partial dates gives *before*,
+*after*, or *cannot tell* (§4.3), and most people in an old record have no
+birth date at all. So a person moves ahead of another only when
+`definitelyBefore` says so, and stops at the first one they cannot pass. Two
+consequences, both deliberate:
+
+* Children with no recorded birth are not moved, and nobody is moved past
+  them. Passing them would be a reordering with nothing behind it.
+* Where nothing is known, the order the relationships were created survives —
+  which for a transcription is usually the order of the book being copied.
+
+The result can be incomplete; it is never wrong. That is the same bargain §4.3
+makes when it keeps a warning silent rather than guess.
+
+**This is not `sort`.** A comparator answering "equal" to *cannot tell* is not
+transitive — 1900, an unrecorded date, and 1800 form a cycle — and Dart's
+`List.sort` is not stable either, so it would return an arbitrary arrangement.
+The ordering is an insertion pass instead, quadratic in a number that is under
+twenty.
+
+Computed once when the graph is built, because the graph is immutable (§13.2)
+and `children` is asked repeatedly: once per parent by `siblings`, once per
+node by `descendants`, and again by the layout.
+
+An explicit sibling-order field on the relationship would record what a
+document states when no dates exist at all. It is not in V1: it costs a schema
+column and a migration, and is only worth it if this proves insufficient on
+real data.
 
 ---
 
