@@ -301,6 +301,36 @@ Exit criteria:
 
 Local-only version is stable enough that cloud functionality does not need to compensate for fundamental domain problems.
 
+### Backfilled before the M6 tasks proper
+
+`deletePerson` and `deleteFamily` had existed since M3, with repository tests,
+and no screen called either. Editing a family did not exist at all: it could be
+created and never corrected. Recording a family is a transcription session, and
+one that can only add turns every typo into permanent damage — so this was
+closed first (PRODUCT.md §3).
+
+* A person is deleted from the foot of their own profile, below everything
+  recorded about them.
+* A family is edited or deleted by swiping its row in the list. Managing an
+  entry from inside itself reads oddly, and an empty family — the one most
+  likely to have been created by mistake — has no list of people to scroll to
+  the bottom of.
+* The swipe only reveals the buttons. There is no full-swipe shortcut: a
+  gesture that easy must never be the last step before losing a family.
+* `flutter_slidable` was adopted for this (ARCHITECTURE.md §4.1).
+
+Two defects found by running it rather than by testing it:
+
+* The form sheet fed the reported keyboard inset straight into `EdgeInsets`,
+  which asserts it is not negative. iOS reports a negative bottom inset for a
+  frame, and the sheet took the screen behind it down with it. A platform
+  measurement is not a value to trust unexamined. The regression test injects
+  the negative inset directly rather than trying to reproduce a gesture.
+* Two widget tests passed without testing anything — one swipe missed its
+  target, and one assertion could not distinguish which of two identical
+  buttons was showing. Both were rewritten and then checked by breaking the
+  code they cover.
+
 ---
 
 ## M7 — Cloud Foundation

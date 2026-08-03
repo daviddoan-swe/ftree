@@ -77,6 +77,20 @@ Riverpod
 
 Presentation must not directly contain database queries or cloud-access logic.
 
+### 4.1 Packages used here
+
+The presentation layer is the one place where a package earns its keep by
+supplying an interaction the framework does not, rather than an abstraction the
+project could write itself.
+
+| Package            | Why                                                                                                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `flutter_slidable` | Swipe-to-reveal actions on a list row. Flutter ships `Dismissible`, which performs exactly one action and is swipe-to-remove by nature; revealing two buttons means hand-rolling drag tracking, snapping, and cross-row closing. |
+
+Adopted deliberately and not by default: the alternative was roughly 130 lines
+of gesture code carrying the same bugs this package already fixed. Anything
+that could be written in a dozen lines should be.
+
 ---
 
 # 5. Application Layer

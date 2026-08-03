@@ -250,6 +250,10 @@ Rules:
 
 * Ordering, intervals, and every warning in §9.2 read the Gregorian value
   alone. A lunar annotation can never change whether a warning fires.
+* `Family.usesLunarCalendar` decides what is *offered and shown*, never what is
+  stored. Turning it off on a family that already has lunar readings hides
+  them; it must not erase them. They record what the source document said, and
+  a display setting has no business destroying that.
 * Nothing verifies that the two agree. That requires the conversion described
   below; once it exists, a mismatch becomes a good warning candidate.
 * Day is bounded at 30 rather than resolved exactly, because knowing whether a

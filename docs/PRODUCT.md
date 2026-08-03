@@ -60,16 +60,31 @@ A Person in the family tree and an authenticated User are therefore different co
 V1 should allow a user to:
 
 1. Create a family.
-2. Add a person.
-3. Edit a person.
-4. View a person's profile.
-5. Create parent-child relationships.
-6. Create spouse relationships.
-7. View multiple generations as a family tree.
-8. Navigate between people in the tree.
-9. Store data locally.
+2. Edit a family — its name, its notes, and whether it keeps the lunar calendar.
+3. Delete a family.
+4. Add a person.
+5. Edit a person.
+6. Delete a person.
+7. View a person's profile.
+8. Create parent-child relationships.
+9. Create spouse relationships.
+10. Remove a relationship without removing either person.
+11. View multiple generations as a family tree.
+12. Navigate between people in the tree.
+13. Store data locally.
 
 The initial goal is to prove that the core family-tree domain and visualization work correctly.
+
+**Every entry point has a way back.** Editing and deleting are listed above
+beside creating, not left for later. A transcription session produces mistakes
+— a name mistyped, a person entered twice, a family created by accident — and
+an application that can only add turns each of them into permanent damage.
+
+**There is no undo.** Deletion writes a tombstone rather than erasing a row
+(DOMAIN.md §15.1), but nothing in the interface restores one. The guard is
+therefore in front of the action, and it is sized to the loss: removing a
+person is a confirmation naming how many relationships go with them; deleting a
+whole family — years of transcription — requires typing its name back.
 
 ---
 
