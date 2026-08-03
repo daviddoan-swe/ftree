@@ -3,7 +3,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
+import 'package:flutter_slidable/flutter_slidable.dart';
 
+import '../../app/confirm.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
 import '../../l10n/app_localizations.dart';
@@ -36,28 +38,118 @@ class FamilyListScreen extends ConsumerWidget {
   }
 }
 
-class _FamilyList extends StatelessWidget {
+/// The families, each swipeable to reveal what can be done to it.
+///
+/// Managed from the list rather than from inside the family: editing or
+/// deleting a thing from within itself reads oddly, and the delete confirmation
+/// has to survive the screen it was started from disappearing.
+///
+/// No full-swipe shortcut. The gesture only reveals the buttons; deleting still
+/// takes a deliberate tap, and then the confirmation. A swipe is easy to make by
+/// accident and must never be the last step before losing a family.
+class _FamilyList extends ConsumerWidget {
   const _FamilyList({required this.families});
 
   final List<Family> families;
 
   @override
-  Widget build(BuildContext context) => ListView.separated(
-    itemCount: families.length,
-    separatorBuilder: (_, _) => const Divider(height: 1),
-    itemBuilder: (context, index) {
-      final family = families[index];
-      return ListTile(
-        leading: const Icon(Icons.account_tree_outlined),
-        title: Text(family.name),
-        subtitle: family.description == null ? null : Text(family.description!),
-        trailing: family.usesLunarCalendar
-            ? const Icon(Icons.brightness_2_outlined, size: 18)
-            : null,
-        onTap: () => showFamilyScreen(context, family),
-      );
-    },
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = AppText.of(context);
+    final colors = Theme.of(context).colorScheme;
+
+    return SlidableAutoCloseBehavior(
+      child: ListView.separated(
+        itemCount: families.length,
+        separatorBuilder: (_, _) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final family = families[index];
+
+          return Slidable(
+            // Keyed by id so an open pane follows its family when the list is
+            // reordered or one above it is removed.
+            key: ValueKey<String>(family.id),
+            endActionPane: ActionPane(
+              motion: const DrawerMotion(),
+              extentRatio: 0.5,
+              children: <Widget>[
+                SlidableAction(
+                  onPressed: (_) =>
+                      showFamilyFormSheet(context, editing: family),
+                  icon: Icons.edit_outlined,
+                  label: text.actionEdit,
+                  backgroundColor: colors.secondaryContainer,
+                  foregroundColor: colors.onSecondaryContainer,
+                ),
+                SlidableAction(
+                  onPressed: (_) => _confirmAndDelete(context, ref, family),
+                  icon: Icons.delete_outline,
+                  label: text.actionDelete,
+                  backgroundColor: colors.errorContainer,
+                  foregroundColor: colors.onErrorContainer,
+                ),
+              ],
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.account_tree_outlined),
+              title: Text(family.name),
+              subtitle: family.description == null
+                  ? null
+                  : Text(family.description!),
+              trailing: family.usesLunarCalendar
+                  ? const Icon(Icons.brightness_2_outlined, size: 18)
+                  : null,
+              onTap: () => showFamilyScreen(context, family),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Asks before tombstoning a family, its people, and their relationships.
+///
+/// A family with people in it asks for its name to be typed back. That is years
+/// of transcription and the application has no way to restore it; a dialog with
+/// two buttons is not proportional to that. An empty family — the create-by-
+/// mistake case — asks once, because there is nothing to lose.
+Future<void> _confirmAndDelete(
+  BuildContext context,
+  WidgetRef ref,
+  Family family,
+) async {
+  final text = AppText.of(context);
+
+  // The list holds families, not graphs, so the sizes are read here. It is a
+  // full load to count two numbers — the same load opening the family would do,
+  // and the numbers are the point of asking.
+  final snapshot = await ref
+      .read(familyRepositoryProvider)
+      .loadFamily(family.id);
+  if (snapshot == null || !context.mounted) return;
+
+  final people = snapshot.graph.persons.length;
+  final confirmed = people == 0
+      ? await confirmDestructive(
+          context,
+          title: text.deleteTitle(family.name),
+          body: text.familyDeleteEmptyBody,
+          confirmLabel: text.actionDelete,
+        )
+      : await confirmByTyping(
+          context,
+          title: text.deleteTitle(family.name),
+          body: text.familyDeleteBody(
+            text.familyPersonCount(people),
+            text.familyRelationshipCount(snapshot.graph.relationships.length),
+          ),
+          expected: family.name,
+          fieldLabel: text.familyDeleteTypeName,
+          confirmLabel: text.actionDelete,
+        );
+  if (!confirmed) return;
+
+  await ref.read(familyListProvider.notifier).removeFamily(family.id);
 }
 
 class _NoFamiliesYet extends StatelessWidget {

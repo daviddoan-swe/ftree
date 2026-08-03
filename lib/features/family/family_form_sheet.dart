@@ -1,4 +1,4 @@
-/// Creating a family.
+/// Creating a family, and editing one.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,18 +11,24 @@ import '../../domain/ids.dart';
 import '../../domain/validation.dart';
 import '../../l10n/app_localizations.dart';
 
-/// Opens the sheet for creating a family.
-Future<void> showFamilyFormSheet(BuildContext context) => showModalBottomSheet(
+/// Opens the sheet, empty or on an existing family.
+Future<void> showFamilyFormSheet(
+  BuildContext context, {
+  Family? editing,
+}) => showModalBottomSheet(
   context: context,
   isScrollControlled: true,
-  builder: (_) => const Padding(
-    padding: EdgeInsets.all(16),
-    child: _FamilyFormSheet(),
+  builder: (_) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: _FamilyFormSheet(editing: editing),
   ),
 );
 
 class _FamilyFormSheet extends ConsumerStatefulWidget {
-  const _FamilyFormSheet();
+  const _FamilyFormSheet({this.editing});
+
+  /// The family being edited, or null when creating.
+  final Family? editing;
 
   @override
   ConsumerState<_FamilyFormSheet> createState() => _FamilyFormSheetState();
@@ -35,14 +41,31 @@ class _FamilyFormSheetState extends ConsumerState<_FamilyFormSheet> {
   ValidationResult _result = const ValidationResult.ok();
 
   @override
+  void initState() {
+    super.initState();
+    final family = widget.editing;
+    if (family != null) {
+      _name.text = family.name;
+      _description.text = family.description ?? '';
+      _usesLunarCalendar = family.usesLunarCalendar;
+    }
+  }
+
+  @override
   void dispose() {
     _name.dispose();
     _description.dispose();
     super.dispose();
   }
 
+  /// Keeps the id when editing, so the write updates rather than inserting.
+  ///
+  /// Turning [Family.usesLunarCalendar] off does not erase anything: a lunar
+  /// reading is stored on each date, and the flag only decides whether it is
+  /// offered and shown (DOMAIN.md §4.4). Turn it back on and the readings are
+  /// still there.
   Family _buildFamily() => Family(
-    id: newId(),
+    id: widget.editing?.id ?? newId(),
     name: _name.text.trim(),
     description: _description.text.trim().isEmpty
         ? null
@@ -65,20 +88,30 @@ class _FamilyFormSheetState extends ConsumerState<_FamilyFormSheet> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// How far to lift the sheet above the keyboard.
+  ///
+  /// Guarded rather than used raw. On iOS the reported bottom inset goes
+  /// briefly negative while the keyboard animates, and `EdgeInsets` asserts it
+  /// is not — which crashes the sheet mid-animation and takes the screen behind
+  /// it down as well. A platform measurement is not a value to trust
+  /// unexamined.
+  static double _keyboardInset(BuildContext context) {
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    return inset.isFinite && inset > 0 ? inset : 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: _keyboardInset(context)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            text.familyCreate,
+            widget.editing == null ? text.familyCreate : text.familyEdit,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
