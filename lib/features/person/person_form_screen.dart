@@ -57,7 +57,21 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
   Sex _sex = Sex.unknown;
   GenealogicalDate? _birth;
   GenealogicalDate? _death;
-  bool _datesUsable = true;
+
+  /// Each date box reports its own validity. One shared flag let a good death
+  /// date unblock a nonsense birth date, because whichever changed last won.
+  bool _birthUsable = true;
+  bool _deathUsable = true;
+
+  /// Whether this person has died, as far as the form is concerned.
+  ///
+  /// It reveals the death fields; it is not stored. Off means "no death
+  /// information recorded", which is what an empty death date has always
+  /// meant — **not** "this person is living". Nothing in the schema can say
+  /// that yet (ARCHITECTURE §11.1), so the switch must not be read as saying
+  /// it either.
+  bool _hasDied = false;
+
   ValidationResult _result = const ValidationResult.ok();
 
   @override
@@ -90,6 +104,7 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
       _sex = person.sex;
       _birth = person.birthDate;
       _death = person.deathDate;
+      _hasDied = person.deathDate != null || person.deathPlace != null;
     }
   }
 
@@ -116,17 +131,35 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
     birthFamilyName: _optional('birthFamilyName'),
     sex: _sex,
     birthDate: _birth,
-    deathDate: _death,
+    // Switched off means nothing about a death is being recorded, so nothing
+    // about a death is written — including anything typed before it was
+    // switched off.
+    deathDate: _hasDied ? _death : null,
     birthPlace: _optional('birthPlace'),
-    deathPlace: _optional('deathPlace'),
+    deathPlace: _hasDied ? _optional('deathPlace') : null,
     biography: _optional('biography'),
   );
 
   Future<void> _save() async {
-    if (!_datesUsable) return;
+    if (!_birthUsable) return;
+    if (_hasDied && !_deathUsable) return;
 
     final person = _buildPerson();
-    final result = person.validate();
+
+    // Saying somebody died has to be backed by something the record can hold:
+    // a date, a place, or both. The domain derives death from those fields, so
+    // an empty claim would simply vanish on save and the switch would be off
+    // again next time it was opened.
+    final result = person.validate().merge(
+      _hasDied && !person.hasDied
+          ? ValidationResult.single(
+              ValidationIssue(
+                IssueCode.deceasedWithoutDetail,
+                involvedIds: <String>[person.id],
+              ),
+            )
+          : const ValidationResult.ok(),
+    );
 
     // Errors block. Warnings are the user's to overrule: genealogical records
     // contain entries that are implausible but genuine, and refusing them makes
@@ -207,24 +240,47 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
             allowLunar: widget.usesLunarCalendar,
             onChanged: (date, valid) {
               _birth = date;
-              _datesUsable = valid;
+              _birthUsable = valid;
             },
           ),
           const SizedBox(height: 8),
           _text('birthPlace', text.personBirthPlace),
           const SizedBox(height: 20),
 
-          PartialDateField(
-            label: text.personDeath,
-            initial: _death,
-            allowLunar: widget.usesLunarCalendar,
-            onChanged: (date, valid) {
-              _death = date;
-              _datesUsable = valid;
-            },
+          // One title for the whole group, on the row that reveals it. Most
+          // people in a gia phả are dead, but most *records* carry no death
+          // date — so the fields start folded away and the form is short.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _hasDied,
+            onChanged: (value) => setState(() => _hasDied = value),
+            title: Text(
+              text.personDeath,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
-          const SizedBox(height: 8),
-          _text('deathPlace', text.personDeathPlace),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            alignment: Alignment.topCenter,
+            curve: Curves.easeOut,
+            child: _hasDied
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      PartialDateField(
+                        initial: _death,
+                        allowLunar: widget.usesLunarCalendar,
+                        onChanged: (date, valid) {
+                          _death = date;
+                          _deathUsable = valid;
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _text('deathPlace', text.personDeathPlace),
+                    ],
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
           const SizedBox(height: 20),
 
           _text('biography', text.personBiography, lines: 4),

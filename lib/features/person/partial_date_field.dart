@@ -21,15 +21,19 @@ typedef PartialDateChanged = void Function(GenealogicalDate? date, bool valid);
 
 class PartialDateField extends StatefulWidget {
   const PartialDateField({
-    required this.label,
     required this.onChanged,
+    this.label,
     this.initial,
     this.allowLunar = false,
     super.key,
   });
 
   /// What this date is — born, died.
-  final String label;
+  ///
+  /// Null where the caller already shows the label itself, as the death section does:
+  /// its title sits on the row carrying the switch that reveals this field, so
+  /// repeating it here would be the same word twice.
+  final String? label;
 
   /// Called whenever the boxes change.
   final PartialDateChanged onChanged;
@@ -145,7 +149,8 @@ class _PartialDateFieldState extends State<PartialDateField> {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Text(widget.label, style: theme.textTheme.titleSmall),
+            if (widget.label case final title?)
+              Text(title, style: theme.textTheme.titleSmall),
             const Spacer(),
             if (widget.allowLunar)
               SegmentedButton<bool>(

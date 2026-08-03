@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ftree/app/app.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
+import 'package:ftree/features/person/partial_date_field.dart';
 import 'package:ftree/domain/lunar/lunar_conversion.dart';
 
 void main() {
@@ -70,18 +71,31 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final field = find.ancestor(
-      of: find.text(section),
-      matching: find.byType(Column),
-    );
+    // By position, not by walking up from the label: the death section's
+    // title now sits on the switch that reveals it, in a different subtree
+    // from the boxes themselves. Birth is the first date field on the form and
+    // death, once revealed, the second.
+    final fields = find.byType(PartialDateField);
+    final field = section == 'Died' ? fields.last : fields.first;
     Finder box(String label) => find.descendant(
-      of: field.first,
+      of: field,
       matching: find.widgetWithText(TextField, label),
     );
 
     if (year != null) await tester.enterText(box('Year'), year);
     if (month != null) await tester.enterText(box('Month'), month);
     if (day != null) await tester.enterText(box('Day'), day);
+    await tester.pumpAndSettle();
+  }
+
+  /// Reveals the death fields, which start folded away.
+  Future<void> markAsDied(WidgetTester tester) async {
+    await tester.scrollUntilVisible(
+      find.text('Died'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byType(SwitchListTile));
     await tester.pumpAndSettle();
   }
 
@@ -177,6 +191,126 @@ void main() {
     });
   });
 
+  group('the death switch', () {
+    Future<void> nameThem(WidgetTester tester) => tester.enterText(
+      find.widgetWithText(TextField, 'Display name'),
+      'Cụ Bảy',
+    );
+
+    testWidgets('starts off, with the death fields folded away', (
+      tester,
+    ) async {
+      // Most people in a gia phả are dead; most records carry no death date.
+      // Starting folded keeps the form short for the common case.
+      await openPersonForm(tester);
+      await tester.scrollUntilVisible(
+        find.byType(SwitchListTile),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+          isFalse);
+      // Right beside the switch, so if the section were open this would be
+      // built and on screen.
+      expect(find.widgetWithText(TextField, 'Place of death'), findsNothing);
+    });
+
+    testWidgets('turning it on reveals the date and the place', (tester) async {
+      await openPersonForm(tester);
+      await markAsDied(tester);
+
+      expect(find.byType(PartialDateField), findsNWidgets(2));
+      expect(
+        find.widgetWithText(TextField, 'Place of death'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('on with nothing recorded is refused', (tester) async {
+      // The domain reads a death off the fields themselves, so a claim with
+      // nothing behind it would simply vanish on save.
+      await openPersonForm(tester);
+      await nameThem(tester);
+      await markAsDied(tester);
+      await save(tester);
+
+      // The banner sits at the head of the form, which is off screen by now.
+      await tester.scrollUntilVisible(
+        find.text('Cannot save'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        find.textContaining('A date or a place of death is needed'),
+        findsOneWidget,
+      );
+      expect(await db.select(db.persons).get(), isEmpty);
+    });
+
+    testWidgets('a place of death alone is enough', (tester) async {
+      await openPersonForm(tester);
+      await nameThem(tester);
+      await markAsDied(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Place of death'),
+        'Phù Ninh',
+      );
+      await save(tester);
+
+      final rows = await db.select(db.persons).get();
+      expect(rows.single.deathPlace, 'Phù Ninh');
+      expect(rows.single.deathDateIso, isNull);
+    });
+
+    testWidgets('switching it off discards what was typed', (tester) async {
+      await openPersonForm(tester);
+      await nameThem(tester);
+      await markAsDied(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Place of death'),
+        'Phù Ninh',
+      );
+      await markAsDied(tester);
+      await save(tester);
+
+      final rows = await db.select(db.persons).get();
+      expect(rows.single.deathPlace, isNull);
+      expect(rows.single.deathDateIso, isNull);
+    });
+
+    testWidgets('opens on for somebody already recorded as dead', (
+      tester,
+    ) async {
+      await openPersonForm(tester);
+      await nameThem(tester);
+      await markAsDied(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Place of death'),
+        'Phù Ninh',
+      );
+      await save(tester);
+
+      await tester.tap(find.text('Cụ Bảy'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.pumpAndSettle();
+
+      // A place and no date still means dead, so the section opens.
+      await tester.scrollUntilVisible(
+        find.byType(SwitchListTile),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+          isTrue);
+      expect(
+        find.widgetWithText(TextField, 'Place of death'),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('warnings are the user’s to overrule', () {
     Future<void> enterContradictoryDates(WidgetTester tester) async {
       await tester.enterText(
@@ -190,6 +324,7 @@ void main() {
         month: '1',
         day: '1',
       );
+      await markAsDied(tester);
       await typeDate(
         tester,
         section: 'Died',
