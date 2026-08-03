@@ -129,8 +129,9 @@ void main() {
     await openProfile(tester, 2);
     expect(find.byIcon(Icons.female), findsOneWidget);
 
+    // A question mark, not a cross: a cross on a badge reads as "remove".
     await openProfile(tester, 3);
-    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.question_mark_rounded), findsOneWidget);
   });
 
   testWidgets('shows a year-only date as a year, not an invented January', (
@@ -369,6 +370,27 @@ void main() {
       final snapshot = await repository.loadFamily(familyId);
       expect(snapshot!.graph.persons.length, 3);
       expect(snapshot.graph.relationships.length, 3);
+    });
+
+    testWidgets('does not pop away the only page there is', (tester) async {
+      // Found the hard way, from a preview harness that opened a profile as
+      // the root route: the delete worked, the pop emptied the navigator, and
+      // a blank window reads exactly like a crash.
+      await seedHousehold();
+      await openProfile(tester, 3);
+
+      await tapDelete(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byType(PersonProfileScreen),
+        findsOneWidget,
+        reason: 'still something on screen',
+      );
+      // The person really did go, even though the screen stayed.
+      expect((await repository.loadFamily(familyId))!.graph.persons, hasLength(2));
     });
 
     testWidgets('leaves the profile once the person is gone', (tester) async {

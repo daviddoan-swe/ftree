@@ -236,15 +236,16 @@ class _Profile extends StatelessWidget {
     );
   }
 
-  /// Mars, Venus, or a cross for the third case.
+  /// Mars, Venus, or a question mark for the third case.
   ///
   /// `unknown` gets its own glyph rather than an empty space: it is a recorded
   /// answer, and leaving the badge off would make it indistinguishable from a
-  /// screen that forgot to draw one.
+  /// screen that forgot to draw one. A question mark rather than a cross — a
+  /// cross on a badge reads as "remove", not as "we do not know".
   static IconData _sexIcon(Sex sex) => switch (sex) {
     Sex.male => Icons.male,
     Sex.female => Icons.female,
-    Sex.unknown => Icons.close_rounded,
+    Sex.unknown => Icons.question_mark_rounded,
   };
 
   /// One row carrying up to two short values, or nothing when neither is
@@ -394,7 +395,11 @@ class _DeletePerson extends ConsumerWidget {
     await ref
         .read(familySnapshotProvider(person.familyId).notifier)
         .removePerson(person.id);
-    navigator.pop();
+
+    // Only if there is somewhere to go. Popping the last route leaves a blank
+    // window, which reads as a crash — and the screen the reader was on is
+    // gone either way, since the person is.
+    if (navigator.canPop()) navigator.pop();
   }
 }
 
