@@ -379,6 +379,12 @@ abstract class AppText {
   /// **'Ghi chép'**
   String get personBiography;
 
+  /// Tuổi dưới ảnh đại diện — tuổi lúc mất, hoặc tuổi hiện nay
+  ///
+  /// In vi, this message translates to:
+  /// **'{years, plural, other{{years} tuổi}}'**
+  String personAge(int years);
+
   /// No description provided for @personDelete.
   ///
   /// In vi, this message translates to:

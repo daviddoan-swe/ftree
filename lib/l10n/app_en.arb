@@ -72,6 +72,12 @@
   "personBirthPlace": "Place of birth",
   "personDeathPlace": "Place of death",
   "personBiography": "Notes",
+  "personAge": "{years, plural, =1{1 year old} other{{years} years old}}",
+  "@personAge": {
+    "placeholders": {
+      "years": { "type": "int" }
+    }
+  },
   "personDelete": "Delete this person",
   "personDeleteBody": "{count, plural, =0{This cannot be undone.} =1{Removes 1 relationship as well. This cannot be undone.} other{Removes {count} relationships as well. This cannot be undone.}}",
   "@personDeleteBody": {

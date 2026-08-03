@@ -173,6 +173,16 @@ class AppTextVi extends AppText {
   String get personBiography => 'Ghi chép';
 
   @override
+  String personAge(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years tuổi',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get personDelete => 'Xoá người này';
 
   @override

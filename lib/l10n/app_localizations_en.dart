@@ -176,6 +176,17 @@ class AppTextEn extends AppText {
   String get personBiography => 'Notes';
 
   @override
+  String personAge(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years years old',
+      one: '1 year old',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get personDelete => 'Delete this person';
 
   @override

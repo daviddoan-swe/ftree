@@ -90,6 +90,13 @@
   "personBirthPlace": "Nơi sinh",
   "personDeathPlace": "Nơi mất",
   "personBiography": "Ghi chép",
+  "personAge": "{years, plural, other{{years} tuổi}}",
+  "@personAge": {
+    "description": "Tuổi dưới ảnh đại diện — tuổi lúc mất, hoặc tuổi hiện nay",
+    "placeholders": {
+      "years": { "type": "int" }
+    }
+  },
   "personDelete": "Xoá người này",
   "personDeleteBody": "{count, plural, =0{Không thể hoàn tác.} =1{Gỡ luôn 1 quan hệ của người này. Không thể hoàn tác.} other{Gỡ luôn {count} quan hệ của người này. Không thể hoàn tác.}}",
   "@personDeleteBody": {
