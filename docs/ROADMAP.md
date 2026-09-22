@@ -362,6 +362,48 @@ wherever they do not (DOMAIN.md §13.3). An explicit order field on the
 relationship was considered and deferred: it costs a column and a migration,
 and is only worth it if this proves insufficient on real data.
 
+### Looking at it large: a generated gia phả
+
+The interface had only ever been judged against the three or four people a
+manual test creates. `lib/dev/` generates a family instead — twelve generations
+and three hundred people by default — and `flutter run -t lib/dev/main_dev.dart`
+runs the shipping application against it: the same providers, the same screens,
+only the data replaced.
+
+Two properties were worth more than realism:
+
+* **Deterministic.** The same seed gives the same family, so a screenshot can be
+  compared with a later one and a measurement with a later measurement. Ids come
+  from `newId` with an injected clock, and the family's id is drawn before the
+  current year is read — otherwise a second copy would install itself on 1
+  January.
+* **Clean.** Every person and every relationship passes the domain rules with no
+  issue of any severity, not merely no blocking error. Data the application
+  itself objects to says nothing about the interface. A test asserts it, and a
+  second test reverses a parent-child edge to prove the first one would notice.
+
+The shape is allocated rather than grown: three children a couple puts sixty
+thousand people in generation ten. Each generation is aimed at a share
+proportional to its depth, which gives the narrow trunk widening toward the
+present that a real gia phả has — branches are lost, one line carries the record
+forward, and only the last few generations have names anyone still knows. The
+dates are the other constraint: a birth is read from its generation rather than
+from its parents, because a per-parent offset compounds over eleven generations
+until the youngest are born after today and every edge earns a warning.
+
+It writes into the **normal** database beside any real family, and
+`--dart-define=RESET=true` erases the generated family alone, by the id its seed
+produced. A blanket "clear the development data" is the obvious thing to write
+here and would take a hundred years of somebody's family history with it.
+
+`lib/dev/` is unreachable from `lib/main.dart`, so none of it reaches a release
+build and there is no debug flag to remember to turn off.
+
+What this does **not** do is measure anything. The entry point prints how long
+generating and writing took, because those cost nothing to collect, but
+profiling the tree rendering is still open — as is the question the M6 index
+work left behind (ARCHITECTURE.md §8.1).
+
 ---
 
 ## M7 — Cloud Foundation

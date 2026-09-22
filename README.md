@@ -51,6 +51,28 @@ flutter test
 flutter run
 ```
 
+### Looking at it with a large family
+
+The interface is hard to judge against the three people a manual test creates.
+A second entry point generates a family and runs the ordinary application
+against it:
+
+```sh
+flutter run -t lib/dev/main_dev.dart
+flutter run -t lib/dev/main_dev.dart \
+    --dart-define=GENERATIONS=25 --dart-define=PEOPLE=1000
+```
+
+Twelve generations and three hundred people by default. The data is
+deterministic — the same seed gives the same family every time — and carries no
+validation issue of any severity, so nothing on screen is an artefact of bad
+input. `lib/dev/` is unreachable from `lib/main.dart` and so is absent from a
+release build.
+
+It writes into the **normal** database, alongside any real family. Delete the
+generated one by swiping its row when you are done. `--dart-define=RESET=true`
+removes it and installs it again, and touches nothing else.
+
 ### Running on a physical iPhone
 
 The simulator needs nothing. A real device has to be code-signed, and the
