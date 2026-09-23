@@ -667,6 +667,7 @@ void main() {
     ) async {
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       final layout = drawnLayout(tester);
       expect(layout.nodeFor(personId(3)), isNotNull);
@@ -679,6 +680,7 @@ void main() {
     ) async {
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       // Three people are below the fold: Đời 4, 5 and 6.
       expect(drawnLayout(tester).nodeFor(personId(3))!.hiddenDescendantCount, 3);
@@ -689,6 +691,7 @@ void main() {
     ) async {
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
       await tapBadge(tester, 3);
 
       final layout = drawnLayout(tester);
@@ -738,7 +741,7 @@ void main() {
       onAPhone(tester);
       await seedLine(7);
       await openTree(tester);
-      await facing(tester, TreeOrientation.topDown);
+      await facing(tester, TreeOrientation.leftToRight);
 
       // The first opening lands inside the screen on its own; the second does
       // not, and is the one worth testing.
@@ -757,21 +760,23 @@ void main() {
       onAPhone(tester);
       await seedLine(7);
       await openTree(tester);
-      await facing(tester, TreeOrientation.topDown);
+      await facing(tester, TreeOrientation.leftToRight);
       await tapBadge(tester, 3);
       await tapBadge(tester, 4);
 
+      // Across, because with the generations as columns a new one arrives to
+      // the right rather than below, and the pan that fetches it is sideways.
       final viewport = tester.getSize(find.byType(InteractiveViewer));
       final box = boxIn(tester, 5)!;
 
-      expect(box.bottom, closeTo(viewport.height - 16, 1));
+      expect(box.right, closeTo(viewport.width - 16, 1));
     });
 
     testWidgets('it slides there rather than jumping', (tester) async {
       onAPhone(tester);
       await seedLine(7);
       await openTree(tester);
-      await facing(tester, TreeOrientation.topDown);
+      await facing(tester, TreeOrientation.leftToRight);
       await tapBadge(tester, 3);
 
       final view = tester
@@ -818,7 +823,7 @@ void main() {
       onAPhone(tester);
       await seedLine(7);
       await openTree(tester);
-      await facing(tester, TreeOrientation.topDown);
+      await facing(tester, TreeOrientation.leftToRight);
       await tapBadge(tester, 3);
 
       final viewer = find.byType(InteractiveViewer);
@@ -866,7 +871,7 @@ void main() {
       onAPhone(tester);
       await seedLine(7);
       await openTree(tester);
-      await facing(tester, TreeOrientation.topDown);
+      await facing(tester, TreeOrientation.leftToRight);
       final before = scaleOf(tester);
 
       await tapBadge(tester, 3);
@@ -882,10 +887,17 @@ void main() {
     ) async {
       // Movement nobody asked for is what made the chart feel unsteady, so
       // where there is nothing to bring in, the view must not twitch.
-      onAPhone(tester);
+      //
+      // Room enough that the new column lands on screen unaided. On a phone
+      // the chart already runs past the right-hand edge, so every column
+      // opened arrives outside it and there is no such case to test.
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
       await seedLine(7);
       await openTree(tester);
-      await facing(tester, TreeOrientation.topDown);
+      await facing(tester, TreeOrientation.leftToRight);
 
       final view = tester
           .widget<InteractiveViewer>(find.byType(InteractiveViewer))
@@ -905,6 +917,7 @@ void main() {
       onAPhone(tester);
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       final layout = drawnLayout(tester);
       final folded = layout.nodes.firstWhere((n) => n.hidesDescendants);
@@ -953,6 +966,7 @@ void main() {
     ) async {
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
       await tapBadge(tester, 3);
 
       expect(
@@ -967,6 +981,7 @@ void main() {
     ) async {
       await seedLine(7);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
       await tapBadge(tester, 3);
       await tapBadge(tester, 4);
       expect(drawnLayout(tester).nodeFor(personId(5)), isNotNull);
@@ -987,6 +1002,7 @@ void main() {
       onAPhone(tester);
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       // Three drawn, counted from the thuỷ tổ.
       expect(find.text('Generation 1'), findsOneWidget);
@@ -1009,6 +1025,7 @@ void main() {
         await link(1, n);
       }
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       expect(find.bySemanticsLabel('1 person'), findsOneWidget);
       expect(find.bySemanticsLabel('3 people'), findsOneWidget);
@@ -1038,6 +1055,7 @@ void main() {
       await seedPerson(8, 'Cháu');
       await link(2, 8);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
       expect(find.bySemanticsLabel('6 people'), findsOneWidget);
 
       // Redraw from the one with a child: this branch holds one at that đời.
@@ -1059,6 +1077,7 @@ void main() {
       onAPhone(tester);
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
       expect(find.text('Generation 1'), findsOneWidget);
 
       await tapPerson(tester, 2);
@@ -1097,6 +1116,7 @@ void main() {
       );
       await link(2, 3);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       // Her generation cannot tell the two apart — she is the root's spouse
       // either way, and a spouse shares their partner's generation. Which of
@@ -1124,6 +1144,7 @@ void main() {
       onAPhone(tester);
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
       // Sideways, where the generations run across and the chart overflows:
       // upright it fits, and a chart that fits is settled back to the middle
       // the moment the hand lets go, so the drag below would be undone and
@@ -1161,6 +1182,7 @@ void main() {
       onAPhone(tester);
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       final viewer = tester.getRect(find.byType(InteractiveViewer));
       for (final label in <String>['Generation 1', 'Generation 2']) {
@@ -1178,6 +1200,7 @@ void main() {
       onAPhone(tester);
       await seedLine(6);
       await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
 
       // The first label sits at the leading edge, over the ancestor's corner.
       await tapPerson(tester, 1);
@@ -1587,7 +1610,29 @@ void main() {
       expect(view.value, isNot(before));
     });
 
-    testWidgets('folding still works with the page turned', (tester) async {
+    testWidgets('with the generations as rows it opens five deep', (
+      tester,
+    ) async {
+      // Deeper than the columns, because rows are read along their length and
+      // five of them is a stretch of the line. What the extra two cost is
+      // recorded on `_visibleGenerationsDown`: a thousand people come to
+      // sixty-one screens across rather than twenty-six.
+      await seedDeep(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      final layout = drawnLayout(tester);
+      for (var n = 1; n <= 5; n++) {
+        expect(layout.nodeFor(personId(n)), isNotNull, reason: 'Đời $n');
+      }
+      expect(layout.nodeFor(personId(6)), isNull);
+      expect(layout.nodeFor(personId(5))!.hiddenDescendantCount, 2);
+    });
+
+    testWidgets('with the generations as columns it opens three deep', (
+      tester,
+    ) async {
+      // The two no longer fold alike, and this is the half that does.
       await seedDeep(6);
       await openTree(tester);
       await facing(tester, TreeOrientation.leftToRight);
@@ -1596,6 +1641,44 @@ void main() {
       expect(layout.nodeFor(personId(3)), isNotNull);
       expect(layout.nodeFor(personId(4)), isNull);
       expect(layout.nodeFor(personId(3))!.hiddenDescendantCount, 3);
+    });
+
+    testWidgets('turning the page opens what was folded, and back', (
+      tester,
+    ) async {
+      // Đời 5 is the probe: past the columns' three, within the rows' five.
+      await seedDeep(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.leftToRight);
+      expect(drawnLayout(tester).nodeFor(personId(5)), isNull);
+
+      await facing(tester, TreeOrientation.topDown);
+      expect(drawnLayout(tester).nodeFor(personId(5)), isNotNull);
+
+      await facing(tester, TreeOrientation.leftToRight);
+      expect(
+        drawnLayout(tester).nodeFor(personId(5)),
+        isNull,
+        reason: 'the shallower fold comes back with the columns',
+      );
+    });
+
+    testWidgets('neither way shows a generation past its own fold', (
+      tester,
+    ) async {
+      // Đời 7 is past both, so turning the page does not reach it; the reader
+      // opens a fold or redraws from further down.
+      await seedDeep(7);
+      await openTree(tester);
+
+      for (final orientation in TreeOrientation.values) {
+        await facing(tester, orientation);
+        expect(
+          drawnLayout(tester).nodeFor(personId(7)),
+          isNull,
+          reason: orientation.name,
+        );
+      }
     });
   });
 }

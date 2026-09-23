@@ -116,13 +116,42 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
   /// changes it.
   TreeOrientation? _orientation;
 
-  /// How many generations a chart opens with.
+  /// How many generations a chart opens with, drawn as columns.
   ///
-  /// Three. A gia phả of three hundred people measures some fifty screens
-  /// across at a size the names can still be read at, so the whole chart is
-  /// not a view of anything; three generations is twenty-odd people, which is
-  /// a page. The reader opens the branch they are following from there.
-  static const int _visibleGenerations = 3;
+  /// Three. The generations run across, so the width is set by how many
+  /// generations are shown rather than by how many people are in them: three
+  /// is 1.6 screens across whether the family is three hundred people or a
+  /// thousand. Only the height grows with the family.
+  static const int _visibleGenerationsAcross = 3;
+
+  /// How many generations a chart opens with, drawn as rows.
+  ///
+  /// Five, at the reader's instruction. Rows put every person in a generation
+  /// side by side, so here the width is set by the number of people and it
+  /// grows fast. Measured on the generated family, at the size names can still
+  /// be read:
+  ///
+  /// |  depth | 300 people   | 1000 people   |
+  /// |--------|--------------|---------------|
+  /// |      3 | 7.3 screens  | 26.0 screens  |
+  /// |      5 | 18.4 screens | 61.4 screens  |
+  /// | unfold | 90.8 screens | 321.0 screens |
+  ///
+  /// So five is not a page — it is sixty screens of sideways scrolling for a
+  /// thousand people, and 192 boxes to paint. It is a deliberate choice to see
+  /// more of the line at once and to pay for it in scrolling; what keeps it
+  /// usable is redrawing from somebody further down.
+  ///
+  /// The consequence for the opening view is that the measured default will
+  /// almost always choose the columns, 1.6 screens against 61.4. The rows are
+  /// something the reader turns the page to get to.
+  static const int _visibleGenerationsDown = 5;
+
+  /// How deep a chart is folded, which depends on which way it is drawn.
+  static int _visibleGenerationsFor(TreeOrientation orientation) =>
+      orientation.isTopDown
+      ? _visibleGenerationsDown
+      : _visibleGenerationsAcross;
 
   /// The smallest scale worth opening at.
   ///
@@ -374,15 +403,18 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
   TreeOrientation _decideOrientation(
     FamilyGraph graph,
     String rootId,
-    Set<String> folded,
+    Set<String> Function(TreeOrientation) foldFor,
   ) {
     final decided = _orientation;
     if (decided != null) return decided;
 
+    // Each measured as it would actually be drawn, folds and all. The two
+    // orientations no longer fold alike, so measuring them against a single
+    // fold would compare one against a chart the other never shows.
     double widthOf(TreeOrientation orientation) => layoutDescendants(
       graph,
       rootId,
-      collapsed: folded,
+      collapsed: foldFor(orientation),
       metrics: LayoutMetrics(orientation: orientation),
     ).width;
 
@@ -589,10 +621,10 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     // build rather than stored, so a person added from another screen is
     // folded or drawn according to where they landed, with no second copy of
     // the rule to keep in step.
-    final folded = collapseToDepth(
+    Set<String> foldFor(TreeOrientation orientation) => collapseToDepth(
       graph,
       rootId,
-      visibleGenerations: _visibleGenerations,
+      visibleGenerations: _visibleGenerationsFor(orientation),
     ).difference(_expanded);
 
     // Which đời the top of the chart is, counted from the family's thuỷ tổ
@@ -605,11 +637,11 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     // draws, and counts its own generations from the top.
     final rootDoi = graph.generations()[rootId] ?? 1;
 
-    final orientation = _decideOrientation(graph, rootId, folded);
+    final orientation = _decideOrientation(graph, rootId, foldFor);
     final layout = layoutDescendants(
       graph,
       rootId,
-      collapsed: folded,
+      collapsed: foldFor(orientation),
       metrics: LayoutMetrics(orientation: orientation),
     );
 
