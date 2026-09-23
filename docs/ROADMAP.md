@@ -298,7 +298,9 @@ Before cloud work:
 * ~~review schema~~ — indexes and migration proof, below
 * ~~profile tree rendering~~ — measured, below
 * ~~fix UX issues~~ — the tree screen's, below; more will arrive with use
-* improve tests
+* ~~improve tests~~ — the three files in `lib` that had none: `date_display`,
+  `issue_text`, `validation_prompts`. Bounded deliberately at those rather
+  than chased as coverage
 * ~~validate larger synthetic family trees~~ — `lib/dev/`, below
 * ~~decide the living/deceased policy~~ — **decided**: a death date *or* a
   place of death means the person has died (DOMAIN.md §3.5). Derived, not
