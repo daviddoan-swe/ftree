@@ -267,14 +267,11 @@ class _PersonPickerState extends State<_PersonPicker> {
       chosen: _generation,
       onChosen: (at) => setState(() => _generation = at),
     );
-    final matches = <Person>[
-      for (final person in ofGeneration(
-        widget.candidates,
-        widget.doi,
-        _generation,
-      ))
-        if (nameMatches(person.displayName, _query.text)) person,
-    ];
+    final matches = rankedByName(
+      ofGeneration(widget.candidates, widget.doi, _generation),
+      _query.text,
+      nameOf: (person) => person.displayName,
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(text.relationshipChoosePerson)),

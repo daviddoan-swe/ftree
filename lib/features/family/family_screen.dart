@@ -97,10 +97,14 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
           // Both narrow at once: đời five and named Hải is a reasonable thing
           // to be looking for, and either alone may be hundreds of people.
-          final matches = <Person>[
-            for (final person in ofGeneration(people, doi, _generation))
-              if (nameMatches(person.displayName, typed)) person,
-          ];
+          //
+          // Ranked rather than filtered: whoever is *called* what was typed
+          // comes before whoever merely contains it somewhere.
+          final matches = rankedByName(
+            ofGeneration(people, doi, _generation),
+            typed,
+            nameOf: (person) => person.displayName,
+          );
 
           // Floating over the list rather than beside it: the tree and the
           // search field are always within reach, and the list keeps the full
