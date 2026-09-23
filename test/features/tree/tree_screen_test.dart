@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+import 'dart:ui';
+
 import 'package:drift/native.dart';
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
@@ -892,6 +896,56 @@ void main() {
 
       expect(inSight(tester, 4), isTrue, reason: 'it arrived on screen anyway');
       expect(view.value, before);
+    });
+
+    testWidgets('the badge is painted red, to be seen', (tester) async {
+      // The colour is read back off the pixels rather than off the source.
+      // An earlier attempt at this changed one of the two badges and was
+      // reported as having changed both, because nothing checked.
+      onAPhone(tester);
+      await seedLine(6);
+      await openTree(tester);
+
+      final layout = drawnLayout(tester);
+      final folded = layout.nodes.firstWhere((n) => n.hidesDescendants);
+      final target = TreePainter.foldBadgeTarget(folded, layout.metrics, 40);
+
+      // Inside the pill but clear of the digits, which are drawn white on it.
+      final sampleAt = Offset(
+        target.center.dx - (target.width - 8) / 2 + 3,
+        target.center.dy,
+      );
+
+      final painter =
+          tester.widget<CustomPaint>(chart).painter! as TreePainter;
+      final recorder = PictureRecorder();
+      painter.paint(
+        Canvas(recorder),
+        Size(layout.width + 80, layout.height + 80),
+      );
+      final picture = recorder.endRecording();
+
+      late ByteData pixels;
+      await tester.runAsync(() async {
+        final image = await picture.toImage(
+          (layout.width + 80).ceil(),
+          (layout.height + 80).ceil(),
+        );
+        pixels = (await image.toByteData())!;
+      });
+
+      final at =
+          ((sampleAt.dy.round() * (layout.width + 80).ceil()) +
+              sampleAt.dx.round()) *
+          4;
+      final painted = Color.fromARGB(
+        pixels.getUint8(at + 3),
+        pixels.getUint8(at),
+        pixels.getUint8(at + 1),
+        pixels.getUint8(at + 2),
+      );
+
+      expect(painted, GroupedColors.red);
     });
 
     testWidgets('the badge takes the tap, not the box under it', (

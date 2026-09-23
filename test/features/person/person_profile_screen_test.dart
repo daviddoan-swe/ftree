@@ -10,6 +10,7 @@ import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart' as domain;
 import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/person.dart';
+import 'package:ftree/features/tree/tree_screen.dart';
 import 'package:ftree/domain/relationship.dart';
 import 'package:ftree/features/person/person_profile_screen.dart';
 import 'package:ftree/l10n/app_localizations.dart';
@@ -523,5 +524,79 @@ void main() {
 
     expect(find.byType(PersonProfileScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('the chart from this person', () {
+    Future<void> link(int parent, int child) =>
+        repository.saveRelationship(
+          Relationship.parentChild(
+            id: 'r0000000-0000-7000-8000-${parent.toString().padLeft(6, '0')}'
+                '${child.toString().padLeft(6, '0')}',
+            familyId: familyId,
+            parent: personId(parent),
+            child: personId(child),
+          ),
+        );
+
+    Future<void> seedLine() async {
+      await seedFamily();
+      await seedPerson(1, 'Thuy To');
+      await seedPerson(2, 'Con Ca');
+      await seedPerson(3, 'Chau Dich');
+      await link(1, 2);
+      await link(2, 3);
+    }
+
+    testWidgets('is offered from the corner, as the family list offers it', (
+      tester,
+    ) async {
+      await seedLine();
+      await openProfile(tester, 2);
+
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.byIcon(Icons.account_tree_rounded), findsOneWidget);
+    });
+
+    testWidgets('starts from this person, not from the thuy to', (
+      tester,
+    ) async {
+      // Standing on somebody's page the question is what came of them, not
+      // what the whole family looks like.
+      await seedLine();
+      await openProfile(tester, 2);
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      final layout =
+          (tester.widget<CustomPaint>(
+                find.byWidgetPredicate(
+                  (w) => w is CustomPaint && w.painter is TreePainter,
+                ),
+              ).painter!
+              as TreePainter)
+          .layout;
+
+      expect(layout.nodeFor(personId(2)), isNotNull);
+      expect(layout.nodeFor(personId(3)), isNotNull, reason: 'his descendant');
+      expect(
+        layout.nodeFor(personId(1)),
+        isNull,
+        reason: 'his father is above the root, so the chart drops him',
+      );
+    });
+
+    testWidgets('still counts doi from the thuy to', (tester) async {
+      // The chart starts here; the numbering does not. Doi thu hai is a fact
+      // about this person, not about where the drawing happens to begin.
+      await seedLine();
+      await openProfile(tester, 2);
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Generation 2'), findsOneWidget);
+      expect(find.text('Generation 1'), findsNothing);
+    });
   });
 }

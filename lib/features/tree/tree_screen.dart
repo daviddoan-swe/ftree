@@ -19,13 +19,29 @@ import '../person/person_profile_screen.dart';
 import '../person/person_style.dart';
 
 /// Opens the tree for [familyId].
-Future<void> showTreeScreen(BuildContext context, String familyId) =>
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => TreeScreen(familyId: familyId)),
-    );
+/// Opens the tree for [familyId], drawn from [rootPersonId] where one is
+/// given and from the family's thuỷ tổ otherwise.
+Future<void> showTreeScreen(
+  BuildContext context,
+  String familyId, {
+  String? rootPersonId,
+}) => Navigator.of(context).push(
+  MaterialPageRoute<void>(
+    builder: (_) =>
+        TreeScreen(familyId: familyId, rootPersonId: rootPersonId),
+  ),
+);
 
 class TreeScreen extends ConsumerStatefulWidget {
-  const TreeScreen({required this.familyId, super.key});
+  const TreeScreen({required this.familyId, this.rootPersonId, super.key});
+
+  /// Whom to draw from, or null for the family's thuỷ tổ.
+  ///
+  /// Reached from a person's own page, where the question is what came of
+  /// that person rather than what the whole family looks like. The đời on the
+  /// strip are still counted from the founder (§11.1), so opening on somebody
+  /// in the fifth reads "Đời 5" rather than starting again at one.
+  final String? rootPersonId;
 
   final String familyId;
 
@@ -58,7 +74,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
 
   /// Whom the chart is drawn from, once the reader has chosen. Null means the
   /// default root, recomputed as the family changes.
-  String? _rootId;
+  late String? _rootId = widget.rootPersonId;
 
   /// The selected box, or null.
   String? _selectedId;
@@ -1092,15 +1108,15 @@ class TreePainter extends CustomPainter {
       // A ring in the page colour first, so the pill reads as lying on top of
       // the box rather than as a lump in its border.
       ..drawRRect(pill.inflate(2.5), Paint()..color = colors.surface)
-      ..drawRRect(pill, Paint()..color = colors.primary);
+      ..drawRRect(pill, Paint()..color = GroupedColors.red);
 
     final label = TextPainter(
       text: TextSpan(
         text: '+${node.hiddenDescendantCount}',
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: colors.onPrimary,
+          color: Colors.white,
         ),
       ),
       textDirection: TextDirection.ltr,

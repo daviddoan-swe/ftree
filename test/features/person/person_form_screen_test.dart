@@ -382,6 +382,27 @@ void main() {
       expect(find.text('Lunar'), findsWidgets);
     });
 
+    testWidgets('is not offered on the death date either', (tester) async {
+      // The death fields start folded away, so the check above never reaches
+      // them: nothing of theirs is built until the switch is turned on.
+      await openPersonForm(tester);
+      await markAsDied(tester);
+
+      expect(find.text('Lunar'), findsNothing);
+      expect(find.text('Gregorian'), findsNothing);
+    });
+
+    testWidgets('is offered on the death date to a family that does', (
+      tester,
+    ) async {
+      await openPersonForm(tester, lunar: true);
+      await markAsDied(tester);
+
+      // Both dates carry the choice: a family keeping its anniversaries by
+      // the lunar calendar keeps the day of death by it above all.
+      expect(find.text('Lunar'), findsNWidgets(2));
+    });
+
     testWidgets('a lunar date is converted and both readings are stored',
         (tester) async {
       await openPersonForm(tester, lunar: true);

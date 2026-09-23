@@ -14,6 +14,7 @@ import '../../domain/family_repository.dart';
 import '../../domain/person.dart';
 import '../../domain/relationship.dart';
 import '../../l10n/app_localizations.dart';
+import '../tree/tree_screen.dart';
 import 'date_display.dart';
 import 'person_form_screen.dart';
 import 'person_style.dart';
@@ -53,6 +54,23 @@ class PersonProfileScreen extends ConsumerWidget {
     final person = data?.graph.personById(personId);
 
     return Scaffold(
+      // The same round button the family list carries, in the same corner and
+      // with the same glyph: it opens the same screen, and the only
+      // difference is where the chart starts. Put up in the bar beside the
+      // other actions it would read as a third thing to do to this person.
+      floatingActionButton: person == null
+          ? null
+          : FloatingActionButton(
+              heroTag: null,
+              shape: const CircleBorder(),
+              tooltip: AppText.of(context).treeTitle,
+              onPressed: () => showTreeScreen(
+                context,
+                familyId,
+                rootPersonId: person.id,
+              ),
+              child: const Icon(Icons.account_tree_rounded),
+            ),
       appBar: AppBar(
         leading: circleBackButton(context),
         title: Text(person?.displayName ?? ''),
