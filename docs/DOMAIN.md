@@ -618,11 +618,36 @@ Generation is derived from graph context.
 
 It is not stored on Person.
 
-A person's displayed generation may depend on the selected root or family-tree
-view.
-
 The tree-layout system is responsible for translating genealogical relationships
-into display generations.
+into display positions.
+
+### 11.1 Đời is counted from the thuỷ tổ, not from what is on screen
+
+The layout numbers its generations from whatever the chart is drawn from,
+because that is what it needs in order to place boxes. **What is shown to the
+reader is not that number.**
+
+In a gia phả, đời thứ năm is a fact about a person. Redraw the chart from
+somebody's son and the layout calls him generation zero; calling him Đời 1 on
+screen would be telling the reader something false about their own family. So
+the number displayed is counted from the family's founding ancestor and does
+not move when the view does.
+
+**The founding ancestor is whoever has no recorded parents and the most
+descendants** (`FamilyGraph.foundingAncestor`). Both halves are needed, and the
+first half alone is the trap: every spouse who married in has no parents on
+record either. In a three-hundred-person family that is eighty-six people, and
+picking the first of them would count the family from somebody's wife. Nor is
+descendant count enough by itself — the founder's eldest son may carry nearly
+as many, and a gia phả does not count from him.
+
+Counting this way reaches everybody, including those who married in: a spouse
+takes their partner's generation rather than one of their own.
+
+Two limits, recorded rather than solved. A family holding several unconnected
+lines gets the largest of them counted and the rest left unnumbered. A cycle
+severe enough to leave nobody parentless has no founder at all, and the screen
+falls back to the first person it holds (§6.2).
 
 ---
 

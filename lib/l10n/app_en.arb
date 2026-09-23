@@ -105,8 +105,22 @@
   "treeFit": "Fit",
   "treeDrawFrom": "Draw from here",
   "treeTurn": "Turn the chart",
-  "treeOffChart": "{count, plural, other{{count} not on this branch}}",
-  "@treeOffChart": {
+  "treeBack": "Back to the previous branch",
+  "@treeBack": {
+    "description": "Returns to the root drawn before, after a double tap moved to another"
+  },
+
+  "treeGenerationOrdinal": "Generation {number}",
+  "@treeGenerationOrdinal": {
+    "description": "Label for one generation on the strip along the generation axis, counted from the founding ancestor",
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+
+  "treeGenerationCount": "{count, plural, one{{count} person} other{{count} people}}",
+  "@treeGenerationCount": {
+    "description": "How many the whole family holds at that generation, folded away or not",
     "placeholders": {
       "count": { "type": "int" }
     }

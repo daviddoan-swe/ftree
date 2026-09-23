@@ -249,11 +249,20 @@ class AppTextEn extends AppText {
   String get treeTurn => 'Turn the chart';
 
   @override
-  String treeOffChart(int count) {
+  String get treeBack => 'Back to the previous branch';
+
+  @override
+  String treeGenerationOrdinal(int number) {
+    return 'Generation $number';
+  }
+
+  @override
+  String treeGenerationCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count not on this branch',
+      other: '$count people',
+      one: '$count person',
     );
     return '$_temp0';
   }

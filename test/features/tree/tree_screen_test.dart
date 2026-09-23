@@ -225,22 +225,6 @@ void main() {
     expect(layout.nodeFor(personId(4))!.generation, 2);
   });
 
-  testWidgets('says how many people the chart leaves out', (tester) async {
-    await seedFamily();
-    // No relationship to anybody, so a descendant chart cannot reach them.
-    await seedPerson(5, 'Người Ngoài');
-    await openTree(tester);
-
-    expect(find.text('1 not on this branch'), findsOneWidget);
-  });
-
-  testWidgets('says nothing when everybody is on the chart', (tester) async {
-    await seedFamily();
-    await openTree(tester);
-
-    expect(find.textContaining('not on this branch'), findsNothing);
-  });
-
   group('selection', () {
     testWidgets('a tap on a box names the person', (tester) async {
       await seedFamily();
@@ -293,7 +277,6 @@ void main() {
       expect(layout.nodeFor(personId(3))!.generation, 0);
       // The ancestors are above this root, so a descendant chart drops them.
       expect(layout.nodeFor(personId(1)), isNull);
-      expect(find.text('2 not on this branch'), findsOneWidget);
     });
 
     testWidgets('a double tap redraws from that person', (tester) async {
@@ -946,38 +929,347 @@ void main() {
       expect(layout.generationCount, 3);
     });
 
-    testWidgets('the off-branch notice does not lie over the chart', (
-      tester,
-    ) async {
-      // It used to float on top, and what it covered was the top generation —
-      // on a descendant chart that is the founding ancestor.
+    testWidgets('names each generation on the chart', (tester) async {
+      onAPhone(tester);
       await seedLine(6);
-      await seedPerson(90, 'Ngoại tộc');
       await openTree(tester);
 
-      final notice = find.text('1 not on this branch');
-      expect(notice, findsOneWidget);
+      // Three drawn, counted from the thuỷ tổ.
+      expect(find.text('Generation 1'), findsOneWidget);
+      expect(find.text('Generation 2'), findsOneWidget);
+      expect(find.text('Generation 3'), findsOneWidget);
+      expect(find.text('Generation 4'), findsNothing);
+    });
+
+    testWidgets('says how many of each đời this branch holds', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      for (var n = 2; n <= 4; n++) {
+        await seedPerson(n, 'Con $n');
+        await link(1, n);
+      }
+      await openTree(tester);
+
+      expect(find.bySemanticsLabel('1 person'), findsOneWidget);
+      expect(find.bySemanticsLabel('3 people'), findsOneWidget);
+
+      semantics.dispose();
+    });
+
+    testWidgets('counts the branch on screen, not the whole family', (
+      tester,
+    ) async {
+      // The fault this replaces: redrawn from somebody in the fifth đời the
+      // chart held two people and the label said twenty, because it was
+      // counting the family rather than the branch. A number beside a column
+      // that does not match the boxes in it describes nothing the reader can
+      // see.
+      final semantics = tester.ensureSemantics();
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      // Six in the second đời, but only one of them has children.
+      for (var n = 2; n <= 7; n++) {
+        await seedPerson(n, 'Con $n');
+        await link(1, n);
+      }
+      await seedPerson(8, 'Cháu');
+      await link(2, 8);
+      await openTree(tester);
+      expect(find.bySemanticsLabel('6 people'), findsOneWidget);
+
+      // Redraw from the one with a child: this branch holds one at that đời.
+      await tapPerson(tester, 2);
+      await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel('6 people'), findsNothing);
+      expect(find.bySemanticsLabel('1 person'), findsNWidgets(2));
+
+      semantics.dispose();
+    });
+
+    testWidgets('counts from the thuỷ tổ, not from the chart root', (
+      tester,
+    ) async {
+      // The point of the whole thing. Đời thứ năm is a fact about a person;
+      // redrawing from somebody lower down must not renumber everybody.
+      onAPhone(tester);
+      await seedLine(6);
+      await openTree(tester);
+      expect(find.text('Generation 1'), findsOneWidget);
+
+      await tapPerson(tester, 2);
+      await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
+      await tester.pumpAndSettle();
 
       expect(
-        tester.getBottomLeft(notice).dy,
-        lessThanOrEqualTo(
-          tester.getTopLeft(find.byType(InteractiveViewer)).dy,
+        find.text('Generation 1'),
+        findsNothing,
+        reason: 'Đời 2 is not suddenly Đời 1 for being at the top',
+      );
+      expect(find.text('Generation 2'), findsOneWidget);
+      expect(find.text('Generation 4'), findsOneWidget);
+    });
+
+    testWidgets('a married-in spouse does not start a line of her own', (
+      tester,
+    ) async {
+      // Every spouse who married in is parentless, so the founder cannot be
+      // "the first person without parents". Entered first, she would have
+      // opened the chart on herself.
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Bà Cả');
+      await seedPerson(2, 'Thuỷ Tổ');
+      await seedPerson(3, 'Con');
+      await repository.saveRelationship(
+        Relationship.spouse(
+          id: 'r0000000-0000-7000-8000-000000000077',
+          familyId: familyId,
+          personA: personId(1),
+          personB: personId(2),
         ),
-        reason: 'the strip ends before the drawing begins',
+      );
+      await link(2, 3);
+      await openTree(tester);
+
+      // Her generation cannot tell the two apart — she is the root's spouse
+      // either way, and a spouse shares their partner's generation. Which of
+      // them the chart is rooted at can: the root is the one person not
+      // offered as a new root.
+      await tapPerson(tester, 1);
+      expect(
+        find.widgetWithText(TextButton, 'Draw from here'),
+        findsOneWidget,
+        reason: 'the wife is on the chart, but the line is not hers',
+      );
+
+      await tapPerson(tester, 2);
+      expect(
+        find.widgetWithText(TextButton, 'Draw from here'),
+        findsNothing,
+        reason: 'the husband is where the family is counted from',
       );
     });
 
-    testWidgets('folding does not inflate the off-branch notice', (
+    testWidgets('the labels never sit on top of each other', (tester) async {
+      // The fault this replaces: every generation that had scrolled past the
+      // leading edge kept its label there, so they piled into one corner and
+      // read as nonsense.
+      onAPhone(tester);
+      await seedLine(6);
+      await openTree(tester);
+      // Sideways, where the generations run across and the chart overflows:
+      // upright it fits, and a chart that fits is settled back to the middle
+      // the moment the hand lets go, so the drag below would be undone and
+      // nothing would ever leave the edge.
+      await facing(tester, TreeOrientation.leftToRight);
+
+      await tester.drag(
+        find.byType(InteractiveViewer),
+        const Offset(-200, 0),
+      );
+      await tester.pumpAndSettle();
+
+      final labels = <Rect>[
+        for (var n = 1; n <= 6; n++)
+          if (find.text('Generation $n').evaluate().isNotEmpty)
+            tester.getRect(find.text('Generation $n')),
+      ];
+
+      for (var i = 0; i < labels.length; i++) {
+        for (var j = i + 1; j < labels.length; j++) {
+          expect(
+            labels[i].overlaps(labels[j]),
+            isFalse,
+            reason: 'two đời labels are on the same spot',
+          );
+        }
+      }
+    });
+
+    testWidgets('the labels stand beside the drawing, not over it', (
       tester,
     ) async {
-      // Two separate lines, so somebody really is off this branch. The notice
-      // counts them and nobody else: the folded are on this branch, and a tap
-      // brings them back.
+      // Laid on top, a label covered the boxes at the near edge of its own
+      // generation — on a descendant chart, the eldest of them.
+      onAPhone(tester);
       await seedLine(6);
-      await seedPerson(90, 'Ngoại tộc');
       await openTree(tester);
 
-      expect(find.text('1 not on this branch'), findsOneWidget);
+      final viewer = tester.getRect(find.byType(InteractiveViewer));
+      for (final label in <String>['Generation 1', 'Generation 2']) {
+        expect(
+          viewer.overlaps(tester.getRect(find.text(label))),
+          isFalse,
+          reason: '$label lies over the chart',
+        );
+      }
+    });
+
+    testWidgets('the labels do not swallow a tap meant for a box', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      await seedLine(6);
+      await openTree(tester);
+
+      // The first label sits at the leading edge, over the ancestor's corner.
+      await tapPerson(tester, 1);
+
+      expect(find.widgetWithText(FilledButton, 'Profile'), findsOneWidget);
+    });
+  });
+
+  group('finding the way back', () {
+    Future<void> seedDescent(int depth) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Doi 1');
+      for (var n = 2; n <= depth; n++) {
+        await seedPerson(n, 'Doi $n');
+        await link(n - 1, n);
+      }
+    }
+
+    Future<void> drawFrom(WidgetTester tester, int n) async {
+      await tapPerson(tester, n);
+      await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is not offered before there is anywhere to go', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      await seedDescent(6);
+      await openTree(tester);
+
+      expect(find.byIcon(Icons.undo), findsNothing);
+    });
+
+    testWidgets('sits between the way out and the title', (tester) async {
+      // Two ways back, in the order they undo things: the outer one leaves
+      // the chart, the inner one steps back through the branches within it.
+      onAPhone(tester);
+      await seedDescent(6);
+
+      // Pushed rather than opened as the first screen, because the way out of
+      // the chart only exists when there is something to go back to — and
+      // that is the button this one has to sit beside.
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[databaseProvider.overrideWithValue(db)],
+          child: MaterialApp(
+            localizationsDelegates: AppText.localizationsDelegates,
+            supportedLocales: AppText.supportedLocales,
+            initialRoute: '/tree',
+            routes: <String, WidgetBuilder>{
+              '/': (_) => const Scaffold(),
+              '/tree': (_) => const TreeScreen(familyId: familyId),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await drawFrom(tester, 2);
+
+      final out = tester.getRect(find.byIcon(Icons.chevron_left));
+      final back = tester.getRect(find.byIcon(Icons.undo));
+      final title = tester.getRect(find.text('Family tree'));
+
+      expect(back.left, greaterThan(out.right));
+      expect(back.right, lessThan(title.left));
+
+      // And spaced as the pair on the right are. The leading slot does not
+      // give its children the tap target an action button carries, so without
+      // putting it back by hand the two sides sit differently.
+      final turn = tester.getRect(
+        find.byIcon(Icons.rotate_90_degrees_cw_outlined),
+      );
+      final fit = tester.getRect(find.byIcon(Icons.fit_screen_outlined));
+
+      expect(back.left - out.right, closeTo(fit.left - turn.right, 0.5));
+    });
+
+    testWidgets('returns to the branch drawn before', (tester) async {
+      onAPhone(tester);
+      await seedDescent(6);
+      await openTree(tester);
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNotNull);
+
+      await drawFrom(tester, 2);
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNull);
+
+      await tester.tap(find.byIcon(Icons.undo));
+      await tester.pumpAndSettle();
+
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNotNull);
+    });
+
+    testWidgets('goes back one branch at a time', (tester) async {
+      onAPhone(tester);
+      await seedDescent(8);
+      await openTree(tester);
+      await drawFrom(tester, 2);
+      await drawFrom(tester, 3);
+
+      await tester.tap(find.byIcon(Icons.undo));
+      await tester.pumpAndSettle();
+      expect(
+        drawnLayout(tester).nodeFor(personId(2)),
+        isNotNull,
+        reason: 'the branch before last, not all the way home',
+      );
+
+      await tester.tap(find.byIcon(Icons.undo));
+      await tester.pumpAndSettle();
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNotNull);
+      expect(
+        find.byIcon(Icons.undo),
+        findsNothing,
+        reason: 'and stops being offered once there is nowhere left',
+      );
+    });
+
+    testWidgets('a double tap on a box is what it undoes', (tester) async {
+      // The gesture that made the button necessary: it moves the chart
+      // somewhere else with no obvious way of moving back.
+      onAPhone(tester);
+      await seedDescent(6);
+      await openTree(tester);
+
+      final layout = drawnLayout(tester);
+      final node = layout.nodeFor(personId(2))!;
+      final at = onScreen(
+        tester,
+        Offset(
+          node.x + 40 + layout.metrics.nodeWidth / 2,
+          node.y + 40 + layout.metrics.nodeHeight / 2,
+        ),
+      );
+      await tester.tapAt(at);
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.tapAt(at);
+      await tester.pumpAndSettle();
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNull);
+
+      await tester.tap(find.byIcon(Icons.undo));
+      await tester.pumpAndSettle();
+
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNotNull);
     });
   });
 
@@ -1137,6 +1429,25 @@ void main() {
       await openTree(tester);
 
       expect(orientationOf(tester), TreeOrientation.topDown);
+    });
+
+    testWidgets('a chart keeps its bearing as the reader moves about', (
+      tester,
+    ) async {
+      // Twelve abreast opens sideways. Redraw from one of them and that
+      // branch is a single person, which measured on its own would be drawn
+      // upright — and the page would turn under the reader between one
+      // generation and the next.
+      await seedWide(12);
+      await openTree(tester);
+      expect(orientationOf(tester), TreeOrientation.leftToRight);
+
+      await tapPerson(tester, 2);
+      await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
+      await tester.pumpAndSettle();
+
+      expect(drawnLayout(tester).nodeFor(personId(1)), isNull);
+      expect(orientationOf(tester), TreeOrientation.leftToRight);
     });
 
     testWidgets('the button turns it', (tester) async {

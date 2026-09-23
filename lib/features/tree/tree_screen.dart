@@ -83,6 +83,9 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
   /// A fold just opened whose new generation has still to be brought in sight.
   String? _reveal;
 
+  /// The roots drawn before this one, most recent last.
+  final List<String> _cameFrom = <String>[];
+
   /// The folds the reader has opened, on top of the default depth.
   ///
   /// Kept rather than the closed set, because the closed set is derived from
@@ -91,21 +94,11 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
   /// a rebuild must not lose.
   Set<String> _expanded = <String>{};
 
-  /// Which way the generations run, once decided.
+  /// Which way the generations run, decided once and then left alone.
   ///
-  /// Null until the first chart is measured. Two things can set it: the
-  /// measurement below, and the reader.
+  /// Null until the first chart is measured. After that only the reader
+  /// changes it.
   TreeOrientation? _orientation;
-
-  /// The root the measurement was made for, so it is made once per chart.
-  String? _orientationFor;
-
-  /// Whether the reader turned the page themselves.
-  ///
-  /// After that the measurement stops running. Re-measuring would let the
-  /// chart flip back under them when a person was added, which is the same
-  /// complaint as a chart that opens somewhere different every time.
-  bool _orientationIsMine = false;
 
   /// How many generations a chart opens with.
   ///
@@ -213,18 +206,18 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     _slideTo(matrix.clone()..setTranslationRaw(x ?? at.x, y ?? at.y, at.z));
   }
 
-  /// The person to draw from: the first without recorded parents.
+  /// The person to draw from: the family's thuỷ tổ.
   ///
-  /// A gia phả is read from its founding ancestor down, and someone with no
-  /// parents on record is the best guess at one. Falling back to the first
-  /// person keeps a chart on screen even when every person has a parent, which
-  /// a cycle can produce (§6.2).
-  String? _defaultRoot(FamilyGraph graph) {
-    for (final person in graph.persons) {
-      if (graph.parents(person.id).isEmpty) return person.id;
-    }
-    return graph.persons.firstOrNull?.id;
-  }
+  /// [FamilyGraph.foundingAncestor] rather than the first person without
+  /// recorded parents, which is what this used to take. Every spouse who
+  /// married in has no parents on record either, so in a family entered in any
+  /// order that could open the chart on somebody's wife and draw her
+  /// descendants as though the line were hers.
+  ///
+  /// Falling back to the first person keeps a chart on screen even when
+  /// everybody has a parent, which a cycle can produce (§6.2).
+  String? _defaultRoot(FamilyGraph graph) =>
+      graph.foundingAncestor()?.id ?? graph.persons.firstOrNull?.id;
 
   /// Places the chart in the viewport, once per chart.
   ///
@@ -333,12 +326,15 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     return slack >= 0 ? slack / 2 : preferred.clamp(slack, 0);
   }
 
-  /// Redraws the chart with [personId] at the top.
+  /// Redraws the chart with [personId] at the top, remembering [from].
   ///
-  /// Reached two ways — the button on the selection bar, and a double tap on
-  /// the box itself. The gesture is the quick one for somebody exploring; the
-  /// button is how anyone finds out the gesture exists.
-  void _drawFrom(String personId) => setState(() {
+  /// [from] is the root actually on screen, which is not always [_rootId]:
+  /// until the reader picks one that is null and the chart is drawn from the
+  /// thuỷ tổ. Reading the field instead meant the first redraw remembered
+  /// nothing, and the way back appeared only from the second onwards.
+  void _drawFrom(String personId, {required String from}) => setState(() {
+    if (from != personId) _cameFrom.add(from);
+
     _rootId = personId;
     _selectedId = personId;
     // A new root is a new chart. Folds opened on the old one describe branches
@@ -353,17 +349,19 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
   /// directions: a long thin line of descent is fine upright however many
   /// people it holds, and one generation of twelve is not.
   ///
-  /// Decided once per root and then left alone, so that adding a person never
-  /// turns the page under the reader.
+  /// **Measured once, for the first chart, and then held.** Redrawing from
+  /// somebody lower down is how the family is explored, and re-measuring at
+  /// every step turned the page under the reader whenever a branch happened
+  /// to be small enough to suit the other way round. Reading a gia phả is not
+  /// helped by the page rotating between one generation and the next; a
+  /// reader who wants it the other way says so with the button.
   TreeOrientation _decideOrientation(
     FamilyGraph graph,
     String rootId,
     Set<String> folded,
   ) {
     final decided = _orientation;
-    if (decided != null && (_orientationIsMine || _orientationFor == rootId)) {
-      return decided;
-    }
+    if (decided != null) return decided;
 
     double widthOf(TreeOrientation orientation) => layoutDescendants(
       graph,
@@ -372,7 +370,6 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
       metrics: LayoutMetrics(orientation: orientation),
     ).width;
 
-    _orientationFor = rootId;
     return _orientation =
         widthOf(TreeOrientation.leftToRight) < widthOf(TreeOrientation.topDown)
         ? TreeOrientation.leftToRight
@@ -384,11 +381,23 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     _orientation = (_orientation ?? TreeOrientation.topDown).isTopDown
         ? TreeOrientation.leftToRight
         : TreeOrientation.topDown;
-    _orientationIsMine = true;
     // A different shape entirely, so the view is placed again rather than
     // left pointing at where something used to be.
     _fittedTo = null;
   });
+
+  /// Redraws from wherever the reader was before the last double tap.
+  ///
+  /// The folds go with it, as they do on any change of root: they described
+  /// branches of a chart that is no longer the one on screen.
+  void _drawFromPrevious() {
+    if (_cameFrom.isEmpty) return;
+    setState(() {
+      _rootId = _cameFrom.removeLast();
+      _selectedId = _rootId;
+      _expanded = <String>{};
+    });
+  }
 
   /// Reveals one more generation below [personId].
   ///
@@ -489,7 +498,37 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
 
     return Scaffold(
       appBar: AppBar(
-        leading: circleBackButton(context),
+        // Two ways back, side by side and in the order they undo things: the
+        // outer one leaves the chart, the inner one steps back through the
+        // branches drawn within it. Putting the branch one over on the right
+        // among the view controls made it read as another way of changing the
+        // drawing rather than as a way of retracing.
+        // 88 for the pair: two forty-point buttons and the eight between them
+        // that the two on the right happen to have. Their spacing comes from
+        // an IconButton's own forty-eight-point tap target, which the leading
+        // slot does not give these, so it is put back here by hand.
+        leadingWidth: _cameFrom.isEmpty ? null : 88,
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ?circleBackButton(context),
+            if (_cameFrom.isNotEmpty) const SizedBox(width: 8),
+            // Only once there is somewhere to go back to. A dead button is
+            // worse than no button.
+            if (_cameFrom.isNotEmpty)
+              Center(
+                child: SizedBox.square(
+                  dimension: 40,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.undo),
+                    tooltip: text.treeBack,
+                    onPressed: _drawFromPrevious,
+                  ),
+                ),
+              ),
+          ],
+        ),
         title: Text(text.treeTitle),
         actions: <Widget>[
           IconButton(
@@ -540,6 +579,17 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
       visibleGenerations: _visibleGenerations,
     ).difference(_expanded);
 
+    // Which đời each generation of the chart is, counted from the family's
+    // thuỷ tổ rather than from whatever the chart happens to be rooted at.
+    // DOMAIN.md §11 leaves the display free to choose; a gia phả does not,
+    // because đời thứ năm is a fact about a person, and redrawing from
+    // somebody else must not renumber everybody.
+    final counted = GenerationAssignment.fromRoot(
+      graph,
+      graph.foundingAncestor()?.id ?? rootId,
+    );
+    final rootGeneration = counted.generationOf(rootId) ?? 0;
+
     final orientation = _decideOrientation(graph, rootId, folded);
     final layout = layoutDescendants(
       graph,
@@ -548,12 +598,6 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
       metrics: LayoutMetrics(orientation: orientation),
     );
 
-    // Everyone this root's chart would hold with nothing folded. Counting the
-    // boxes actually drawn would sweep the folded into this number, and the
-    // notice is about people on another branch entirely — which is a reason to
-    // redraw from somebody else, not something a tap can open.
-    final onThisBranch = GenerationAssignment.fromRoot(graph, rootId).length;
-    final offChart = graph.persons.length - onThisBranch;
     final selected = _selectedId == null
         ? null
         : layout.nodeFor(_selectedId!)?.person;
@@ -562,31 +606,63 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     // it. Laid over the drawing it covered the top generation — which on a
     // descendant chart is the founding ancestor, the one box a reader is most
     // likely to be looking for.
+    //
+    // The strip of đời labels takes a band of its own beside the drawing
+    // rather than floating over it. Laid on top it covered the boxes at the
+    // near edge of each generation — which on a descendant chart is the eldest
+    // of them, the one most worth reading.
+    final band = _GenerationStrip(
+      layout: layout,
+      view: _view,
+      rootGeneration: rootGeneration,
+      padding: _Chart.padding,
+    );
+
     return Column(
       children: <Widget>[
-        if (offChart > 0) _Notice(message: text.treeOffChart(offChart)),
+        if (!orientation.isTopDown)
+          SizedBox(height: _GenerationStrip.thickness, child: band),
         Expanded(
           child: Stack(
             children: <Widget>[
               Positioned.fill(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    _fitOnce(layout, rootId, constraints.biggest);
-                    _revealOnce(layout, graph, constraints.biggest);
-                    return _Chart(
-                      layout: layout,
-                      selectedId: selected?.id,
-                      view: _view,
-                      onTapPerson: (personId) =>
-                          setState(() => _selectedId = personId),
-                      onDrawFrom: _drawFrom,
-                      onOpenFold: _openFold,
-                      onTouched: _touched,
-                      onSettled: () =>
-                          _recentreIfAdrift(layout, constraints.biggest),
-                      viewport: constraints.biggest,
-                    );
-                  },
+                child: Row(
+                  children: <Widget>[
+                    // Upright, the generations run down the page, so their
+                    // labels run down beside it.
+                    if (orientation.isTopDown)
+                      SizedBox(
+                        width: _GenerationStrip.thickness,
+                        child: band,
+                      ),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          _fitOnce(layout, rootId, constraints.biggest);
+                          _revealOnce(layout, graph, constraints.biggest);
+                          return _Chart(
+                            layout: layout,
+                            selectedId: selected?.id,
+                            view: _view,
+                            onTapPerson: (personId) =>
+                                setState(() => _selectedId = personId),
+                            // Reached two ways — the button on the selection
+                            // bar, and a double tap on the box itself. The
+                            // gesture is the quick one for somebody exploring;
+                            // the button is how anyone finds out it exists.
+                            onDrawFrom: (id) => _drawFrom(id, from: rootId),
+                            onOpenFold: _openFold,
+                            onTouched: _touched,
+                            onSettled: () => _recentreIfAdrift(
+                              layout,
+                              constraints.biggest,
+                            ),
+                            viewport: constraints.biggest,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
               // A strip down each edge that turns the page when swiped.
@@ -629,7 +705,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
                       familyId: widget.familyId,
                       personId: selected.id,
                     ),
-                    onDrawFrom: () => _drawFrom(selected.id),
+                    onDrawFrom: () => _drawFrom(selected.id, from: rootId),
                   ),
                 ),
             ],
@@ -1044,34 +1120,6 @@ class TreePainter extends CustomPainter {
       oldDelegate.colors != colors;
 }
 
-/// What the chart is not showing, on a strip of its own above it.
-class _Notice extends StatelessWidget {
-  const _Notice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: theme.colorScheme.secondaryContainer,
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            message,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSecondaryContainer,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// The selected person, and what can be done with them.
 class _SelectionBar extends StatelessWidget {
   const _SelectionBar({
@@ -1117,6 +1165,211 @@ class _SelectionBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Which đời each band of the chart is, in a band of its own beside it.
+///
+/// The drawing scrolls; this does not. A label follows its own generation
+/// along the axis the generations run down, and is held inside the band at
+/// both ends — so whichever part of a three-hundred-person gia phả is on
+/// screen, the đời it belongs to is named without scrolling back to find out.
+///
+/// Beside the chart rather than over it. Laid on top, a label covered the
+/// boxes at the near edge of its own generation, which on a descendant chart
+/// is the eldest of them.
+class _GenerationStrip extends StatelessWidget {
+  const _GenerationStrip({
+    required this.layout,
+    required this.view,
+    required this.rootGeneration,
+    required this.padding,
+  });
+
+  final TreeLayout layout;
+  final TransformationController view;
+
+  /// The đời of the person the chart is drawn from, so that redrawing from
+  /// somebody lower down does not start counting again at one.
+  final int rootGeneration;
+
+  final double padding;
+
+  /// How much room the band takes from the drawing.
+  ///
+  /// The same either way round, so that turning the page does not resize the
+  /// chart as well as turning it.
+  static const double thickness = 92;
+
+  @override
+  Widget build(BuildContext context) => ClipRect(
+    child: LayoutBuilder(
+      builder: (context, constraints) => AnimatedBuilder(
+        animation: view,
+        builder: (context, _) => _labels(constraints.biggest),
+      ),
+    ),
+  );
+
+  Widget _labels(Size band) {
+    if (layout.nodes.isEmpty || band.isEmpty) return const SizedBox.shrink();
+
+    final metrics = layout.metrics;
+    final topDown = metrics.orientation.isTopDown;
+    final matrix = view.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final offset = topDown
+        ? matrix.getTranslation().y
+        : matrix.getTranslation().x;
+
+    // The band runs the same way the generations do, so its own length is the
+    // room a label has to be placed in.
+    final room = topDown ? band.height : band.width;
+
+    // Counted off the drawing, not off the family. The chart is one branch of
+    // it — redrawn from somebody in the fifth đời it may hold two people where
+    // the family holds twenty — and a number beside a column that does not
+    // match the boxes in it describes nothing the reader can see.
+    final drawn = <int, int>{};
+    for (final node in layout.nodes) {
+      drawn[node.generation] = (drawn[node.generation] ?? 0) + 1;
+    }
+
+    final generations = drawn.keys.toList()..sort();
+
+    // Where each generation begins, in the band's own coordinates.
+    double startOf(int generation) =>
+        (generation * metrics.generationStride + padding) * scale + offset;
+
+    return Stack(
+      children: <Widget>[
+        for (var i = 0; i < generations.length; i++)
+          if (_place(
+                startOf(generations[i]),
+                i + 1 < generations.length ? startOf(generations[i + 1]) : null,
+                room,
+                topDown
+                    ? _GenerationLabel.height
+                    : _GenerationLabel.width,
+              )
+              case final double along)
+            Positioned(
+              left: topDown ? 6 : along,
+              top: topDown ? along : 6,
+              child: _GenerationLabel(
+                ordinal: rootGeneration + generations[i] + 1,
+                drawn: drawn[generations[i]] ?? 0,
+              ),
+            ),
+      ],
+    );
+  }
+
+  /// Where a generation's label sits along the band, or null when it should
+  /// not be shown at all.
+  ///
+  /// A generation that has scrolled past the leading edge keeps its label
+  /// there, so the đời under the reader's eye is always named. But only until
+  /// the next generation arrives: then the label is pushed out ahead of it and
+  /// gone, which is what stops the two sitting on top of each other.
+  ///
+  /// Pinning every generation that had scrolled past — which is what this did
+  /// first — piled every label it had ever shown into the same corner.
+  static double? _place(
+    double start,
+    double? next,
+    double room,
+    double extent,
+  ) {
+    if (start > room) return null;
+
+    const gap = 8.0;
+    final limit = next == null ? room - extent : next - extent - gap;
+
+    if (start >= 0) return start > room - extent ? null : start;
+
+    // Past the edge: hold it there, unless the next generation has come close
+    // enough to need the room.
+    return limit < 0 ? null : 0;
+  }
+}
+
+/// `Đời 5` and, beside it, how many of them this branch holds.
+///
+/// The đời is plain text: it names a column rather than marking anything, and
+/// a filled chip for every generation turned the top of the chart into a row
+/// of buttons that do nothing when pressed.
+///
+/// The count is a badge, because it is a quantity and because it is the part
+/// that changes as the reader moves about the family.
+class _GenerationLabel extends StatelessWidget {
+  const _GenerationLabel({required this.ordinal, required this.drawn});
+
+  final int ordinal;
+
+  /// How many of that đời are on the chart as drawn.
+  final int drawn;
+
+  /// How much room a label takes on each axis.
+  ///
+  /// Both, because the band runs one way upright and the other way sideways,
+  /// and reserving the wrong one lets two labels share a spot.
+  static const double height = 30;
+  static double get width => _GenerationStrip.thickness - 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              text.treeGenerationOrdinal(ordinal),
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Semantics(
+            // A node of its own carrying the whole phrase. Left to itself the
+            // badge reads out as a bare number, and "5, 2" tells somebody
+            // listening to the screen nothing about what the two counts are.
+            container: true,
+            label: text.treeGenerationCount(drawn),
+            child: ExcludeSemantics(
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 22),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  '$drawn',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

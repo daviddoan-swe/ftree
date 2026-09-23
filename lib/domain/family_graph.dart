@@ -256,6 +256,39 @@ final class FamilyGraph {
   /// The subject is excluded, as in [ancestors].
   List<Person> descendants(String personId) => _traverse(personId, children);
 
+  /// The person the family is counted from: its thuỷ tổ.
+  ///
+  /// Whoever has no recorded parents and the most descendants. Both halves are
+  /// needed. Having no parents is not enough on its own — every spouse who
+  /// married in has none either, and in a three-hundred-person gia phả that is
+  /// eighty-six people, most of whom founded nothing. Nor is descendant count
+  /// enough by itself: the founder's eldest son may carry nearly as many, and
+  /// he is not the one a gia phả counts from.
+  ///
+  /// Ties go to whoever the family lists first, so the answer does not move
+  /// about between reads of the same data.
+  ///
+  /// Null for an empty family, and for a damaged one in which a cycle leaves
+  /// nobody parentless (§6.2). For a family holding several unconnected lines
+  /// this names the largest of them and says nothing about the rest, which is
+  /// the same thing the tree screen does when it has to choose a root.
+  Person? foundingAncestor() {
+    Person? best;
+    var mostDescendants = -1;
+
+    for (final person in _persons) {
+      if (parents(person.id).isNotEmpty) continue;
+
+      final count = descendants(person.id).length;
+      if (count > mostDescendants) {
+        best = person;
+        mostDescendants = count;
+      }
+    }
+
+    return best;
+  }
+
   /// Checks whether [candidate] may be added to this family (§13.1).
   ///
   /// Relationship validation lives here rather than on the entity because a

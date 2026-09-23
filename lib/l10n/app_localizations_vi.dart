@@ -245,11 +245,19 @@ class AppTextVi extends AppText {
   String get treeTurn => 'Xoay biểu đồ';
 
   @override
-  String treeOffChart(int count) {
+  String get treeBack => 'Về nhánh trước';
+
+  @override
+  String treeGenerationOrdinal(int number) {
+    return 'Đời $number';
+  }
+
+  @override
+  String treeGenerationCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count người không nằm trong nhánh này',
+      other: '$count người',
     );
     return '$_temp0';
   }

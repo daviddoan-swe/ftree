@@ -1095,4 +1095,101 @@ void main() {
       expect(graph.spouses('ghost'), isEmpty);
     });
   });
+
+  group('foundingAncestor', () {
+    FamilyGraph graphOf(
+      Iterable<String> ids,
+      Iterable<Relationship> relationships,
+    ) => FamilyGraph(
+      persons: ids.map(personOf).toList(),
+      relationships: relationships.toList(),
+    );
+
+    test('is whoever has no parents and the most descendants', () {
+      // Two parentless people: the founder, and a spouse who married in.
+      final graph = graphOf(
+        <String>['founder', 'wife', 'son', 'grandson'],
+        <Relationship>[
+          spouseOf('founder', 'wife'),
+          parentOf('founder', 'son'),
+          parentOf('wife', 'son'),
+          parentOf('son', 'grandson'),
+        ],
+      );
+
+      expect(graph.foundingAncestor()?.id, 'founder');
+    });
+
+    test('is not simply the first person without parents', () {
+      // The married-in spouse comes first in the family's own order, and has
+      // no parents either. In a real gia phả most of the parentless are
+      // spouses: they founded nothing.
+      final graph = graphOf(
+        <String>['wife', 'founder', 'son'],
+        <Relationship>[
+          spouseOf('founder', 'wife'),
+          parentOf('founder', 'son'),
+        ],
+      );
+
+      expect(graph.foundingAncestor()?.id, 'founder');
+    });
+
+    test('is not simply whoever has the most descendants', () {
+      // The eldest son carries almost the whole line, but he has a father on
+      // record and a gia phả does not count from him.
+      final graph = graphOf(
+        <String>['founder', 'son', 'a', 'b', 'c'],
+        <Relationship>[
+          parentOf('founder', 'son'),
+          parentOf('son', 'a'),
+          parentOf('son', 'b'),
+          parentOf('son', 'c'),
+        ],
+      );
+
+      expect(graph.foundingAncestor()?.id, 'founder');
+    });
+
+    test('names the larger line where two are unconnected', () {
+      final graph = graphOf(
+        <String>['big', 'big2', 'small', 'small2'],
+        <Relationship>[
+          parentOf('big', 'big2'),
+          parentOf('big2', 'small2'),
+          parentOf('small', 'small2'),
+        ],
+      );
+
+      expect(graph.foundingAncestor()?.id, 'big');
+    });
+
+    test('settles a tie by the order the family lists', () {
+      final graph = graphOf(
+        <String>['first', 'second', 'a', 'b'],
+        <Relationship>[parentOf('first', 'a'), parentOf('second', 'b')],
+      );
+
+      expect(graph.foundingAncestor()?.id, 'first');
+    });
+
+    test('is nobody in an empty family', () {
+      expect(
+        FamilyGraph(persons: const <Person>[], relationships: const <Relationship>[])
+            .foundingAncestor(),
+        isNull,
+      );
+    });
+
+    test('survives a graph where everyone has a parent', () {
+      // A cycle leaves nobody parentless. It must answer rather than hang or
+      // throw (§6.2).
+      final graph = graphOf(
+        <String>['a', 'b'],
+        <Relationship>[parentOf('a', 'b'), parentOf('b', 'a')],
+      );
+
+      expect(graph.foundingAncestor(), isNull);
+    });
+  });
 }

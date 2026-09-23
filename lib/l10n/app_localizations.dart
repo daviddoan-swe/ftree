@@ -475,11 +475,23 @@ abstract class AppText {
   /// **'Xoay biểu đồ'**
   String get treeTurn;
 
-  /// Cây vẽ hậu duệ của một gốc, nên người ngoài nhánh đó không xuất hiện
+  /// Quay lại gốc đã vẽ trước đó, sau khi chạm hai lần để sang nhánh khác
   ///
   /// In vi, this message translates to:
-  /// **'{count, plural, other{{count} người không nằm trong nhánh này}}'**
-  String treeOffChart(int count);
+  /// **'Về nhánh trước'**
+  String get treeBack;
+
+  /// Nhãn một đời trên dải dọc theo trục đời, đếm từ thuỷ tổ
+  ///
+  /// In vi, this message translates to:
+  /// **'Đời {number}'**
+  String treeGenerationOrdinal(int number);
+
+  /// Số người của cả gia phả ở đời đó, kể cả người đang bị gập lại
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, other{{count} người}}'**
+  String treeGenerationCount(int count);
 
   /// No description provided for @relationshipAdd.
   ///
