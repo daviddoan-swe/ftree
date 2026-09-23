@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ftree/app/app.dart';
+import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
@@ -11,6 +12,8 @@ import 'package:ftree/domain/family.dart' as domain;
 import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/person.dart';
 import 'package:ftree/domain/relationship.dart';
+import 'package:ftree/features/family/generation_filter.dart';
+import 'package:ftree/l10n/app_localizations.dart';
 
 void main() {
   late AppDatabase db;
@@ -540,6 +543,63 @@ void main() {
       expect(find.text('Họ Nguyễn'), findsOneWidget);
       final snapshot = await repository.loadFamily(familyId);
       expect(snapshot!.graph.persons, hasLength(2));
+    });
+  });
+
+  group('one palette, read twice', () {
+    testWidgets('a family glyph carries the application colour', (
+      tester,
+    ) async {
+      await repository.saveFamily(
+        const domain.Family(
+          id: 'f0000000-0000-7000-8000-000000000000',
+          name: 'Họ Nguyễn',
+        ),
+      );
+      await pumpApp(tester);
+
+      final row = tester.widget<RowIcon>(find.byType(RowIcon).last);
+      final scheme = Theme.of(
+        tester.element(find.byType(RowIcon).last),
+      ).colorScheme;
+
+      // Not compared against a literal: the point is that the glyph and the
+      // scheme are the same decision, so a new seed moves both together.
+      expect(row.color, scheme.primary);
+    });
+
+    testWidgets('and so does a chosen chip, from the same seed', (
+      tester,
+    ) async {
+      late ColorScheme scheme;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: GroupedColors.seed),
+          ),
+          localizationsDelegates: AppText.localizationsDelegates,
+          supportedLocales: AppText.supportedLocales,
+          home: Builder(
+            builder: (context) {
+              scheme = Theme.of(context).colorScheme;
+              return Scaffold(
+                body: GenerationFilter(
+                  counts: const <int?, int>{1: 3, 2: 7},
+                  chosen: 2,
+                  onChosen: (_) {},
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final chosen = tester
+          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+          .firstWhere((chip) => chip.selected);
+
+      expect(chosen.selectedColor, scheme.primary);
     });
   });
 }

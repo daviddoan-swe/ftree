@@ -104,7 +104,10 @@ class _FamilyList extends ConsumerWidget {
       ),
       child: GroupedRow(
         icon: Icons.account_tree,
-        iconColor: GroupedColors.green,
+        // The application's own colour, the same one that fills a chosen đời
+        // chip. A family is what the application is about, so its glyph
+        // carries the brand rather than one of the incidental row tints.
+        iconColor: GroupedColors.primary(context),
         title: family.name,
         subtitle: family.description,
         // The moon says this family keeps the lunar calendar, which changes

@@ -16,15 +16,50 @@ import 'package:flutter/material.dart';
 
 import '../domain/name_search.dart';
 
-/// The page tint and the card colour behind it, per brightness.
+/// Every colour the application chooses, in one place.
 ///
-/// Taken from the system grouped-background pair: the card has to sit visibly
-/// on the page without a border, which is what the two-colour arrangement buys.
+/// **This is the only place a colour is decided.** The theme reads its seed
+/// from here, and the screens read their tints from here, so a change to the
+/// palette is a change to this file and nothing else. A colour written as a
+/// literal anywhere else is a colour that will be missed the next time the
+/// look is revised.
+///
+/// The page tint and the card colour behind it are per brightness, taken from
+/// the system grouped-background pair: the card has to sit visibly on the page
+/// without a border, which is what the two-colour arrangement buys.
 final class GroupedColors {
   const GroupedColors._();
 
   static bool _isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
+
+  /// The one colour the whole scheme is grown from.
+  ///
+  /// Material derives a full [ColorScheme] from it for both brightnesses, so
+  /// this single value decides the primary, its container, the surfaces and
+  /// every contrasting ink. Change it and the application changes with it.
+  static const Color seed = Color(0xFF00695C);
+
+  /// The application's own colour, as the scheme derived it from [seed].
+  ///
+  /// Read through the theme rather than written down a second time: the
+  /// derived primary is not the seed, and a constant here would be a copy
+  /// that drifts. This is what fills a chosen chip and tints the glyph
+  /// standing for a family.
+  static Color primary(BuildContext context) =>
+      Theme.of(context).colorScheme.primary;
+
+  /// What can be read on top of [primary].
+  static Color onPrimary(BuildContext context) =>
+      Theme.of(context).colorScheme.onPrimary;
+
+  /// The quiet fill of a chip nobody has chosen.
+  static Color unselected(BuildContext context) =>
+      Theme.of(context).colorScheme.surfaceContainerHighest;
+
+  /// What can be read on top of [unselected].
+  static Color onUnselected(BuildContext context) =>
+      Theme.of(context).colorScheme.onSurfaceVariant;
 
   /// Behind everything. The theme sets it as the scaffold colour.
   static const Color pageLight = Color(0xFFF2F2F7);
@@ -62,6 +97,12 @@ final class GroupedColors {
   static const Color red = Color(0xFFFF3B30);
   static const Color purple = Color(0xFFBF5AF2);
   static const Color grey = Color(0xFF8E8E93);
+
+  /// The digits on a count, whichever colour the count is sitting on.
+  ///
+  /// One ink for both [red] and [grey]: a number that changed colour as well
+  /// as its background would be two changes to read where one was meant.
+  static const Color onCount = Colors.white;
 }
 
 /// The small rounded square that carries a row's glyph.

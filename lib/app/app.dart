@@ -33,7 +33,7 @@ class FtreeApp extends StatelessWidget {
   /// in [GroupedColors] so the screens and the theme cannot disagree.
   static ThemeData _theme(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF00695C),
+      seedColor: GroupedColors.seed,
       brightness: brightness,
     );
     final page = brightness == Brightness.dark

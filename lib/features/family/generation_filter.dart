@@ -215,8 +215,8 @@ class _GenerationFilterState extends State<GenerationFilter> {
     // row of flat ones reads as a scale with a place marked on it, which is
     // what a list of đời is.
     final ink = selected
-        ? theme.colorScheme.onPrimary
-        : theme.colorScheme.onSurfaceVariant;
+        ? GroupedColors.onPrimary(context)
+        : GroupedColors.onUnselected(context);
 
     return Padding(
       key: selected ? _chosenKey : null,
@@ -225,8 +225,8 @@ class _GenerationFilterState extends State<GenerationFilter> {
         selected: selected,
         onSelected: (_) => onTap(),
         showCheckmark: false,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        selectedColor: theme.colorScheme.primary,
+        backgroundColor: GroupedColors.unselected(context),
+        selectedColor: GroupedColors.primary(context),
         side: BorderSide.none,
         shape: const StadiumBorder(),
         labelPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -289,7 +289,7 @@ class _CountPill extends StatelessWidget {
         textAlign: TextAlign.center,
         style: theme.textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: GroupedColors.onCount,
         ),
       ),
     );

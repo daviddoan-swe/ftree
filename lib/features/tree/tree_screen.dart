@@ -1148,7 +1148,7 @@ class TreePainter extends CustomPainter {
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: GroupedColors.onCount,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1410,7 +1410,7 @@ class _GenerationLabel extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: GroupedColors.onCount,
                   ),
                 ),
               ),
