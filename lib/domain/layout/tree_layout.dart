@@ -14,9 +14,40 @@ library;
 import '../family_graph.dart';
 import '../person.dart';
 
+/// Which way the generations run.
+///
+/// Ancestor first either way; this is only which direction "first" points. It
+/// is a property of the page rather than of the family, and the two are not
+/// interchangeable on a phone: whichever axis the generations take, the
+/// siblings get the other one, and only one of the two can be scrolled
+/// comfortably.
+///
+/// The choice matters because the two axes are bounded differently. Depth can
+/// be folded (see [collapseToDepth]); the width of a generation cannot — a
+/// rule that hides siblings hides whoever carries the line. So the axis that
+/// folding can bound is the one to put across the narrow side of the screen.
+enum TreeOrientation {
+  /// Generations downwards, siblings left to right. The form a printed gia
+  /// phả takes, and the one a wide screen suits.
+  topDown,
+
+  /// Generations left to right, siblings downwards. Puts the foldable axis
+  /// across the phone and lets the unfoldable one run down the side that
+  /// scrolls.
+  leftToRight;
+
+  /// Whether generations run down the page.
+  bool get isTopDown => this == TreeOrientation.topDown;
+}
+
 /// Spacing the layout works to.
 ///
 /// Unitless. A renderer decides whether one unit is a pixel or something else.
+///
+/// Two axes, named for what they carry rather than for a direction: the
+/// **sibling** axis holds the people of one generation, and the **generation**
+/// axis runs from the ancestor towards the present. [orientation] decides
+/// which of those lands on x and which on y.
 final class LayoutMetrics {
   const LayoutMetrics({
     this.nodeWidth = 160,
@@ -24,6 +55,7 @@ final class LayoutMetrics {
     this.horizontalGap = 24,
     this.verticalGap = 80,
     this.spouseGap = 12,
+    this.orientation = TreeOrientation.topDown,
   });
 
   /// Width of one person's box.
@@ -42,14 +74,23 @@ final class LayoutMetrics {
   /// [horizontalGap], which is what makes a couple read as a pair.
   final double spouseGap;
 
-  /// Distance between the left edges of two adjacent non-spouse boxes.
-  double get slotWidth => nodeWidth + horizontalGap;
+  /// Which way the generations run, and so which axis is which.
+  final TreeOrientation orientation;
 
-  /// Distance between the left edges of two boxes drawn as a couple.
-  double get spouseSlotWidth => nodeWidth + spouseGap;
+  /// How much of the sibling axis one box takes up.
+  double get nodeExtent => orientation.isTopDown ? nodeWidth : nodeHeight;
 
-  /// Distance between the top edges of one generation and the next.
-  double get generationHeight => nodeHeight + verticalGap;
+  /// Distance between the leading edges of two adjacent non-spouse boxes,
+  /// along the sibling axis.
+  double get siblingStride => nodeExtent + horizontalGap;
+
+  /// The same for two boxes drawn as a couple. Narrower than
+  /// [siblingStride], which is what makes a couple read as a pair.
+  double get spouseStride => nodeExtent + spouseGap;
+
+  /// Distance between one generation and the next, along the generation axis.
+  double get generationStride =>
+      (orientation.isTopDown ? nodeHeight : nodeWidth) + verticalGap;
 }
 
 /// One person, placed.
@@ -59,6 +100,7 @@ final class LayoutNode {
     required this.generation,
     required this.x,
     required this.y,
+    this.hiddenDescendantCount = 0,
   });
 
   /// Who this box is.
@@ -73,6 +115,18 @@ final class LayoutNode {
 
   /// Top edge of the box.
   final double y;
+
+  /// How many people hang below this box without being drawn.
+  ///
+  /// Non-zero only where the chart was folded: it is what the reader is being
+  /// told they cannot see, and tapping is expected to reveal one generation of
+  /// it. Zero everywhere else, including on a folded person whose descendants
+  /// all happen to be drawn elsewhere on the chart — nothing is hidden there,
+  /// so nothing is claimed.
+  final int hiddenDescendantCount;
+
+  /// Whether this box stands in front of people who are not drawn.
+  bool get hidesDescendants => hiddenDescendantCount > 0;
 
   @override
   String toString() =>
@@ -94,7 +148,7 @@ final class LayoutEdge {
     required this.kind,
     required this.fromPersonId,
     required this.toPersonId,
-    required this.fromAnchorX,
+    required this.fromAnchorAlong,
   });
 
   final LayoutEdgeKind kind;
@@ -106,7 +160,7 @@ final class LayoutEdge {
   /// The child, for [LayoutEdgeKind.parentChild]; otherwise the right-hand.
   final String toPersonId;
 
-  /// Where the line should leave the upper end, horizontally.
+  /// Where the line should leave the parent's end, along the sibling axis.
   ///
   /// For a parent with a spouse this is the centre of the couple, not the
   /// centre of [fromPersonId]. Children belong to both partners, and a line
@@ -115,11 +169,11 @@ final class LayoutEdge {
   /// Supplied by the layout rather than worked out by the renderer: grouping
   /// spouses is the layout's job (§16), and a renderer recomputing it would be
   /// rebuilding structure the layout already knows.
-  final double fromAnchorX;
+  final double fromAnchorAlong;
 
   @override
   String toString() =>
-      'LayoutEdge(${kind.name}, $fromPersonId → $toPersonId @ $fromAnchorX)';
+      'LayoutEdge(${kind.name}, $fromPersonId → $toPersonId @ $fromAnchorAlong)';
 }
 
 /// A finished arrangement, ready to draw.
@@ -179,6 +233,13 @@ final class TreeLayout {
 /// couple is placed as one thing and their children hang below the pair rather
 /// than below one of them.
 ///
+/// Anyone in [collapsed] is drawn, but their children are not, and neither is
+/// anything below them. A chart of a real gia phả is far wider than a phone:
+/// three hundred people measure some fifty screens across at a size the names
+/// can still be read at, so drawing all of it at once is not a view of
+/// anything. Folding is what makes the chart answerable — the reader opens the
+/// one branch they are following.
+///
 /// Known limitation, and a deliberate one: a family graph is not a tree. Someone
 /// with parents in two different branches is reachable twice, and this draws
 /// them once, under whichever branch reaches them first. Drawing them twice, or
@@ -187,6 +248,7 @@ TreeLayout layoutDescendants(
   FamilyGraph graph,
   String rootId, {
   LayoutMetrics metrics = const LayoutMetrics(),
+  Set<String> collapsed = const <String>{},
 }) {
   final assignment = GenerationAssignment.fromRoot(graph, rootId);
   if (assignment.length == 0) {
@@ -197,7 +259,7 @@ TreeLayout layoutDescendants(
     );
   }
 
-  final placer = _Placer(graph, assignment, metrics);
+  final placer = _Placer(graph, assignment, metrics, collapsed);
   placer.run(rootId);
 
   return TreeLayout(
@@ -207,14 +269,64 @@ TreeLayout layoutDescendants(
   );
 }
 
+/// Who has to be folded so that a chart from [rootId] shows no more than
+/// [visibleGenerations] generations.
+///
+/// Everyone standing at or below the last visible generation who has a child,
+/// so the fold holds however far the reader opens it: revealing one person's
+/// children exposes a generation that is already folded in its turn, and the
+/// chart never grows without being asked twice.
+///
+/// Spouses are returned alongside their partner where they too are parents.
+/// Only the head of a drawn unit is consulted by the layout, so the extra ids
+/// cost nothing and spare the caller from having to know which of a couple
+/// the placement pass will treat as the head.
+///
+/// Returns an empty set when the chart is already short enough, which is the
+/// common case for a small family and costs one traversal to find out.
+Set<String> collapseToDepth(
+  FamilyGraph graph,
+  String rootId, {
+  required int visibleGenerations,
+}) {
+  if (visibleGenerations < 1) {
+    throw ArgumentError.value(
+      visibleGenerations,
+      'visibleGenerations',
+      'a chart shows at least the root',
+    );
+  }
+
+  final assignment = GenerationAssignment.fromRoot(graph, rootId);
+  final last = visibleGenerations - 1;
+
+  return <String>{
+    for (final person in assignment.order)
+      if ((assignment.generationOf(person.id) ?? 0) >= last &&
+          graph.children(person.id).isNotEmpty)
+        person.id,
+  };
+}
+
 /// Runs the horizontal pass, accumulating placed nodes and the lines between
 /// them.
 final class _Placer {
-  _Placer(this._graph, this._assignment, this._metrics);
+  _Placer(this._graph, this._assignment, this._metrics, this._collapsed);
 
   final FamilyGraph _graph;
   final GenerationAssignment _assignment;
   final LayoutMetrics _metrics;
+
+  /// Whose children are not to be drawn.
+  final Set<String> _collapsed;
+
+  /// The head of each folded unit, and the partners folded along with it.
+  ///
+  /// Collected during placement because only the placement pass knows which
+  /// people ended up drawn side by side, and the count a folded box carries
+  /// has to cover everyone the whole unit is standing in front of — a second
+  /// wife's children by an earlier marriage included.
+  final Map<String, List<String>> _foldedUnits = <String, List<String>>{};
 
   final List<LayoutNode> nodes = <LayoutNode>[];
   final List<LayoutEdge> edges = <LayoutEdge>[];
@@ -223,11 +335,47 @@ final class _Placer {
   /// cannot run forever (§6.2).
   final Set<String> _placed = <String>{};
 
-  /// Left edge of the next free column.
-  double _nextColumn = 0;
+  /// The next free position on the sibling axis.
+  double _nextSlot = 0;
 
   void run(String rootId) {
     _placeUnit(rootId);
+    _countWhatIsHidden();
+  }
+
+  /// Fills in [LayoutNode.hiddenDescendantCount] for every folded unit.
+  ///
+  /// Only after placement, because a descendant of a folded person may have
+  /// been drawn anyway — reached first through another branch, which a family
+  /// graph allows. Counting them as hidden would put a number on the box that
+  /// the reader can already see people behind.
+  ///
+  /// [FamilyGraph.descendants] tolerates a cycle (§6.2), so a corrupt graph
+  /// gives a wrong number here rather than hanging the screen.
+  void _countWhatIsHidden() {
+    if (_foldedUnits.isEmpty) return;
+
+    for (var index = 0; index < nodes.length; index++) {
+      final node = nodes[index];
+      final partners = _foldedUnits[node.person.id];
+      if (partners == null) continue;
+
+      final hidden = <String>{};
+      for (final id in <String>[node.person.id, ...partners]) {
+        for (final person in _graph.descendants(id)) {
+          if (!_placed.contains(person.id)) hidden.add(person.id);
+        }
+      }
+      if (hidden.isEmpty) continue;
+
+      nodes[index] = LayoutNode(
+        person: node.person,
+        generation: node.generation,
+        x: node.x,
+        y: node.y,
+        hiddenDescendantCount: hidden.length,
+      );
+    }
   }
 
   /// Places [personId] with their spouses, then their children below.
@@ -238,9 +386,26 @@ final class _Placer {
   /// centre over the boxes it actually joins to. Centring over unit centres
   /// instead leaves the vertical line off the middle of its own horizontal bar
   /// whenever a child is married.
+  /// Turns a position on each axis into a point, according to the orientation.
+  ///
+  /// The one place the two orientations differ. Everything above it is the
+  /// same packing problem either way: a run along the sibling axis, and a
+  /// depth from the root.
+  LayoutNode _node(
+    Person person,
+    int generation,
+    double along,
+    double depth,
+  ) => LayoutNode(
+    person: person,
+    generation: generation,
+    x: _metrics.orientation.isTopDown ? along : depth,
+    y: _metrics.orientation.isTopDown ? depth : along,
+  );
+
   double _placeUnit(String personId) {
     final person = _graph.personById(personId);
-    if (person == null || !_placed.add(personId)) return _nextColumn;
+    if (person == null || !_placed.add(personId)) return _nextSlot;
 
     final generation = _assignment.generationOf(personId)!;
 
@@ -254,7 +419,19 @@ final class _Placer {
     // Which marriage each child came from, so each can hang from its own
     // couple rather than from the middle of everybody. The order of the
     // children is left exactly as the data gives it.
-    final marriageOfChild = _marriageOfChild(personId, partners);
+    //
+    // A folded unit enumerates nothing: the children are not placed, so no
+    // column is claimed for them and the chart closes up to the width of what
+    // is actually drawn. That width is the whole point of folding.
+    final folded = _collapsed.contains(personId);
+    if (folded) {
+      _foldedUnits[personId] = <String>[
+        for (final partner in partners) partner.id,
+      ];
+    }
+    final marriageOfChild = folded
+        ? const <String, int?>{}
+        : _marriageOfChild(personId, partners);
     final childIds = marriageOfChild.keys.toList();
 
     // Centres of the child *boxes*, which is what the connectors will join.
@@ -262,51 +439,47 @@ final class _Placer {
       for (final childId in childIds) _placeUnit(childId),
     ];
 
-    final unitWidth =
-        _metrics.nodeWidth +
-        partners.length * _metrics.spouseSlotWidth;
+    final unitExtent =
+        _metrics.nodeExtent +
+        partners.length * _metrics.spouseStride;
 
-    final double unitLeft;
+    final double unitStart;
     if (childCentres.isEmpty) {
-      // A leaf claims the next free column.
-      unitLeft = _nextColumn;
-      _nextColumn += unitWidth + _metrics.horizontalGap;
+      // A leaf claims the next free slot.
+      unitStart = _nextSlot;
+      _nextSlot += unitExtent + _metrics.horizontalGap;
     } else {
       // Put the unit's middle over the middle of the children's boxes, so the
-      // vertical line meets the centre of its own horizontal bar. Never to the
-      // left of a column already used.
+      // stem meets the centre of its own bar. Never before a slot already
+      // used.
       final span = (childCentres.first + childCentres.last) / 2;
-      unitLeft = _atLeast(span - unitWidth / 2, 0);
-      _nextColumn = _atLeast(
-        _nextColumn,
-        unitLeft + unitWidth + _metrics.horizontalGap,
+      unitStart = _atLeast(span - unitExtent / 2, 0);
+      _nextSlot = _atLeast(
+        _nextSlot,
+        unitStart + unitExtent + _metrics.horizontalGap,
       );
     }
 
-    final y = generation * _metrics.generationHeight;
+    final depth = generation * _metrics.generationStride;
 
-    nodes.add(
-      LayoutNode(person: person, generation: generation, x: unitLeft, y: y),
-    );
+    nodes.add(_node(person, generation, unitStart, depth));
 
-    var x = unitLeft;
+    var along = unitStart;
     var previousId = personId;
-    var previousX = unitLeft;
+    var previousAlong = unitStart;
     for (final partner in partners) {
-      x += _metrics.spouseSlotWidth;
-      nodes.add(
-        LayoutNode(person: partner, generation: generation, x: x, y: y),
-      );
+      along += _metrics.spouseStride;
+      nodes.add(_node(partner, generation, along, depth));
       edges.add(
         LayoutEdge(
           kind: LayoutEdgeKind.spouse,
           fromPersonId: previousId,
           toPersonId: partner.id,
-          fromAnchorX: previousX + _metrics.nodeWidth / 2,
+          fromAnchorAlong: previousAlong + _metrics.nodeExtent / 2,
         ),
       );
       previousId = partner.id;
-      previousX = x;
+      previousAlong = along;
     }
 
     // Each child hangs from its own marriage. Drawing them all from the middle
@@ -318,8 +491,8 @@ final class _Placer {
     // would assert that they came from no marriage at all, when the usual
     // reading is that the other parent is simply unrecorded — and with a single
     // spouse it would also cross the lines of their own siblings for no reason.
-    final personCentre = unitLeft + _metrics.nodeWidth / 2;
-    final unitCentre = unitLeft + unitWidth / 2;
+    final personCentre = unitStart + _metrics.nodeExtent / 2;
+    final unitCentre = unitStart + unitExtent / 2;
 
     for (final entry in marriageOfChild.entries) {
       final partnerIndex = entry.value;
@@ -328,7 +501,7 @@ final class _Placer {
           kind: LayoutEdgeKind.parentChild,
           fromPersonId: personId,
           toPersonId: entry.key,
-          fromAnchorX: partnerIndex == null
+          fromAnchorAlong: partnerIndex == null
               ? unitCentre
               : _marriageAnchor(personCentre, partnerIndex),
         ),
@@ -349,7 +522,7 @@ final class _Placer {
   ///
   /// A gap is never a box, at any number of marriages.
   double _marriageAnchor(double personCentre, int partnerIndex) =>
-      personCentre + (partnerIndex + 0.5) * _metrics.spouseSlotWidth;
+      personCentre + (partnerIndex + 0.5) * _metrics.spouseStride;
 
   /// Which marriage each child came from, keyed by child id.
   ///

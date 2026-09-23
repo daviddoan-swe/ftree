@@ -45,15 +45,15 @@ void main() {
         spouseGap: 5,
       );
 
-      expect(metrics.slotWidth, 120);
-      expect(metrics.spouseSlotWidth, 105);
-      expect(metrics.generationHeight, 110);
+      expect(metrics.siblingStride, 120);
+      expect(metrics.spouseStride, 105);
+      expect(metrics.generationStride, 110);
     });
 
     test('places a couple closer than two strangers', () {
       // What makes a pair read as a pair rather than as neighbours.
       const metrics = LayoutMetrics();
-      expect(metrics.spouseSlotWidth, lessThan(metrics.slotWidth));
+      expect(metrics.spouseStride, lessThan(metrics.siblingStride));
     });
   });
 
@@ -299,8 +299,8 @@ void main() {
       );
 
       expect(layout.nodeFor('a')!.y, 0);
-      expect(layout.nodeFor('b')!.y, metrics.generationHeight);
-      expect(layout.nodeFor('c')!.y, 2 * metrics.generationHeight);
+      expect(layout.nodeFor('b')!.y, metrics.generationStride);
+      expect(layout.nodeFor('c')!.y, 2 * metrics.generationStride);
     });
 
     test('siblings sit side by side without touching', () {
@@ -314,7 +314,7 @@ void main() {
 
       final gap =
           (layout.nodeFor('c')!.x - layout.nodeFor('b')!.x).abs();
-      expect(gap, metrics.slotWidth);
+      expect(gap, metrics.siblingStride);
       expectNoOverlap(layout);
     });
 
@@ -340,8 +340,8 @@ void main() {
       );
 
       final gap = (layout.nodeFor('w')!.x - layout.nodeFor('a')!.x).abs();
-      expect(gap, metrics.spouseSlotWidth);
-      expect(gap, lessThan(metrics.slotWidth));
+      expect(gap, metrics.spouseStride);
+      expect(gap, lessThan(metrics.siblingStride));
       expect(layout.nodeFor('w')!.y, layout.nodeFor('a')!.y);
     });
 
@@ -474,7 +474,7 @@ void main() {
         metrics: wide,
       );
 
-      expect(layout.nodeFor('b')!.y, wide.generationHeight);
+      expect(layout.nodeFor('b')!.y, wide.generationStride);
       expect(layout.width, greaterThanOrEqualTo(300));
     });
   });
@@ -541,12 +541,12 @@ void main() {
         (e) => e.kind == LayoutEdgeKind.parentChild,
       )) {
         expect(
-          edge.fromAnchorX,
+          edge.fromAnchorAlong,
           closeTo(coupleCentre, 0.001),
           reason: 'child ${edge.toPersonId}',
         );
         expect(
-          edge.fromAnchorX,
+          edge.fromAnchorAlong,
           isNot(closeTo(husband.x + metrics.nodeWidth / 2, 0.001)),
           reason: 'must not sit on the husband alone',
         );
@@ -575,7 +575,7 @@ void main() {
 
       final anchor = layout.edges
           .firstWhere((e) => e.kind == LayoutEdgeKind.parentChild)
-          .fromAnchorX;
+          .fromAnchorAlong;
 
       expect(anchor, closeTo(childMidpoint, 0.001));
     });
@@ -590,7 +590,7 @@ void main() {
         'a',
       );
 
-      final anchor = layout.edges.single.fromAnchorX;
+      final anchor = layout.edges.single.fromAnchorAlong;
       expect(
         anchor,
         closeTo(layout.nodeFor('a')!.x + metrics.nodeWidth / 2, 0.001),
@@ -622,7 +622,7 @@ void main() {
       final barMidpoint = (centre('married') + centre('single')) / 2;
       final anchors = layout.edges
           .where((e) => e.kind == LayoutEdgeKind.parentChild)
-          .map((e) => e.fromAnchorX)
+          .map((e) => e.fromAnchorAlong)
           .toSet();
 
       expect(anchors.length, 1, reason: 'both children share one drop point');
@@ -657,7 +657,7 @@ void main() {
                 e.kind == LayoutEdgeKind.parentChild &&
                 e.toPersonId == childId,
           )
-          .fromAnchorX;
+          .fromAnchorAlong;
 
       // Each drop point is the gap immediately before that wife's box.
       double gapBefore(String id) =>
@@ -709,8 +709,8 @@ void main() {
         for (final node in layout.nodes) {
           if (node.generation != parent.generation) continue;
           final inside =
-              edge.fromAnchorX > node.x &&
-              edge.fromAnchorX < node.x + metrics.nodeWidth;
+              edge.fromAnchorAlong > node.x &&
+              edge.fromAnchorAlong < node.x + metrics.nodeWidth;
           expect(
             inside,
             isFalse,
@@ -809,7 +809,7 @@ void main() {
                 e.kind == LayoutEdgeKind.parentChild &&
                 e.toPersonId == childId,
           )
-          .fromAnchorX;
+          .fromAnchorAlong;
 
       final coupleCentre = (centre('a') + centre('w')) / 2;
       expect(anchorTo('shared'), closeTo(coupleCentre, 0.001));
@@ -902,6 +902,338 @@ void main() {
       ]);
 
       expect(layout.generationCount, 3);
+    });
+  });
+
+  group('folding a branch away', () {
+    /// Three generations: a couple, their two children, and four grandchildren.
+    FamilyGraph threeGenerations() => graphOf(
+      <String>['a', 'a2', 'b', 'c', 'd', 'e', 'f', 'g'],
+      <Relationship>[
+        spouseOf('a', 'a2'),
+        parentOf('a', 'b'), parentOf('a2', 'b'),
+        parentOf('a', 'c'), parentOf('a2', 'c'),
+        parentOf('b', 'd'), parentOf('b', 'e'),
+        parentOf('c', 'f'), parentOf('c', 'g'),
+      ],
+    );
+
+    test('a folded person is drawn, their children are not', () {
+      final layout = layoutDescendants(
+        threeGenerations(), 'a', collapsed: <String>{'b'},
+      );
+
+      expect(layout.nodeFor('b'), isNotNull, reason: 'the box itself stays');
+      expect(layout.nodeFor('d'), isNull);
+      expect(layout.nodeFor('e'), isNull);
+      expect(layout.nodeFor('f'), isNotNull, reason: 'a sibling is untouched');
+    });
+
+    test('the badge counts everyone the box stands in front of', () {
+      final layout = layoutDescendants(
+        threeGenerations(), 'a', collapsed: <String>{'b'},
+      );
+
+      expect(layout.nodeFor('b')!.hiddenDescendantCount, 2);
+      expect(layout.nodeFor('b')!.hidesDescendants, isTrue);
+    });
+
+    test('nothing is claimed where nothing is folded', () {
+      final layout = layoutDescendants(threeGenerations(), 'a');
+
+      expect(
+        layout.nodes.every((n) => n.hiddenDescendantCount == 0),
+        isTrue,
+      );
+      expect(layout.nodeFor('b')!.hidesDescendants, isFalse);
+    });
+
+    test('the count reaches past the folded generation, not just to it', () {
+      // Folding 'a' hides two children and four grandchildren.
+      final layout = layoutDescendants(
+        threeGenerations(), 'a', collapsed: <String>{'a'},
+      );
+
+      expect(layout.nodeFor('a')!.hiddenDescendantCount, 6);
+      expect(layout.nodes.length, 2, reason: 'the couple, and nobody else');
+    });
+
+    test('a spouse folded with the head is drawn beside them', () {
+      final layout = layoutDescendants(
+        threeGenerations(), 'a', collapsed: <String>{'a', 'a2'},
+      );
+
+      expect(layout.nodeFor('a2'), isNotNull);
+      expect(layout.nodeFor('a2')!.hiddenDescendantCount, 0,
+          reason: 'the number belongs on the head, said once');
+    });
+
+    test('the unit hides a partner\'s children by an earlier marriage', () {
+      // 'a' and 'a2' are married; 'a2' also has 'x' from before. Folding the
+      // head has to account for 'x', who hangs from the same unit.
+      final graph = graphOf(
+        <String>['a', 'a2', 'b', 'x'],
+        <Relationship>[
+          spouseOf('a', 'a2'),
+          parentOf('a', 'b'), parentOf('a2', 'b'),
+          parentOf('a2', 'x'),
+        ],
+      );
+      final layout = layoutDescendants(graph, 'a', collapsed: <String>{'a'});
+
+      expect(layout.nodeFor('x'), isNull);
+      expect(layout.nodeFor('a')!.hiddenDescendantCount, 2);
+    });
+
+    test('folding somebody childless changes nothing', () {
+      final layout = layoutDescendants(
+        threeGenerations(), 'a', collapsed: <String>{'d'},
+      );
+
+      expect(layout.nodes.length, 8);
+      expect(layout.nodeFor('d')!.hiddenDescendantCount, 0);
+    });
+
+    test('nobody is counted twice when two folded units share a child', () {
+      // 'd' is a child of both 'b' and 'c'. Folding both must not report four
+      // hidden people where there are three.
+      final graph = graphOf(
+        <String>['a', 'b', 'c', 'd'],
+        <Relationship>[
+          parentOf('a', 'b'), parentOf('a', 'c'),
+          parentOf('b', 'd'), parentOf('c', 'd'),
+        ],
+      );
+      final layout = layoutDescendants(
+        graph, 'a', collapsed: <String>{'b', 'c'},
+      );
+
+      expect(layout.nodeFor('b')!.hiddenDescendantCount, 1);
+      expect(layout.nodeFor('c')!.hiddenDescendantCount, 1);
+    });
+
+    test('a descendant drawn elsewhere is not reported as hidden', () {
+      // 'd' hangs from 'b' as well as from the folded 'c', and 'b' is open, so
+      // 'd' is on the chart. Nothing is behind 'c' that cannot be seen.
+      final graph = graphOf(
+        <String>['a', 'b', 'c', 'd'],
+        <Relationship>[
+          parentOf('a', 'b'), parentOf('a', 'c'),
+          parentOf('b', 'd'), parentOf('c', 'd'),
+        ],
+      );
+      final layout = layoutDescendants(graph, 'a', collapsed: <String>{'c'});
+
+      expect(layout.nodeFor('d'), isNotNull);
+      expect(layout.nodeFor('c')!.hiddenDescendantCount, 0);
+      expect(layout.nodeFor('c')!.hidesDescendants, isFalse);
+    });
+
+    test('folding narrows the chart, which is the whole point', () {
+      final graph = threeGenerations();
+      final open = layoutDescendants(graph, 'a');
+      final shut = layoutDescendants(
+        graph, 'a', collapsed: <String>{'b', 'c'},
+      );
+
+      expect(shut.width, lessThan(open.width));
+    });
+
+    test('survives a graph that loops back on itself', () {
+      // A cycle can arrive through synchronisation (DOMAIN.md 6.2). Folding
+      // must not turn that into a hang.
+      final graph = graphOf(
+        <String>['a', 'b', 'c'],
+        <Relationship>[
+          parentOf('a', 'b'), parentOf('b', 'c'), parentOf('c', 'a'),
+        ],
+      );
+
+      final layout = layoutDescendants(graph, 'a', collapsed: <String>{'b'});
+
+      expect(layout.nodeFor('a'), isNotNull);
+      expect(layout.nodeFor('c'), isNull);
+    });
+  });
+
+  group('collapseToDepth', () {
+    FamilyGraph fourGenerations() => graphOf(
+      <String>['a', 'b', 'c', 'd'],
+      <Relationship>[parentOf('a', 'b'), parentOf('b', 'c'), parentOf('c', 'd')],
+    );
+
+    test('folds the last visible generation, and everything under it', () {
+      final folded = collapseToDepth(
+        fourGenerations(), 'a', visibleGenerations: 2,
+      );
+
+      // 'b' is the last visible; 'c' is already out of sight but folded too,
+      // so that opening 'b' does not spill the whole line onto the chart.
+      expect(folded, <String>{'b', 'c'});
+    });
+
+    test('opening one fold reveals exactly one more generation', () {
+      final graph = fourGenerations();
+      final folded = collapseToDepth(graph, 'a', visibleGenerations: 2);
+
+      final opened = layoutDescendants(
+        graph, 'a', collapsed: folded.difference(<String>{'b'}),
+      );
+
+      expect(opened.nodeFor('c'), isNotNull);
+      expect(opened.nodeFor('d'), isNull, reason: 'the next fold still holds');
+    });
+
+    test('leaves a chart alone when it already fits', () {
+      expect(
+        collapseToDepth(fourGenerations(), 'a', visibleGenerations: 9),
+        isEmpty,
+      );
+    });
+
+    test('never folds somebody with no children', () {
+      final folded = collapseToDepth(
+        fourGenerations(), 'a', visibleGenerations: 1,
+      );
+
+      expect(folded, <String>{'a', 'b', 'c'});
+      expect(folded, isNot(contains('d')), reason: 'a leaf hides nothing');
+    });
+
+    test('showing one generation leaves the root and nothing else', () {
+      final graph = fourGenerations();
+      final layout = layoutDescendants(
+        graph,
+        'a',
+        collapsed: collapseToDepth(graph, 'a', visibleGenerations: 1),
+      );
+
+      expect(layout.nodes.map((n) => n.person.id), <String>['a']);
+      expect(layout.nodeFor('a')!.hiddenDescendantCount, 3);
+    });
+
+    test('refuses a chart that shows nothing', () {
+      expect(
+        () => collapseToDepth(fourGenerations(), 'a', visibleGenerations: 0),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('turned on its side', () {
+    const sideways = LayoutMetrics(orientation: TreeOrientation.leftToRight);
+
+    FamilyGraph couple() => graphOf(
+      <String>['a', 'a2', 'b', 'c'],
+      <Relationship>[
+        spouseOf('a', 'a2'),
+        parentOf('a', 'b'), parentOf('a2', 'b'),
+        parentOf('a', 'c'), parentOf('a2', 'c'),
+      ],
+    );
+
+    test('generations run across, and siblings down', () {
+      final layout = layoutDescendants(couple(), 'a', metrics: sideways);
+
+      final root = layout.nodeFor('a')!;
+      final child = layout.nodeFor('b')!;
+
+      expect(child.x, greaterThan(root.x), reason: 'a generation across');
+      expect(child.generation, root.generation + 1);
+
+      final other = layout.nodeFor('c')!;
+      expect(other.x, child.x, reason: 'siblings share a generation column');
+      expect(other.y, isNot(child.y), reason: 'and are spread down it');
+    });
+
+    test('a couple is stacked, not laid side by side', () {
+      final layout = layoutDescendants(couple(), 'a', metrics: sideways);
+
+      final person = layout.nodeFor('a')!;
+      final spouse = layout.nodeFor('a2')!;
+
+      expect(spouse.x, person.x, reason: 'the same generation');
+      expect(
+        spouse.y - person.y,
+        sideways.spouseStride,
+        reason: 'and closer together than two siblings would be',
+      );
+      expect(sideways.spouseStride, lessThan(sideways.siblingStride));
+    });
+
+    test('the generation stride follows the box, not the other axis', () {
+      // Across, a generation has to clear the width of a box; down, its
+      // height. Reusing one number for both would overlap the boxes in
+      // whichever orientation it was not chosen for.
+      expect(
+        sideways.generationStride,
+        sideways.nodeWidth + sideways.verticalGap,
+      );
+      expect(
+        const LayoutMetrics().generationStride,
+        sideways.nodeHeight + sideways.verticalGap,
+      );
+      expect(sideways.nodeExtent, sideways.nodeHeight);
+      expect(const LayoutMetrics().nodeExtent, sideways.nodeWidth);
+    });
+
+    test('it is the same arrangement, only transposed', () {
+      // Same people, same generations, same number of lines. Turning the page
+      // must not change who is drawn or what joins them.
+      final graph = couple();
+      final down = layoutDescendants(graph, 'a');
+      final across = layoutDescendants(graph, 'a', metrics: sideways);
+
+      expect(
+        across.nodes.map((n) => n.person.id),
+        down.nodes.map((n) => n.person.id),
+      );
+      expect(across.edges.length, down.edges.length);
+      expect(across.generationCount, down.generationCount);
+    });
+
+    test('folding narrows the side that a phone is narrow in', () {
+      // The reason for having the orientation at all. Folded to three
+      // generations, the axis a fold can bound is the short one; the axis it
+      // cannot bound runs the way a phone scrolls.
+      // Wide rather than deep, which is the shape that makes the orientation
+      // worth having: ten in a generation against two generations drawn. A
+      // family with more generations than siblings is wider turned sideways,
+      // and there the upright chart is the better of the two.
+      final ids = <String>['a', for (var n = 0; n < 30; n++) 'k$n'];
+      final links = <Relationship>[
+        for (var n = 0; n < 10; n++) parentOf('a', 'k$n'),
+        for (var n = 0; n < 10; n++) ...<Relationship>[
+          parentOf('k$n', 'k${10 + n}'),
+          parentOf('k$n', 'k${20 + n}'),
+        ],
+      ];
+      final graph = graphOf(ids, links);
+      final folded = collapseToDepth(graph, 'a', visibleGenerations: 2);
+
+      final down = layoutDescendants(graph, 'a', collapsed: folded);
+      final across = layoutDescendants(
+        graph, 'a', collapsed: folded, metrics: sideways,
+      );
+
+      expect(down.width, greaterThan(down.height));
+      expect(across.height, greaterThan(across.width));
+      expect(across.width, lessThan(down.width));
+    });
+
+    test('the badge count does not depend on which way the page is turned', () {
+      final graph = graphOf(
+        <String>['a', 'b', 'c'],
+        <Relationship>[parentOf('a', 'b'), parentOf('b', 'c')],
+      );
+
+      final down = layoutDescendants(graph, 'a', collapsed: <String>{'b'});
+      final across = layoutDescendants(
+        graph, 'a', collapsed: <String>{'b'}, metrics: sideways,
+      );
+
+      expect(down.nodeFor('b')!.hiddenDescendantCount, 1);
+      expect(across.nodeFor('b')!.hiddenDescendantCount, 1);
     });
   });
 }

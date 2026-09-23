@@ -242,6 +242,9 @@ class AppTextVi extends AppText {
   String get treeDrawFrom => 'Vẽ từ người này';
 
   @override
+  String get treeTurn => 'Xoay biểu đồ';
+
+  @override
   String treeOffChart(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

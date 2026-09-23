@@ -45,9 +45,13 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
 
   /// The chart the view was last fitted to.
   ///
-  /// A chart is fitted once, when it first appears or when it changes shape. It
-  /// must not be refitted on every rebuild, or panning would spring back the
-  /// moment anything else on the screen changes.
+  /// A chart is fitted once, when it first appears. It must not be refitted on
+  /// every rebuild, or panning would spring back the moment anything else on
+  /// the screen changes.
+  ///
+  /// The number of boxes is deliberately not part of this. Opening a fold
+  /// changes it, and refitting then would throw the reader back to the root at
+  /// the exact moment they reached what they were looking for.
   Object? _fittedTo;
 
   /// Whether the next fit should show everything, however small.
@@ -56,6 +60,38 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   /// whole tree and accepting that the names go with it.
   bool _showEverything = false;
 
+  /// The folds the reader has opened, on top of the default depth.
+  ///
+  /// Kept rather than the closed set, because the closed set is derived from
+  /// the family and would have to be recomputed and reconciled every time a
+  /// person was added. What the reader chose is small, and it is the only part
+  /// a rebuild must not lose.
+  Set<String> _expanded = <String>{};
+
+  /// Which way the generations run, once decided.
+  ///
+  /// Null until the first chart is measured. Two things can set it: the
+  /// measurement below, and the reader.
+  TreeOrientation? _orientation;
+
+  /// The root the measurement was made for, so it is made once per chart.
+  String? _orientationFor;
+
+  /// Whether the reader turned the page themselves.
+  ///
+  /// After that the measurement stops running. Re-measuring would let the
+  /// chart flip back under them when a person was added, which is the same
+  /// complaint as a chart that opens somewhere different every time.
+  bool _orientationIsMine = false;
+
+  /// How many generations a chart opens with.
+  ///
+  /// Three. A gia phả of three hundred people measures some fifty screens
+  /// across at a size the names can still be read at, so the whole chart is
+  /// not a view of anything; three generations is twenty-odd people, which is
+  /// a page. The reader opens the branch they are following from there.
+  static const int _visibleGenerations = 3;
+
   /// The smallest scale worth opening at.
   ///
   /// Eight generations measure some 2900 units across, which fits an iPhone
@@ -63,6 +99,12 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   /// an overview, so a large tree opens readable at its root instead, and the
   /// fit button is there when the shape is what is wanted.
   static const double _readableScale = 0.6;
+
+  /// How far below the top of the viewport a chart's root box opens.
+  ///
+  /// Screen points, deliberately, so that every family opens with its
+  /// ancestor in the same place however far the chart had to be zoomed out.
+  static const double _rootInset = 24;
 
   @override
   void dispose() {
@@ -92,7 +134,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   /// Never magnified past natural size: a family of three blown up to fill a
   /// tablet looks broken.
   void _fitOnce(TreeLayout layout, String rootId, Size viewport) {
-    final key = <Object>[rootId, layout.nodes.length, viewport];
+    final key = <Object>[rootId, viewport];
     if (_fittedTo.toString() == key.toString()) return;
     _fittedTo = key;
 
@@ -112,28 +154,52 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
         ? whole
         : _readableScale;
 
-    // Across: the whole chart when it fits, otherwise the root's own box, so
-    // the reader lands on the ancestor rather than on whichever branch happens
-    // to sit at the left edge.
-    final scaledWidth = chartWidth * scale;
+    // Two placements, and they must not be confused with each other.
+    //
+    // The fit button means "show me the whole shape", so the whole chart is
+    // centred in the viewport. Opening means something else: the same place
+    // every time, whatever the family holds.
+    //
+    // Every family therefore opens with the founding ancestor centred across
+    // and a fixed distance down — measured on the screen, not in the drawing.
+    // The chart's own padding is in chart units, so it shrinks with the zoom:
+    // a small family opened forty pixels below the bar and a large one
+    // twenty-four, which is why no two families opened alike. Anchoring the
+    // root box itself takes the zoom out of it.
+    final root = layout.nodeFor(rootId);
+    final metrics = layout.metrics;
+    final topDown = metrics.orientation.isTopDown;
+
     final double dx;
-    if (scaledWidth <= viewport.width) {
-      dx = (viewport.width - scaledWidth) / 2;
+    final double dy;
+
+    if (everything) {
+      dx = (viewport.width - chartWidth * scale) / 2;
+      dy = (viewport.height - chartHeight * scale) / 2;
     } else {
-      final root = layout.nodeFor(rootId);
-      final rootCentre =
-          (root?.x ?? 0) + layout.metrics.nodeWidth / 2 + _Chart.padding;
-      dx = (viewport.width / 2 - rootCentre * scale).clamp(
-        viewport.width - scaledWidth,
-        0,
-      );
+      // Centred on the sibling axis, a fixed inset down the generation axis.
+      // Which of those is x depends only on how the page is turned, so both
+      // orientations open with the ancestor in the same place relative to the
+      // direction its descendants run.
+      final rootAlongCentre =
+          (topDown
+              ? (root?.x ?? 0) + metrics.nodeWidth / 2
+              : (root?.y ?? 0) + metrics.nodeHeight / 2) +
+          _Chart.padding;
+      final rootDepthStart =
+          (topDown ? (root?.y ?? 0) : (root?.x ?? 0)) + _Chart.padding;
+
+      final along =
+          (topDown ? viewport.width : viewport.height) / 2 -
+          rootAlongCentre * scale;
+      final depth = _rootInset - rootDepthStart * scale;
+
+      dx = topDown ? along : depth;
+      dy = topDown ? depth : along;
     }
 
-    // Down: against the top rather than centred. A tree is read from its
-    // ancestor downwards, and a wide short chart floated into the middle of a
-    // tall screen puts that ancestor nowhere in particular.
     final matrix = Matrix4.identity()
-      ..translateByDouble(dx, 0, 0, 1)
+      ..translateByDouble(dx, dy, 0, 1)
       // All three axes, as InteractiveViewer does itself. Leaving z at 1 still
       // draws correctly, but the viewer reads the scale back with
       // `getMaxScaleOnAxis`, which takes the largest of the three — so it would
@@ -156,7 +222,62 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   void _drawFrom(String personId) => setState(() {
     _rootId = personId;
     _selectedId = personId;
+    // A new root is a new chart. Folds opened on the old one describe branches
+    // that may not even be drawn here.
+    _expanded = <String>{};
   });
+
+  /// Which way round to draw, measured rather than guessed at.
+  ///
+  /// Whichever orientation is narrower, because a phone scrolls down readily
+  /// and sideways badly. Counting people instead would get it wrong in both
+  /// directions: a long thin line of descent is fine upright however many
+  /// people it holds, and one generation of twelve is not.
+  ///
+  /// Decided once per root and then left alone, so that adding a person never
+  /// turns the page under the reader.
+  TreeOrientation _decideOrientation(
+    FamilyGraph graph,
+    String rootId,
+    Set<String> folded,
+  ) {
+    final decided = _orientation;
+    if (decided != null && (_orientationIsMine || _orientationFor == rootId)) {
+      return decided;
+    }
+
+    double widthOf(TreeOrientation orientation) => layoutDescendants(
+      graph,
+      rootId,
+      collapsed: folded,
+      metrics: LayoutMetrics(orientation: orientation),
+    ).width;
+
+    _orientationFor = rootId;
+    return _orientation =
+        widthOf(TreeOrientation.leftToRight) < widthOf(TreeOrientation.topDown)
+        ? TreeOrientation.leftToRight
+        : TreeOrientation.topDown;
+  }
+
+  /// Turns the page, and says that the reader meant it.
+  void _turnPage() => setState(() {
+    _orientation = (_orientation ?? TreeOrientation.topDown).isTopDown
+        ? TreeOrientation.leftToRight
+        : TreeOrientation.topDown;
+    _orientationIsMine = true;
+    // A different shape entirely, so the view is placed again rather than
+    // left pointing at where something used to be.
+    _fittedTo = null;
+  });
+
+  /// Reveals one more generation below [personId].
+  ///
+  /// Only that generation: whoever comes into view is folded in their turn
+  /// (see [collapseToDepth]), so the chart never widens by more than the
+  /// reader asked for.
+  void _openFold(String personId) =>
+      setState(() => _expanded = <String>{..._expanded, personId});
 
   @override
   Widget build(BuildContext context) {
@@ -169,6 +290,11 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
         leading: circleBackButton(context),
         title: Text(text.treeTitle),
         actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
+            tooltip: text.treeTurn,
+            onPressed: _turnPage,
+          ),
           IconButton(
             icon: const Icon(Icons.fit_screen_outlined),
             tooltip: text.treeFit,
@@ -202,52 +328,106 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
         : _defaultRoot(graph);
     if (rootId == null) return Center(child: Text(text.treeEmpty));
 
-    final layout = layoutDescendants(graph, rootId);
-    final offChart = graph.persons.length - layout.nodes.length;
+    // The default fold, less whatever the reader has opened. Derived on every
+    // build rather than stored, so a person added from another screen is
+    // folded or drawn according to where they landed, with no second copy of
+    // the rule to keep in step.
+    final folded = collapseToDepth(
+      graph,
+      rootId,
+      visibleGenerations: _visibleGenerations,
+    ).difference(_expanded);
+
+    final orientation = _decideOrientation(graph, rootId, folded);
+    final layout = layoutDescendants(
+      graph,
+      rootId,
+      collapsed: folded,
+      metrics: LayoutMetrics(orientation: orientation),
+    );
+
+    // Everyone this root's chart would hold with nothing folded. Counting the
+    // boxes actually drawn would sweep the folded into this number, and the
+    // notice is about people on another branch entirely — which is a reason to
+    // redraw from somebody else, not something a tap can open.
+    final onThisBranch = GenerationAssignment.fromRoot(graph, rootId).length;
+    final offChart = graph.persons.length - onThisBranch;
     final selected = _selectedId == null
         ? null
         : layout.nodeFor(_selectedId!)?.person;
 
-    return Stack(
+    // The notice takes its own strip above the chart rather than floating over
+    // it. Laid over the drawing it covered the top generation — which on a
+    // descendant chart is the founding ancestor, the one box a reader is most
+    // likely to be looking for.
+    return Column(
       children: <Widget>[
-        Positioned.fill(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _fitOnce(layout, rootId, constraints.biggest);
-              return _Chart(
-                layout: layout,
-                selectedId: selected?.id,
-                view: _view,
-                onTapPerson: (personId) =>
-                    setState(() => _selectedId = personId),
-                onDrawFrom: _drawFrom,
-              );
-            },
+        if (offChart > 0) _Notice(message: text.treeOffChart(offChart)),
+        Expanded(
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    _fitOnce(layout, rootId, constraints.biggest);
+                    return _Chart(
+                      layout: layout,
+                      selectedId: selected?.id,
+                      view: _view,
+                      onTapPerson: (personId) =>
+                          setState(() => _selectedId = personId),
+                      onDrawFrom: _drawFrom,
+                      onOpenFold: _openFold,
+                    );
+                  },
+                ),
+              ),
+              // A strip down each edge that turns the page when swiped.
+              //
+              // Laid over the viewer rather than wrapped around it, which is
+              // what keeps the gesture out of the way of panning: a drag that
+              // begins in the middle of the chart never reaches these, and a
+              // drag that begins on them was never going to pan. Wrapping the
+              // chart in a horizontal-drag detector instead would put the two
+              // in the same arena, and one of them has to lose.
+              //
+              // The cost is that the outermost few points of the chart cannot
+              // be grabbed to pan. There is nothing to grab there: the layout
+              // leaves a margin all the way round.
+              for (final edge in <Alignment>[
+                Alignment.centerLeft,
+                Alignment.centerRight,
+              ])
+                Align(
+                  alignment: edge,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onHorizontalDragEnd: (_) => _turnPage(),
+                    child: const SizedBox(width: 20, height: double.infinity),
+                  ),
+                ),
+              // The selection bar stays laid over the chart: it is there for
+              // as long as a box is selected and goes when it is deselected,
+              // so giving it permanent room would leave a gap most of the time.
+              if (selected != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _SelectionBar(
+                    person: selected,
+                    isRoot: selected.id == rootId,
+                    onOpen: () => showPersonProfile(
+                      context,
+                      familyId: widget.familyId,
+                      personId: selected.id,
+                    ),
+                    onDrawFrom: () => _drawFrom(selected.id),
+                  ),
+                ),
+            ],
           ),
         ),
-        if (offChart > 0)
-          Positioned(
-            top: 8,
-            left: 8,
-            right: 8,
-            child: _Notice(message: text.treeOffChart(offChart)),
-          ),
-        if (selected != null)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _SelectionBar(
-              person: selected,
-              isRoot: selected.id == rootId,
-              onOpen: () => showPersonProfile(
-                context,
-                familyId: widget.familyId,
-                personId: selected.id,
-              ),
-              onDrawFrom: () => _drawFrom(selected.id),
-            ),
-          ),
       ],
     );
   }
@@ -261,6 +441,7 @@ class _Chart extends StatefulWidget {
     required this.view,
     required this.onTapPerson,
     required this.onDrawFrom,
+    required this.onOpenFold,
   });
 
   final TreeLayout layout;
@@ -270,6 +451,9 @@ class _Chart extends StatefulWidget {
 
   /// Double-tapping a box redraws the chart from that person.
   final ValueChanged<String> onDrawFrom;
+
+  /// Tapping the badge on a folded box opens it.
+  final ValueChanged<String> onOpenFold;
 
   /// Room around the drawing, so the outermost boxes are not against the edge.
   static const double padding = 40;
@@ -304,8 +488,17 @@ class _ChartState extends State<_Chart> {
       child: GestureDetector(
         // The gesture sits inside the viewer, so the position it reports is
         // already in chart coordinates whatever the zoom.
-        onTapUp: (details) =>
-            widget.onTapPerson(_personAt(details.localPosition)),
+        onTapUp: (details) {
+          // The badge before the box: it overlaps the corner it is anchored
+          // to, and a tap there means "show me these people", not "select the
+          // person standing in front of them".
+          final fold = _foldAt(details.localPosition);
+          if (fold != null) {
+            widget.onOpenFold(fold);
+            return;
+          }
+          widget.onTapPerson(_personAt(details.localPosition));
+        },
         onDoubleTapDown: (details) => _doubleTapAt = details.localPosition,
         onDoubleTap: () {
           final person = _personAt(_doubleTapAt ?? Offset.zero);
@@ -322,6 +515,20 @@ class _ChartState extends State<_Chart> {
         ),
       ),
     );
+  }
+
+  /// The folded box whose badge is under [point], or null.
+  String? _foldAt(Offset point) {
+    for (final node in widget.layout.nodes) {
+      if (!node.hidesDescendants) continue;
+      final target = TreePainter.foldBadgeTarget(
+        node,
+        widget.layout.metrics,
+        _Chart.padding,
+      );
+      if (target.contains(point)) return node.person.id;
+    }
+    return null;
   }
 
   /// The box under [point], or null for the space between boxes.
@@ -358,6 +565,35 @@ class TreePainter extends CustomPainter {
   final ColorScheme colors;
   final double padding;
 
+  /// Where a folded box's badge sits, and what a finger has to hit.
+  ///
+  /// One function, because the badge is drawn here and the gesture has to find
+  /// it again; two copies of this arithmetic would drift and the badge would
+  /// stop answering taps somewhere nobody looked.
+  ///
+  /// Sized from the digit count rather than from measured text, so the tap
+  /// target needs no [TextPainter] and cannot disagree with one. Generous: it
+  /// spills into the gap between boxes, which is a target for nothing else.
+  static Rect foldBadgeTarget(
+    LayoutNode node,
+    LayoutMetrics metrics,
+    double padding,
+  ) {
+    final digits = '${node.hiddenDescendantCount}'.length;
+    final width = digits * 8 + 26;
+
+    return Rect.fromCenter(
+      // Straddling the bottom-right corner, which is the one place a box has
+      // that no connector leaves from.
+      center: Offset(
+        node.x + metrics.nodeWidth + padding - 12,
+        node.y + metrics.nodeHeight + padding,
+      ),
+      width: width < 48 ? 48 : width.toDouble(),
+      height: 30,
+    );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final metrics = layout.metrics;
@@ -374,6 +610,12 @@ class TreePainter extends CustomPainter {
       node.y + metrics.nodeHeight / 2 + padding,
     );
 
+    // The layout thinks in two axes — along the siblings, and down towards the
+    // present. Which of them is x depends on how the page is turned.
+    final topDown = metrics.orientation.isTopDown;
+    Offset point(double along, double depth) =>
+        topDown ? Offset(along, depth) : Offset(depth, along);
+
     final bars = _barsByParent();
 
     for (final edge in layout.edges) {
@@ -386,26 +628,36 @@ class TreePainter extends CustomPainter {
           canvas.drawLine(centreOf(from), centreOf(to), spouseLine);
         case LayoutEdgeKind.parentChild:
           // An elbow, not a diagonal: it is far easier to see where a line
-          // goes. The horizontal origin comes from the edge, so a couple's
-          // children hang from between the pair rather than from one of them.
-          final start = Offset(
-            edge.fromAnchorX + padding,
-            from.y + metrics.nodeHeight + padding,
-          );
-          final end = Offset(centreOf(to).dx, to.y + padding);
+          // goes. Drawn in the layout's own two axes and mapped at the last
+          // moment, so the same three segments serve either orientation — an
+          // elbow turned sideways is still an elbow.
+          //
+          // The origin along the sibling axis comes from the edge, so a
+          // couple's children hang from between the pair rather than from one
+          // of them.
+          final startAlong = edge.fromAnchorAlong + padding;
+          final startDepth =
+              (topDown
+                  ? from.y + metrics.nodeHeight
+                  : from.x + metrics.nodeWidth) +
+              padding;
+          final endAlong = topDown ? centreOf(to).dx : centreOf(to).dy;
+          final endDepth = (topDown ? to.y : to.x) + padding;
 
-          // One horizontal bar per marriage, at its own depth. Left at a shared
-          // depth, two marriages' bars touch end to end and read as one, which
-          // says every child came from the same wife.
+          // One bar per marriage, at its own depth. Left at a shared depth,
+          // two marriages' bars touch end to end and read as one, which says
+          // every child came from the same wife.
           final siblingBars = bars[edge.fromPersonId] ?? <double>[];
-          final rank = siblingBars.indexOf(edge.fromAnchorX);
+          final rank = siblingBars.indexOf(edge.fromAnchorAlong);
           final fraction = (rank + 1) / (siblingBars.length + 1);
-          final midY = start.dy + (end.dy - start.dy) * fraction;
+          final mid = startDepth + (endDepth - startDepth) * fraction;
 
           canvas
-            ..drawLine(start, Offset(start.dx, midY), parentLine)
-            ..drawLine(Offset(start.dx, midY), Offset(end.dx, midY), parentLine)
-            ..drawLine(Offset(end.dx, midY), end, parentLine);
+            ..drawLine(point(startAlong, startDepth), point(startAlong, mid),
+                parentLine)
+            ..drawLine(point(startAlong, mid), point(endAlong, mid), parentLine)
+            ..drawLine(point(endAlong, mid), point(endAlong, endDepth),
+                parentLine);
       }
     }
 
@@ -422,7 +674,7 @@ class TreePainter extends CustomPainter {
     final anchors = <String, Set<double>>{};
     for (final edge in layout.edges) {
       if (edge.kind != LayoutEdgeKind.parentChild) continue;
-      (anchors[edge.fromPersonId] ??= <double>{}).add(edge.fromAnchorX);
+      (anchors[edge.fromPersonId] ??= <double>{}).add(edge.fromAnchorAlong);
     }
     return <String, List<double>>{
       for (final entry in anchors.entries)
@@ -503,6 +755,47 @@ class TreePainter extends CustomPainter {
         rect.center.dy - label.height / 2,
       ),
     );
+
+    if (node.hidesDescendants) _paintFoldBadge(canvas, node);
+  }
+
+  /// The `+12` pill on a box standing in front of people who are not drawn.
+  ///
+  /// A number and nothing else, in the accent colour: it has to read as
+  /// something to press, and as a count, without a word in either language.
+  void _paintFoldBadge(Canvas canvas, LayoutNode node) {
+    final target = foldBadgeTarget(node, layout.metrics, padding);
+    final pill = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: target.center,
+        width: target.width - 8,
+        height: 20,
+      ),
+      const Radius.circular(10),
+    );
+
+    canvas
+      // A ring in the page colour first, so the pill reads as lying on top of
+      // the box rather than as a lump in its border.
+      ..drawRRect(pill.inflate(2.5), Paint()..color = colors.surface)
+      ..drawRRect(pill, Paint()..color = colors.primary);
+
+    final label = TextPainter(
+      text: TextSpan(
+        text: '+${node.hiddenDescendantCount}',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: colors.onPrimary,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    label.paint(
+      canvas,
+      target.center - Offset(label.width / 2, label.height / 2),
+    );
   }
 
   @override
@@ -512,21 +805,32 @@ class TreePainter extends CustomPainter {
       oldDelegate.colors != colors;
 }
 
-/// What the chart is not showing.
+/// What the chart is not showing, on a strip of its own above it.
 class _Notice extends StatelessWidget {
   const _Notice({required this.message});
 
   final String message;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.secondaryContainer,
-    borderRadius: BorderRadius.circular(8),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Text(message, style: Theme.of(context).textTheme.bodySmall),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.secondaryContainer,
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            message,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The selected person, and what can be done with them.

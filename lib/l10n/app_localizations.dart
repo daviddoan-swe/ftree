@@ -469,6 +469,12 @@ abstract class AppText {
   /// **'Vẽ từ người này'**
   String get treeDrawFrom;
 
+  /// No description provided for @treeTurn.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoay biểu đồ'**
+  String get treeTurn;
+
   /// Cây vẽ hậu duệ của một gốc, nên người ngoài nhánh đó không xuất hiện
   ///
   /// In vi, this message translates to:

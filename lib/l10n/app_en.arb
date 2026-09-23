@@ -104,6 +104,7 @@
   "treeEmpty": "Nobody to draw yet",
   "treeFit": "Fit",
   "treeDrawFrom": "Draw from here",
+  "treeTurn": "Turn the chart",
   "treeOffChart": "{count, plural, other{{count} not on this branch}}",
   "@treeOffChart": {
     "placeholders": {

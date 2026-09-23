@@ -246,6 +246,9 @@ class AppTextEn extends AppText {
   String get treeDrawFrom => 'Draw from here';
 
   @override
+  String get treeTurn => 'Turn the chart';
+
+  @override
   String treeOffChart(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

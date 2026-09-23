@@ -124,6 +124,7 @@
   "treeEmpty": "Chưa có ai để vẽ",
   "treeFit": "Vừa khung",
   "treeDrawFrom": "Vẽ từ người này",
+  "treeTurn": "Xoay biểu đồ",
   "treeOffChart": "{count, plural, other{{count} người không nằm trong nhánh này}}",
   "@treeOffChart": {
     "description": "Cây vẽ hậu duệ của một gốc, nên người ngoài nhánh đó không xuất hiện",
