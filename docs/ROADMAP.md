@@ -294,12 +294,13 @@ real tree screen replaces it.
 
 Before cloud work:
 
-* review domain
-* review schema
-* profile tree rendering
-* fix UX issues
+* ~~review domain~~ — sibling order, below
+* ~~review schema~~ — indexes and migration proof, below
+* profile tree rendering — **still open**, and now measurable against the
+  generated family
+* ~~fix UX issues~~ — the tree screen's, below; more will arrive with use
 * improve tests
-* validate larger synthetic family trees
+* ~~validate larger synthetic family trees~~ — `lib/dev/`, below
 * ~~decide the living/deceased policy~~ — **decided**: a death date *or* a
   place of death means the person has died (DOMAIN.md §3.5). Derived, not
   stored, and one-way — it proves a death, never a life. The person form now
@@ -403,6 +404,85 @@ What this does **not** do is measure anything. The entry point prints how long
 generating and writing took, because those cost nothing to collect, but
 profiling the tree rendering is still open — as is the question the M6 index
 work left behind (ARCHITECTURE.md §8.1).
+
+### What three hundred people did to the tree screen
+
+The rules this arrived at are recorded as ARCHITECTURE.md §14.2 and §14.3.
+What follows is how they were found, and the measurements that argued for
+them.
+
+Running it was the point, and the first measurement settled what the screens
+needed. A chart of that family, at a zoom the names can still be read at,
+measures **fifty-three screens across and one and a bit down**. Fitted to a
+phone instead it comes out at 0.011 — boxes under two points wide. Neither
+is a view of anything.
+
+That width is not a defect to optimise away. A tidy tree is exactly as wide as
+it has leaves, and 196 of the 300 are childless; the predicted width from the
+leaf count and the measured width agree within 15%. No arrangement of the same
+people is narrower. The chart had to show fewer of them, or show them turned.
+
+**Folding.** A chart opens three generations deep — twenty-three people rather
+than three hundred, and 4.3 screens rather than 53. `collapseToDepth` names who
+to fold: the last visible generation **and everyone below it**, so opening one
+fold reveals exactly one generation and the chart never widens by more than was
+asked for. A folded box carries the number standing behind it, counted after
+placement rather than before, because a descendant of a folded person may have
+been drawn anyway through another branch and putting a number on people the
+reader can already see would be a lie.
+
+**Orientation.** The two axes are bounded differently: depth can be folded,
+the width of a generation cannot — a rule that hides siblings hides whoever
+carries the line, and on this family the first three children are childless
+while the fourth and sixth hold 208 of the 214 between them. So the foldable
+axis is the one to put across the narrow side of a phone. Turned sideways,
+the same folded chart is **1.07 × 1.16 screens**, where upright it was 4.3 across — a
+shape a phone can be scrolled through rather than one it cannot hold.
+
+The placement pass never knew about x and y — it packs along one axis and steps
+along another — so the two orientations differ in one function, where those
+become a point. The spacing constants are named for what they measure rather
+than for a direction, because `slotWidth` is a height once the page is turned.
+
+Which way a chart opens is **measured, not counted**: whichever is narrower
+wins, because a phone scrolls down readily and sideways badly. Counting people
+gets it wrong in both directions — a line of descent fourteen deep is fine
+upright, and one generation of twelve is not. Once the reader turns the page
+themselves the measuring stops, or the chart would turn back under them the
+next time somebody was added.
+
+**Placement.** Three rounds of "it moves when I do not expect it to", and each
+one was the same fault: two rules where there should have been one.
+
+* The gap above the ancestor was in chart units and so shrank with the zoom,
+  and a chart that fitted was centred whole while one that did not was anchored
+  on its root — so no two families opened alike, and crossing that threshold
+  moved everything.
+* Opening and fitting were separate arithmetic, so the chart opened against the
+  top and jumped to the middle the moment the fit button was pressed.
+
+One function now, used by both: a chart that fits is centred, one that does not
+opens on its ancestor a fixed inset in, and the two agree exactly where they
+meet, so nothing jumps at any size. Centred on the ancestor rather than on the
+middle of the drawing: descendants pile up down a few branches, so the two are
+**263 points apart at three generations and 617 at five** on this family. The
+second is wider than the screen.
+
+Folding costs room below, so opening a fold now pans the least distance that
+brings the new generation into sight, keeping the zoom, and does nothing at all
+when those people are already on screen. It slides rather than jumping, and a
+finger on the chart stops the slide. Zooming out stops where the whole chart is
+visible, and a chart shoved aside settles back — but only along an axis it no
+longer fills, and never after a tap, which ends an interaction without having
+moved anything.
+
+**What the interface still cannot do** is fit a generation of nine on a phone.
+Three point six boxes fit across it at a readable size; folding bounds the
+depth and turning the page bounds what that costs, but a wide generation is
+still read by scrolling. The form that would fit — the indented outline a gia
+phả is written in on paper, measured at 0.95 screens wide — is recorded here as
+the option not taken rather than as work outstanding. Use the chart on real
+data first.
 
 ---
 

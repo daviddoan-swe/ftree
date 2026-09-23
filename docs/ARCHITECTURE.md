@@ -447,6 +447,54 @@ forty passing layout tests did not — a second wife's children hanging from the
 first wife's box, and two marriages' connector bars merging into one. Both
 were wrong in a way no coordinate assertion was ever going to state.
 
+### 14.2 The layout has two axes, and only one of them can be bounded
+
+The engine does not think in x and y. It packs along a **sibling** axis and
+steps along a **generation** axis, and the orientation decides which of those
+lands on which coordinate — in one function, at the end. Everything above it is
+the same packing problem either way, so the two orientations cannot drift
+apart.
+
+The distinction earns its keep because the axes are bounded differently:
+
+* **Depth can be folded.** A chart opens a few generations deep, and a folded
+  box says how many people stand behind it. Opening one reveals exactly one
+  more generation, itself folded, so the chart never widens by more than was
+  asked for.
+* **The width of a generation cannot be.** A tidy tree is exactly as wide as it
+  has leaves, so there is no arrangement of the same people that is narrower,
+  and any rule that hid siblings would sooner or later hide whoever carries the
+  line — which on a real gia phả is not the eldest.
+
+So the foldable axis is the one to lay across the narrow side of a phone, and
+the orientation is chosen by measuring both and keeping the narrower. Not by
+counting people: a line of descent is fine upright however long it runs, and
+one generation of twelve is not. Once the reader chooses, the measuring stops,
+or the chart turns back under them the next time somebody is added.
+
+### 14.3 One rule for where the chart sits, not two
+
+Every complaint about the tree screen feeling unsteady has been two pieces of
+arithmetic where there should have been one — an opening rule beside a fitting
+rule, a gap measured in chart units beside a viewport measured in points.
+
+The rule: **a chart that fits is centred; one that does not opens on its
+ancestor, a fixed inset in, and is never pushed so far that the drawing pulls
+away from an edge it is overflowing past.** Both cases come out of the same
+function, and they agree exactly where they meet — zero slack gives a zero
+offset either way — so nothing jumps as a family grows past the size of the
+screen.
+
+Two consequences worth stating, because both look like details and are not:
+
+* Centred on the **ancestor**, not on the middle of the drawing. Descendants
+  pile up down a few branches, so the two are hundreds of points apart — and
+  the deeper the chart is opened, the further.
+* Anything that moves the chart on its own moves it **the least distance that
+  will do**, and not at all when there is nothing to bring into view. The
+  screen has been through three rounds of unasked-for movement; each one was
+  read as the chart being unreliable rather than as the chart being helpful.
+
 ---
 
 # 15. Proposed Project Structure
