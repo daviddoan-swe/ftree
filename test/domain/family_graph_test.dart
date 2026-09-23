@@ -1096,6 +1096,122 @@ void main() {
     });
   });
 
+  group('generations', () {
+    FamilyGraph graphOf(
+      Iterable<String> ids,
+      Iterable<Relationship> relationships,
+    ) => FamilyGraph(
+      persons: ids.map(personOf).toList(),
+      relationships: relationships.toList(),
+    );
+
+    test('counts from one at the thuy to', () {
+      final graph = graphOf(
+        <String>['founder', 'son', 'grandson'],
+        <Relationship>[
+          parentOf('founder', 'son'),
+          parentOf('son', 'grandson'),
+        ],
+      );
+
+      expect(graph.generations(), <String, int>{
+        'founder': 1,
+        'son': 2,
+        'grandson': 3,
+      });
+    });
+
+    test('a spouse shares their partner doi rather than taking one', () {
+      // The married-in have no parents on record, so counting by descent
+      // alone would leave them out of their own family.
+      final graph = graphOf(
+        <String>['founder', 'wife', 'son', 'daughter_in_law'],
+        <Relationship>[
+          spouseOf('founder', 'wife'),
+          parentOf('founder', 'son'),
+          spouseOf('son', 'daughter_in_law'),
+        ],
+      );
+
+      final doi = graph.generations();
+      expect(doi['wife'], doi['founder']);
+      expect(doi['daughter_in_law'], doi['son']);
+      expect(doi['son'], 2);
+    });
+
+    test('reaches everybody the founder line touches', () {
+      final graph = graphOf(
+        <String>['a', 'a2', 'b', 'b2', 'c'],
+        <Relationship>[
+          spouseOf('a', 'a2'),
+          parentOf('a', 'b'),
+          parentOf('a2', 'b'),
+          spouseOf('b', 'b2'),
+          parentOf('b', 'c'),
+        ],
+      );
+
+      expect(graph.generations().length, 5);
+    });
+
+    test('leaves a separate line unnumbered rather than guessing', () {
+      // A second, unconnected family in the same record has no doi in this
+      // one's counting, and saying nothing is better than inventing one.
+      final graph = graphOf(
+        <String>['a', 'b', 'c', 'stranger'],
+        <Relationship>[parentOf('a', 'b'), parentOf('b', 'c')],
+      );
+
+      final doi = graph.generations();
+      expect(doi.containsKey('stranger'), isFalse);
+      expect(doi.length, 3);
+    });
+
+    test('keeps the shorter route where two reach the same person', () {
+      // Reachable as a child of the founder and as a grandchild through
+      // another branch. Breadth-first keeps the nearer.
+      final graph = graphOf(
+        <String>['a', 'b', 'c'],
+        <Relationship>[
+          parentOf('a', 'c'),
+          parentOf('a', 'b'),
+          parentOf('b', 'c'),
+        ],
+      );
+
+      expect(graph.generations()['c'], 2);
+    });
+
+    test('ends on a graph that loops back on itself', () {
+      final graph = graphOf(
+        <String>['a', 'b', 'c'],
+        <Relationship>[
+          parentOf('a', 'b'),
+          parentOf('b', 'c'),
+          parentOf('c', 'b'),
+        ],
+      );
+
+      expect(graph.generations(), <String, int>{'a': 1, 'b': 2, 'c': 3});
+    });
+
+    test('is nothing for a family with no founder to count from', () {
+      expect(
+        FamilyGraph(
+          persons: const <Person>[],
+          relationships: const <Relationship>[],
+        ).generations(),
+        isEmpty,
+      );
+    });
+
+    test('cannot be modified by a caller', () {
+      final graph = graphOf(<String>['a'], const <Relationship>[]);
+
+      expect(() => graph.generations()['a'] = 9, throwsUnsupportedError);
+    });
+  });
+
   group('foundingAncestor', () {
     FamilyGraph graphOf(
       Iterable<String> ids,

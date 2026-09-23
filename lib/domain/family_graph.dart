@@ -289,6 +289,52 @@ final class FamilyGraph {
     return best;
   }
 
+  /// Which đời each person stands in, counted from [foundingAncestor].
+  ///
+  /// One đời for the thuỷ tổ, two for their children, and so on: the numbers a
+  /// gia phả is written in, not distances from whatever a screen happens to be
+  /// showing (§11.1).
+  ///
+  /// **The one place these are worked out.** Every screen that names a đời
+  /// reads them from here, because two screens arriving at the number
+  /// separately is two screens able to contradict each other about a reader's
+  /// own family.
+  ///
+  /// Spouses take their partner's đời rather than one of their own, which is
+  /// what lets the count reach people who married in and have no parents on
+  /// record. Anyone the founder's line does not reach is absent from the map:
+  /// a separate line has no đời in this family's counting, and saying so is
+  /// better than guessing one.
+  ///
+  /// Breadth-first, so somebody reachable by two routes keeps the shorter, and
+  /// visited-guarded, so a cycle ends the walk rather than continuing it
+  /// (§6.2).
+  Map<String, int> generations() {
+    final founder = foundingAncestor();
+    if (founder == null) return const <String, int>{};
+
+    final doi = <String, int>{founder.id: 1};
+    final queue = <Person>[founder];
+
+    for (var head = 0; head < queue.length; head++) {
+      final person = queue[head];
+      final at = doi[person.id]!;
+
+      for (final spouse in spouses(person.id)) {
+        if (doi.containsKey(spouse.id)) continue;
+        doi[spouse.id] = at;
+        queue.add(spouse);
+      }
+      for (final child in children(person.id)) {
+        if (doi.containsKey(child.id)) continue;
+        doi[child.id] = at + 1;
+        queue.add(child);
+      }
+    }
+
+    return Map<String, int>.unmodifiable(doi);
+  }
+
   /// Checks whether [candidate] may be added to this family (§13.1).
   ///
   /// Relationship validation lives here rather than on the entity because a
