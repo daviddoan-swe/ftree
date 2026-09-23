@@ -375,6 +375,75 @@ void main() {
       );
     });
 
+    testWidgets('the row stays under the bar once scrolled past', (
+      tester,
+    ) async {
+      // On three hundred names a reader is deep in the list by the time they
+      // know which đời they wanted, and a filter they must scroll back to the
+      // top to reach is one they will not use.
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Doi 1');
+      for (var n = 2; n <= 30; n++) {
+        await seedPerson(n, 'Nguoi $n');
+        await link(1, n);
+      }
+      await openFamily(tester);
+
+      expect(find.byType(AvatarHeader), findsOneWidget);
+      final before = tester.getRect(find.byType(GenerationFilter));
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byType(AvatarHeader),
+        findsNothing,
+        reason: 'the portrait scrolls away, as it should',
+      );
+      expect(
+        find.byType(GenerationFilter),
+        findsOneWidget,
+        reason: 'the row does not',
+      );
+      expect(
+        tester.getRect(find.byType(GenerationFilter)).top,
+        lessThan(before.top),
+        reason: 'it rose with the list until it met the bar',
+      );
+    });
+
+    testWidgets('choosing a doi keeps the place already scrolled to', (
+      tester,
+    ) async {
+      // The shorter list clamps the scroll position, and without keeping it
+      // the reader is put back at the top with the portrait in their face.
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Doi 1');
+      for (var n = 2; n <= 40; n++) {
+        await seedPerson(n, 'Nguoi $n');
+        await link(1, n);
+      }
+      await openFamily(tester);
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.byType(AvatarHeader), findsNothing, reason: 'scrolled past');
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byType(AvatarHeader),
+        findsNothing,
+        reason: 'still scrolled past it, not thrown back to the top',
+      );
+      expect(find.byType(GenerationFilter), findsOneWidget);
+    });
+
     testWidgets('narrows the list to the doi chosen', (tester) async {
       await seedLine();
       await openFamily(tester);

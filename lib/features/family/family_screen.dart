@@ -39,9 +39,31 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
   /// The đời being shown, or null for all of them.
   GenerationChoice _generation;
 
+  final ScrollController _scroll = ScrollController();
+
+  /// Chooses a đời without sending the reader back to the top.
+  ///
+  /// The list gets shorter, and a scroll position past the end of the new one
+  /// is clamped — often to nothing, which puts the portrait back on screen
+  /// and loses the place the reader had scrolled to. Their place is kept as
+  /// far as the shorter list allows.
+  void _chooseGeneration(GenerationChoice at) {
+    final wasAt = _scroll.hasClients ? _scroll.offset : 0.0;
+    setState(() => _generation = at);
+    if (wasAt <= 0) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+
+      final keep = wasAt.clamp(0.0, _scroll.position.maxScrollExtent);
+      if ((_scroll.offset - keep).abs() > 0.5) _scroll.jumpTo(keep);
+    });
+  }
+
   @override
   void dispose() {
     _query.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -92,7 +114,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
           final filter = GenerationFilter(
             counts: counts,
             chosen: _generation,
-            onChosen: (at) => setState(() => _generation = at),
+            onChosen: _chooseGeneration,
           );
 
           // Both narrow at once: đời five and named Hải is a reasonable thing
@@ -113,6 +135,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             children: <Widget>[
               Positioned.fill(
                 child: CustomScrollView(
+                  controller: _scroll,
                   slivers: <Widget>[
                     SliverToBoxAdapter(
                       // Name and notes are not repeated under the portrait:
@@ -127,7 +150,23 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                       ),
                     ),
                     if (filter.isWorthShowing)
-                      SliverToBoxAdapter(child: filter),
+                      // Pinned: the row stays under the bar once the portrait
+                      // above it has scrolled away. On three hundred names a
+                      // reader is deep in the list by the time they know which
+                      // đời they wanted, and a filter they have to scroll back
+                      // to the top to reach is one they will not use.
+                      //
+                      // The portrait is not pinned with it. It says which
+                      // family this is, which the bar already says, and it
+                      // would cost half the screen to keep.
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _PinnedRow(
+                          height: GenerationFilter.height,
+                          background: GroupedColors.page(context),
+                          child: filter,
+                        ),
+                      ),
                     if (matches.isEmpty)
                       SliverToBoxAdapter(
                         child: GroupedSection(
@@ -265,4 +304,35 @@ class _NoPeopleYet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Holds one fixed-height row under the bar while the list scrolls past it.
+class _PinnedRow extends SliverPersistentHeaderDelegate {
+  const _PinnedRow({
+    required this.child,
+    required this.height,
+    required this.background,
+  });
+
+  final Widget child;
+  final double height;
+
+  /// Opaque, or the names would scroll through the row it is holding still.
+  final Color background;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) =>
+      ColoredBox(color: background, child: child);
+
+  @override
+  bool shouldRebuild(_PinnedRow old) =>
+      old.child != child ||
+      old.height != height ||
+      old.background != background;
 }

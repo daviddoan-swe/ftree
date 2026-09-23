@@ -89,6 +89,12 @@ class GenerationFilter extends StatefulWidget {
   /// One đời is no choice at all, and a row of a single chip is furniture.
   bool get isWorthShowing => counts.length > 1;
 
+  /// How much room the row needs, badges and all.
+  ///
+  /// Published because the screen has to reserve exactly this much to pin the
+  /// row under the bar, and a second copy of the number would drift.
+  static const double height = 60;
+
   @override
   State<GenerationFilter> createState() => _GenerationFilterState();
 }
@@ -129,11 +135,15 @@ class _GenerationFilterState extends State<GenerationFilter> {
   /// Against an end the scrollable clamps, so the first and last chips stay
   /// where they are rather than being dragged inwards.
   void _showChosen() {
-    final at = _chosenKey.currentContext;
-    if (at == null || !_scroll.hasClients) return;
+    final box = _chosenKey.currentContext?.findRenderObject();
+    if (box == null || !_scroll.hasClients) return;
 
-    Scrollable.ensureVisible(
-      at,
+    // This row's own position, and nothing else's. `Scrollable.ensureVisible`
+    // walks every scrollable above it as well, and on the family list that
+    // meant the whole list of people scrolled too — throwing the reader back
+    // to the top each time they chose a đời.
+    _scroll.position.ensureVisible(
+      box,
       alignment: 0.5,
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
@@ -154,7 +164,7 @@ class _GenerationFilterState extends State<GenerationFilter> {
 
     return SizedBox(
       // Tall enough for the chip and the badge hanging over its corner.
-      height: 60,
+      height: GenerationFilter.height,
       child: SingleChildScrollView(
         controller: _scroll,
         scrollDirection: Axis.horizontal,

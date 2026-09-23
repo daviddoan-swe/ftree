@@ -272,7 +272,20 @@ final class FamilyGraph {
   /// nobody parentless (§6.2). For a family holding several unconnected lines
   /// this names the largest of them and says nothing about the rest, which is
   /// the same thing the tree screen does when it has to choose a root.
-  Person? foundingAncestor() {
+  Person? foundingAncestor() => _founder;
+
+  /// Worked out once. A graph is immutable — both lists are copied at
+  /// construction — so the answer cannot go stale, and a new graph is built
+  /// whenever the family changes.
+  ///
+  /// Worth caching because it is not cheap: it walks the descendants of every
+  /// person without recorded parents, which in a three-hundred-person family
+  /// is eighty-six traversals. Called afresh on every rebuild of a screen —
+  /// every keystroke in a search field — that is work done over and over for
+  /// an answer that never changes.
+  late final Person? _founder = _findFoundingAncestor();
+
+  Person? _findFoundingAncestor() {
     Person? best;
     var mostDescendants = -1;
 
@@ -309,7 +322,12 @@ final class FamilyGraph {
   /// Breadth-first, so somebody reachable by two routes keeps the shorter, and
   /// visited-guarded, so a cycle ends the walk rather than continuing it
   /// (§6.2).
-  Map<String, int> generations() {
+  Map<String, int> generations() => _generations;
+
+  /// Worked out once, for the same reason as [_founder].
+  late final Map<String, int> _generations = _computeGenerations();
+
+  Map<String, int> _computeGenerations() {
     final founder = foundingAncestor();
     if (founder == null) return const <String, int>{};
 
