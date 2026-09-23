@@ -184,6 +184,37 @@ flutter test test/domain/layout/tree_layout_test.dart
 flutter test --plain-name "folds the last visible generation"
 ```
 
+### The pre-commit hook
+
+One command in a fresh clone, and git will refuse to commit anything that
+belongs to the machine rather than to the project:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+It is not installed automatically — git will not run a hook from a clone
+without being told to, and that is a protection rather than an inconvenience.
+
+It checks what is **staged**, and it looks for two kinds of thing: paths that
+are never the project's to publish (signing material, `.env` files,
+`Local.xcconfig`, editor droppings), and values that have leaked into a file
+which does belong here — private keys, cloud credentials, and above all
+`DEVELOPMENT_TEAM` in `project.pbxproj`.
+
+That last one is why the hook exists. Xcode writes the Team ID back into the
+project file after a build on a physical device, silently undoing commit
+`a36d87d`, and a Team ID names a person in a public repository. It will happen
+again on the next device build, so it is caught here rather than remembered.
+
+Every pattern in it is one that would be wrong in *this* repository. It
+deliberately does not build or test — it runs on every commit, and a hook that
+is slow or cries wolf is one people learn to bypass:
+
+```sh
+git commit --no-verify    # when you are certain it is a false alarm
+```
+
 ### Changing the database schema
 
 Drift generates the table code, and the schema history has to be captured

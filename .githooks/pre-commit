@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+#
+# Refuses a commit that carries something belonging to the machine rather than
+# to the project (CLAUDE.md §8).
+#
+# It checks what is *staged*, not what is on disk, because that is what a
+# commit will actually contain.
+#
+# Two kinds of check, and they answer different questions:
+#
+#   * paths   — files that are never the project's to publish, whatever is in
+#               them: signing material, environment files, editor droppings.
+#   * content — a value that has leaked into a file which does belong here.
+#               `DEVELOPMENT_TEAM` is the one that has actually happened:
+#               Xcode writes it back into project.pbxproj after a build on a
+#               real device, undoing a deliberate removal every time.
+#
+# Deliberately fast and deliberately narrow. It runs on every commit, so it
+# does not build or test; and every pattern here is one that would be wrong in
+# this repository rather than one that merely looks alarming, because a hook
+# that cries wolf is a hook people learn to bypass.
+#
+# Enable it in a fresh clone with:
+#
+#   git config core.hooksPath .githooks
+#
+# To get past it once, when you are certain: git commit --no-verify
+
+set -uo pipefail
+
+# Collected rather than printed as they are found, so the report reads as one
+# thing with its heading first.
+problems=()
+say() { problems+=("  $*"); }
+reject() { say "$@"; }
+
+staged=()
+while IFS= read -r -d '' path; do
+  staged+=("$path")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+[ ${#staged[@]} -eq 0 ] && exit 0
+
+# ----------------------------------------------------------------- paths ---
+
+for path in "${staged[@]}"; do
+  base=${path##*/}
+
+  case "$base" in
+    .DS_Store)
+      reject "$path — a Finder droppings file" ;;
+    Local.xcconfig)
+      reject "$path — signing settings belong to whoever is building" ;;
+    key.properties)
+      reject "$path — Android signing configuration" ;;
+    .env | .env.?*)
+      case "$base" in
+        .env.example | .env.sample | .env.template) ;;
+        *) reject "$path — environment files hold credentials" ;;
+      esac
+      ;;
+  esac
+
+  case "$path" in
+    *.jks | *.keystore | *.p12 | *.pfx | *.p8 | *.mobileprovision | *.pem)
+      reject "$path — signing or key material" ;;
+  esac
+done
+
+# --------------------------------------------------------------- content ---
+
+# Only the lines this commit adds, so an existing line never trips it.
+added() { git diff --cached -U0 -- "$1" | grep -E '^\+[^+]' || true; }
+
+for path in "${staged[@]}"; do
+  # Skip anything git considers binary.
+  if git diff --cached --numstat -- "$path" | grep -q '^-	-	'; then
+    continue
+  fi
+
+  lines=$(added "$path")
+  [ -z "$lines" ] && continue
+
+  case "${path##*/}" in
+    project.pbxproj)
+      # A real Team ID is ten alphanumerics. The placeholder in
+      # Local.xcconfig.example is all X's and is not this file anyway.
+      if grep -qE 'DEVELOPMENT_TEAM[[:space:]]*=[[:space:]]*[A-Z0-9]{10}' \
+          <<<"$lines"; then
+        reject "$path — DEVELOPMENT_TEAM: a Team ID names a person, and this"
+        say "      repository is public. It belongs in ios/Flutter/Local.xcconfig,"
+        say "      which git ignores. See commit a36d87d."
+      fi
+      ;;
+  esac
+
+  if grep -qE 'BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY' <<<"$lines"; then
+    reject "$path — a private key"
+  fi
+  if grep -qE 'AKIA[0-9A-Z]{16}' <<<"$lines"; then
+    reject "$path — an AWS access key id"
+  fi
+  if grep -qE 'AIza[0-9A-Za-z_-]{35}' <<<"$lines"; then
+    reject "$path — a Google API key"
+  fi
+  if grep -qE '(ghp|gho|ghs|ghr)_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}' \
+      <<<"$lines"; then
+    reject "$path — a GitHub token"
+  fi
+  # A value, not the words: the architecture notes discuss service-role keys
+  # in prose and must stay committable.
+  if grep -qE 'service_role|SERVICE_ROLE' <<<"$lines" \
+      && grep -qE '[:=][[:space:]]*.?eyJ[A-Za-z0-9_-]{10,}' <<<"$lines"; then
+    reject "$path — what looks like a Supabase service-role key"
+  fi
+done
+
+[ ${#problems[@]} -eq 0 ] && exit 0
+
+{
+  printf '\npre-commit: this does not belong in the repository.\n\n'
+  printf '%s\n' "${problems[@]}"
+  printf '\nNothing was committed. Unstage it, or pass --no-verify if you are\n'
+  printf 'certain this one is a false alarm.\n\n'
+} >&2
+
+exit 1
