@@ -344,7 +344,11 @@ void main() {
       await openPicker(tester);
 
       // It opens on the đời a parent would stand in, so everybody has to be
-      // asked for before the narrowing can be watched happening.
+      // asked for before the narrowing can be watched happening. The row is
+      // scrolled to whichever đời it opened on, and in a test every glyph is
+      // a square of the font size, so "All" can be off the left-hand end.
+      await tester.ensureVisible(find.text('All'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('All'));
       await tester.pumpAndSettle();
       expect(find.text('Thuy To'), findsOneWidget);
@@ -532,6 +536,8 @@ void main() {
       await pick(tester, 3, 'Add a parent');
       expect(find.text('Doi Mot'), findsNothing);
 
+      await tester.ensureVisible(find.text('All'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('All'));
       await tester.pumpAndSettle();
 

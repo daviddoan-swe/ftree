@@ -163,7 +163,7 @@ class _GenerationFilterState extends State<GenerationFilter> {
       });
 
     return SizedBox(
-      // Tall enough for the chip and the badge hanging over its corner.
+      // Tall enough for the chip and the room around it.
       height: GenerationFilter.height,
       child: SingleChildScrollView(
         controller: _scroll,
@@ -220,56 +220,54 @@ class _GenerationFilterState extends State<GenerationFilter> {
 
     return Padding(
       key: selected ? _chosenKey : null,
-      // Room above and to the right for the badge to hang over the corner.
-      padding: const EdgeInsets.fromLTRB(4, 10, 8, 6),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          ChoiceChip(
-            selected: selected,
-            onSelected: (_) => onTap(),
-            showCheckmark: false,
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            selectedColor: theme.colorScheme.primary,
-            side: BorderSide.none,
-            shape: const StadiumBorder(),
-            // The label is the whole chip now that the count has moved out,
-            // so it is centred rather than laid out beside something.
-            labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-            padding: EdgeInsets.zero,
-            label: SizedBox(
-              height: 36,
-              child: Center(
-                widthFactor: 1,
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: ink,
-                  ),
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: ChoiceChip(
+        selected: selected,
+        onSelected: (_) => onTap(),
+        showCheckmark: false,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        selectedColor: theme.colorScheme.primary,
+        side: BorderSide.none,
+        shape: const StadiumBorder(),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.zero,
+        // Label and count together inside the chip, centred as one thing.
+        // Hung over the edge the count was a badge — an alert pinned to the
+        // chip — and it overflowed the button it belonged to. Set in the line
+        // it reads as part of the sentence the chip is: đời năm, twelve of
+        // them.
+        label: SizedBox(
+          height: 36,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: ink,
                 ),
               ),
-            ),
+              if (count != null) ...<Widget>[
+                const SizedBox(width: 6),
+                _CountPill(count: count, selected: selected),
+              ],
+            ],
           ),
-          if (count != null)
-            // Straddling the corner, as the fold badge does on a box in the
-            // chart: the same thing said the same way in both places.
-            Positioned(
-              top: -8,
-              right: -8,
-              child: IgnorePointer(child: _CountBadge(count: count)),
-            ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// How many people a đời holds, on the corner of its chip.
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count});
+/// How many people a đời holds, set in the line of its chip.
+class _CountPill extends StatelessWidget {
+  const _CountPill({required this.count, required this.selected});
 
   final int count;
+
+  /// Whether the chip this count belongs to is the chosen one.
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -279,11 +277,12 @@ class _CountBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 20),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: GroupedColors.red,
+        // Red on the chosen đời, grey on the rest. A row of a dozen red
+        // counts is a row of a dozen alarms and none of them means anything;
+        // one red is the number the reader is actually looking at, and the
+        // grey ones are there to be compared against it.
+        color: selected ? GroupedColors.red : GroupedColors.grey,
         borderRadius: BorderRadius.circular(9),
-        // A ring in the page colour, so the badge reads as lying on the chip
-        // rather than as a lump grown out of its edge.
-        border: Border.all(color: GroupedColors.page(context), width: 2),
       ),
       child: Text(
         '$count',
