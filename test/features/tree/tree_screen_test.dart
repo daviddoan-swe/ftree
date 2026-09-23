@@ -92,6 +92,32 @@ void main() {
     expect(drawnLayout(tester).metrics.orientation, orientation);
   }
 
+  /// A phone, which is where these rules have to earn their keep: the default
+  /// test window is wide enough that a folded chart fits on it whichever way
+  /// round it is drawn, and so exercises only half of them.
+  void onAPhone(WidgetTester tester) {
+    tester.view.physicalSize = const Size(402, 756);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
+
+  /// The scale that would show the whole chart, never magnifying it.
+  double wholeChartScale(WidgetTester tester) {
+    final layout = drawnLayout(tester);
+    final viewport = tester.getSize(find.byType(InteractiveViewer));
+    return <double>[
+      viewport.width / (layout.width + 80),
+      viewport.height / (layout.height + 80),
+      1,
+    ].reduce((a, b) => a < b ? a : b);
+  }
+
+  double scaleOf(WidgetTester tester) => tester
+      .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+      .transformationController!
+      .value
+      .getMaxScaleOnAxis();
+
   /// Where a point in chart coordinates lands on the screen.
   Offset onScreen(WidgetTester tester, Offset chartPoint) {
     final viewer = find.byType(InteractiveViewer);
@@ -110,33 +136,51 @@ void main() {
   /// so its own corner is no good — a tap there lands outside the viewer, is
   /// never delivered, and a test that expects nothing to happen then passes
   /// without having tested anything.
-  Offset emptySpace(WidgetTester tester, int rootPerson) {
+  Offset emptySpaceInChart(WidgetTester tester, int rootPerson) {
     final layout = drawnLayout(tester);
     final node = layout.nodeFor(personId(rootPerson))!;
 
-    return onScreen(
-      tester,
-      Offset(node.x + 40 - 14, node.y + 40 + layout.metrics.nodeHeight / 2),
-    );
+    return Offset(node.x + 40 - 14, node.y + 40 + layout.metrics.nodeHeight / 2);
   }
 
-  /// Taps the middle of a person's box, in chart coordinates.
-  Future<void> tapPerson(WidgetTester tester, int n) async {
-    final layout = drawnLayout(tester);
-    final node = layout.nodeFor(personId(n))!;
-    final canvas = tester.getTopLeft(chart);
+  /// Taps a point given in chart coordinates, panning to it if it is off
+  /// screen.
+  ///
+  /// The drawing is larger than the viewport and the view does not follow it
+  /// as folds are opened, so a box that was in sight can leave it. A reader
+  /// drags the chart until they can see what they want to press; so does this.
+  /// Without the drag a tap simply lands outside the viewer, is never
+  /// delivered, and the test that expected nothing to happen passes for the
+  /// wrong reason.
+  Future<void> tapInChart(WidgetTester tester, Offset chartPoint) async {
+    final viewer = find.byType(InteractiveViewer);
+    var target = onScreen(tester, chartPoint);
 
-    await tester.tapAt(
-      canvas +
-          Offset(
-            node.x + 40 + layout.metrics.nodeWidth / 2,
-            node.y + 40 + layout.metrics.nodeHeight / 2,
-          ),
-    );
+    if (!tester.getRect(viewer).contains(target)) {
+      await tester.drag(viewer, tester.getRect(viewer).center - target);
+      await tester.pumpAndSettle();
+      target = onScreen(tester, chartPoint);
+    }
+
+    await tester.tapAt(target);
     // A single tap only resolves once the double-tap window closes: the chart
     // listens for both, and the gesture arena has to wait to know which it was.
     await tester.pump(kDoubleTapTimeout);
     await tester.pumpAndSettle();
+  }
+
+  /// Taps the middle of a person's box.
+  Future<void> tapPerson(WidgetTester tester, int n) async {
+    final layout = drawnLayout(tester);
+    final node = layout.nodeFor(personId(n))!;
+
+    await tapInChart(
+      tester,
+      Offset(
+        node.x + 40 + layout.metrics.nodeWidth / 2,
+        node.y + 40 + layout.metrics.nodeHeight / 2,
+      ),
+    );
   }
 
   /// Three generations from one ancestor, plus a spouse.
@@ -213,7 +257,7 @@ void main() {
       await tapPerson(tester, 3);
       expect(find.widgetWithText(FilledButton, 'Profile'), findsOneWidget);
 
-      await tester.tapAt(emptySpace(tester, 1));
+      await tapInChart(tester, emptySpaceInChart(tester, 1));
       await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
@@ -279,7 +323,7 @@ void main() {
       await openTree(tester);
       final before = drawnLayout(tester).nodes.length;
 
-      final at = emptySpace(tester, 1);
+      final at = onScreen(tester, emptySpaceInChart(tester, 1));
       await tester.tapAt(at);
       await tester.pump(const Duration(milliseconds: 40));
       await tester.tapAt(at);
@@ -299,23 +343,6 @@ void main() {
   });
 
   group('the opening view', () {
-    double scaleOf(WidgetTester tester) => tester
-        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
-        .transformationController!
-        .value
-        .getMaxScaleOnAxis();
-
-    /// The scale that would show the whole chart, never magnifying it.
-    double wholeChartScale(WidgetTester tester) {
-      final layout = drawnLayout(tester);
-      final viewport = tester.getSize(find.byType(InteractiveViewer));
-      return <double>[
-        viewport.width / (layout.width + 80),
-        viewport.height / (layout.height + 80),
-        1,
-      ].reduce((a, b) => a < b ? a : b);
-    }
-
     /// Where the point the opening view anchors on lands on the screen.
     ///
     /// The leading edge along the generation axis, centred on the sibling
@@ -335,65 +362,135 @@ void main() {
       );
     }
 
-    testWidgets('every family opens with its ancestor in the same place', (
-      tester,
-    ) async {
-      // Two families that could hardly differ more in what they force the
-      // chart to do: one opens at natural size, the other has to be zoomed
-      // out to be read at all. They must still open looking alike, or moving
-      // between families is a series of small jumps.
-      const otherFamily = 'f0000000-0000-7000-8000-000000000001';
-      String otherPerson(int n) =>
-          'p0000000-0000-7000-8000-1${n.toString().padLeft(11, '0')}';
+    /// Where the middle of the whole drawing lands, relative to the viewport.
+    Offset chartCentreIn(WidgetTester tester) {
+      final layout = drawnLayout(tester);
+      return onScreen(
+            tester,
+            Offset((layout.width + 80) / 2, (layout.height + 80) / 2),
+          ) -
+          tester.getTopLeft(find.byType(InteractiveViewer));
+    }
 
+    /// How far the drawing runs along each axis on the screen.
+    Size chartExtentOn(WidgetTester tester) {
+      final layout = drawnLayout(tester);
+      final scale = scaleOf(tester);
+      return Size((layout.width + 80) * scale, (layout.height + 80) * scale);
+    }
+
+    testWidgets('a chart that fits opens centred', (tester) async {
+      onAPhone(tester);
       await repository.saveFamily(
-        const domain.Family(id: familyId, name: 'Nhỏ'),
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
       );
       await seedPerson(1, 'Thuỷ Tổ');
       await seedPerson(2, 'Con');
       await link(1, 2);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
 
+      final viewport = tester.getSize(find.byType(InteractiveViewer));
+      final extent = chartExtentOn(tester);
+      expect(extent.width, lessThan(viewport.width), reason: 'the case tested');
+      expect(extent.height, lessThan(viewport.height), reason: 'the case tested');
+
+      final centre = chartCentreIn(tester);
+      expect(centre.dx, closeTo(viewport.width / 2, 0.5));
+      expect(centre.dy, closeTo(viewport.height / 2, 0.5));
+    });
+
+    testWidgets('a chart too long for the screen opens on its ancestor', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      // Three generations turned sideways are wider than a phone. Centring
+      // that would put the founding ancestor off the left edge, and a gia phả
+      // opened at some middle generation is a gia phả nobody can place.
       await repository.saveFamily(
-        const domain.Family(id: otherFamily, name: 'Lớn'),
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
       );
-      await repository.savePerson(
-        Person(
-          id: otherPerson(1),
-          familyId: otherFamily,
-          displayName: 'Thuỷ Tổ',
-        ),
-      );
-      for (var n = 2; n <= 13; n++) {
-        await repository.savePerson(
-          Person(
-            id: otherPerson(n),
-            familyId: otherFamily,
-            displayName: 'Con $n',
-          ),
-        );
-        await repository.saveRelationship(
-          Relationship.parentChild(
-            id: 'r0000000-0000-7000-8000-2${n.toString().padLeft(11, '0')}',
-            familyId: otherFamily,
-            parent: otherPerson(1),
-            child: otherPerson(n),
-          ),
-        );
+      await seedPerson(1, 'Đời 1');
+      for (var n = 2; n <= 6; n++) {
+        await seedPerson(n, 'Đời $n');
+        await link(n - 1, n);
       }
-
       await openTree(tester);
       await facing(tester, TreeOrientation.leftToRight);
-      expect(scaleOf(tester), 1, reason: 'the case being tested');
-      final small = anchorOnScreen(tester, personId(1));
 
-      await openTree(tester, family: otherFamily);
+      final viewport = tester.getSize(find.byType(InteractiveViewer));
+      final extent = chartExtentOn(tester);
+      expect(extent.width, greaterThan(viewport.width), reason: 'the case tested');
+      expect(extent.height, lessThan(viewport.height), reason: 'the other axis');
+
+      final root =
+          anchorOnScreen(tester, personId(1)) -
+          tester.getTopLeft(find.byType(InteractiveViewer));
+
+      expect(root.dx, closeTo(24, 0.5), reason: 'a fixed inset along the line');
+      expect(
+        chartCentreIn(tester).dy,
+        closeTo(viewport.height / 2, 0.5),
+        reason: 'and centred on the axis that does fit',
+      );
+    });
+
+    testWidgets('an overflowing chart leaves no gap at the leading edge', (
+      tester,
+    ) async {
+      // The ancestor sits a fixed inset in, but never so far that the drawing
+      // pulls away from an edge it is overflowing past — which would waste
+      // room at one end while hiding the other.
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Đời 1');
+      for (var n = 2; n <= 6; n++) {
+        await seedPerson(n, 'Đời $n');
+        await link(n - 1, n);
+      }
+      await openTree(tester);
       await facing(tester, TreeOrientation.leftToRight);
-      expect(scaleOf(tester), lessThan(1), reason: 'the other case');
 
-      final large = anchorOnScreen(tester, otherPerson(1));
+      final viewer = find.byType(InteractiveViewer);
+      expect(
+        chartExtentOn(tester).width,
+        greaterThan(tester.getSize(viewer).width),
+        reason: 'the case tested',
+      );
 
-      expect(large.dy, closeTo(small.dy, 0.5));
-      expect(large.dx, closeTo(small.dx, 0.5));
+      final corner = onScreen(tester, Offset.zero) - tester.getTopLeft(viewer);
+      expect(corner.dx, lessThanOrEqualTo(0.5));
+    });
+
+    testWidgets('the fit button does not move a chart that already fits', (
+      tester,
+    ) async {
+      // The complaint this answers: the chart opened against the top and
+      // moved to the middle the moment the button was pressed, because
+      // opening and fitting were two different rules. They are one now, so
+      // for a chart that already fits there is nothing left for the button to
+      // do and it does nothing at all.
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      await seedPerson(2, 'Con');
+      await link(1, 2);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      final view = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      final before = view.value.clone();
+
+      await tester.tap(find.byIcon(Icons.fit_screen_outlined));
+      await tester.pumpAndSettle();
+
+      expect(view.value, before);
     });
 
     testWidgets('the ancestor opens centred, not against an edge', (
@@ -415,38 +512,6 @@ void main() {
         anchorOnScreen(tester, personId(1)).dx - tester.getTopLeft(viewer).dx,
         closeTo(tester.getSize(viewer).width / 2, 0.5),
       );
-    });
-
-    testWidgets('turned sideways the ancestor is centred down instead', (
-      tester,
-    ) async {
-      await repository.saveFamily(
-        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
-      );
-      await seedPerson(1, 'Thuỷ Tổ');
-      for (var n = 2; n <= 12; n++) {
-        await seedPerson(n, 'Con $n');
-        await link(1, n);
-      }
-      await openTree(tester);
-      await facing(tester, TreeOrientation.leftToRight);
-
-      // The sibling axis is vertical now, so that is the one the ancestor is
-      // centred on — and the generation axis, running across, carries the
-      // fixed inset instead.
-      final viewer = find.byType(InteractiveViewer);
-      final layout = drawnLayout(tester);
-      final node = layout.nodeFor(personId(1))!;
-      final centre = onScreen(
-        tester,
-        Offset(node.x + 40, node.y + 40 + layout.metrics.nodeHeight / 2),
-      );
-
-      expect(
-        centre.dy - tester.getTopLeft(viewer).dy,
-        closeTo(tester.getSize(viewer).height / 2, 0.5),
-      );
-      expect(centre.dx - tester.getTopLeft(viewer).dx, closeTo(24, 0.5));
     });
 
     testWidgets('shows a family whole when it is still readable that way', (
@@ -599,15 +664,15 @@ void main() {
       }
     }
 
-    /// Taps the `+N` badge on a folded box, in chart coordinates.
+    /// Taps the `+N` badge on a folded box.
     Future<void> tapBadge(WidgetTester tester, int n) async {
       final layout = drawnLayout(tester);
       final node = layout.nodeFor(personId(n))!;
-      final target = TreePainter.foldBadgeTarget(node, layout.metrics, 40);
 
-      await tester.tapAt(tester.getTopLeft(chart) + target.center);
-      await tester.pump(kDoubleTapTimeout);
-      await tester.pumpAndSettle();
+      await tapInChart(
+        tester,
+        TreePainter.foldBadgeTarget(node, layout.metrics, 40).center,
+      );
     }
 
     testWidgets('a chart opens three generations deep, however long the line', (
@@ -649,6 +714,203 @@ void main() {
       expect(layout.nodeFor(personId(4))!.hiddenDescendantCount, 2);
     });
 
+    /// The box of a drawn person, in the viewport's own coordinates.
+    Rect? boxIn(WidgetTester tester, int n) {
+      final layout = drawnLayout(tester);
+      final node = layout.nodeFor(personId(n));
+      if (node == null) return null;
+
+      final origin = tester.getTopLeft(find.byType(InteractiveViewer));
+      final metrics = layout.metrics;
+
+      return Rect.fromPoints(
+        onScreen(tester, Offset(node.x + 40, node.y + 40)) - origin,
+        onScreen(
+              tester,
+              Offset(
+                node.x + 40 + metrics.nodeWidth,
+                node.y + 40 + metrics.nodeHeight,
+              ),
+            ) -
+            origin,
+      );
+    }
+
+    bool inSight(WidgetTester tester, int n) {
+      final box = boxIn(tester, n);
+      if (box == null) return false;
+      return (Offset.zero & tester.getSize(find.byType(InteractiveViewer)))
+          .contains(box.topLeft) &&
+          (Offset.zero & tester.getSize(find.byType(InteractiveViewer)))
+              .contains(box.bottomRight);
+    }
+
+    testWidgets('opening a fold brings the new generation into sight', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      await seedLine(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      // The first opening lands inside the screen on its own; the second does
+      // not, and is the one worth testing.
+      await tapBadge(tester, 3);
+      expect(inSight(tester, 4), isTrue, reason: 'the easy case');
+
+      await tapBadge(tester, 4);
+
+      expect(drawnLayout(tester).nodeFor(personId(5)), isNotNull);
+      expect(inSight(tester, 5), isTrue);
+    });
+
+    testWidgets('and moves no further than it has to', (tester) async {
+      // Brought to the edge, not to the middle. Centring on what was revealed
+      // would throw away the part of the chart the reader was reading.
+      onAPhone(tester);
+      await seedLine(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+      await tapBadge(tester, 3);
+      await tapBadge(tester, 4);
+
+      final viewport = tester.getSize(find.byType(InteractiveViewer));
+      final box = boxIn(tester, 5)!;
+
+      expect(box.bottom, closeTo(viewport.height - 16, 1));
+    });
+
+    testWidgets('it slides there rather than jumping', (tester) async {
+      onAPhone(tester);
+      await seedLine(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+      await tapBadge(tester, 3);
+
+      final view = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      final before = view.value.clone();
+
+      // Tapped by hand rather than through the helper, which settles every
+      // animation and would leave nothing to observe.
+      final layout = drawnLayout(tester);
+      await tester.tapAt(
+        onScreen(
+          tester,
+          TreePainter.foldBadgeTarget(
+            layout.nodeFor(personId(4))!,
+            layout.metrics,
+            40,
+          ).center,
+        ),
+      );
+      await tester.pump(kDoubleTapTimeout);
+      // One more: the tap resolves during that pump but the rebuild it causes
+      // lands in the next frame, and the slide starts at the end of that one.
+      // Sampling any earlier reads the view before it has set off.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+
+      final midway = view.value.clone();
+      await tester.pumpAndSettle();
+      final arrived = view.value.clone();
+
+      expect(midway, isNot(before), reason: 'it had set off');
+      expect(midway, isNot(arrived), reason: 'and had not got there yet');
+    });
+
+    testWidgets('a hand on the chart stops the slide', (tester) async {
+      // Left running it would write to the same controller as the drag, and
+      // the chart would pull against the hand moving it.
+      //
+      // Tested with the finger still down. Lifting it ends the interaction,
+      // and a chart that fits an axis settles back to the middle of it when
+      // that happens — movement that is correct but would be indistinguishable
+      // here from a slide that never stopped.
+      onAPhone(tester);
+      await seedLine(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+      await tapBadge(tester, 3);
+
+      final viewer = find.byType(InteractiveViewer);
+      final view = tester
+          .widget<InteractiveViewer>(viewer)
+          .transformationController!;
+
+      final layout = drawnLayout(tester);
+      await tester.tapAt(
+        onScreen(
+          tester,
+          TreePainter.foldBadgeTarget(
+            layout.nodeFor(personId(4))!,
+            layout.metrics,
+            40,
+          ).center,
+        ),
+      );
+      await tester.pump(kDoubleTapTimeout);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 40));
+
+      final gesture = await tester.startGesture(
+        tester.getRect(viewer).center,
+      );
+      // Past kTouchSlop, or the tap recogniser keeps the arena and the pan —
+      // and with it the interaction the screen listens for — never begins.
+      await gesture.moveBy(const Offset(0, -40));
+      await tester.pump();
+
+      final underTheFinger = view.value.clone();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        view.value,
+        underTheFinger,
+        reason: 'the slide did not carry on beneath the hand',
+      );
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the zoom is left alone while doing it', (tester) async {
+      onAPhone(tester);
+      await seedLine(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+      final before = scaleOf(tester);
+
+      await tapBadge(tester, 3);
+      await tapBadge(tester, 4);
+
+      // Panning, not refitting. A chart that resized under the reader would
+      // be the jump this whole rule exists to avoid.
+      expect(scaleOf(tester), before);
+    });
+
+    testWidgets('nothing moves when the new generation is already in sight', (
+      tester,
+    ) async {
+      // Movement nobody asked for is what made the chart feel unsteady, so
+      // where there is nothing to bring in, the view must not twitch.
+      onAPhone(tester);
+      await seedLine(7);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      final view = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      final before = view.value.clone();
+
+      await tapBadge(tester, 3);
+
+      expect(inSight(tester, 4), isTrue, reason: 'it arrived on screen anyway');
+      expect(view.value, before);
+    });
+
     testWidgets('the badge takes the tap, not the box under it', (
       tester,
     ) async {
@@ -661,24 +923,6 @@ void main() {
         findsNothing,
         reason: 'opening a fold is not selecting the person in front of it',
       );
-    });
-
-    testWidgets('opening a fold leaves the view where the reader put it', (
-      tester,
-    ) async {
-      await seedLine(6);
-      await openTree(tester);
-
-      final view = tester
-          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
-          .transformationController!;
-      final before = view.value.clone();
-
-      await tapBadge(tester, 3);
-
-      // Refitting here would throw the reader back to the root at the moment
-      // they reached what they were looking for.
-      expect(view.value, before);
     });
 
     testWidgets('a new root forgets the folds opened on the old chart', (
@@ -734,6 +978,120 @@ void main() {
       await openTree(tester);
 
       expect(find.text('1 not on this branch'), findsOneWidget);
+    });
+  });
+
+  group('not letting the chart get lost', () {
+    Future<void> seedWide(WidgetTester tester, int children) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      for (var n = 2; n <= children + 1; n++) {
+        await seedPerson(n, 'Con $n');
+        await link(1, n);
+      }
+    }
+
+    double minScaleOf(WidgetTester tester) =>
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer)).minScale;
+
+    Offset offsetOf(WidgetTester tester) {
+      final at = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!
+          .value
+          .getTranslation();
+      return Offset(at.x, at.y);
+    }
+
+    testWidgets('zooming out stops where the whole chart is visible', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      await seedWide(tester, 12);
+      await openTree(tester);
+
+      // Past this there is nothing further to see, only a smaller drawing in
+      // a larger emptiness.
+      expect(minScaleOf(tester), closeTo(wholeChartScale(tester), 0.001));
+      expect(minScaleOf(tester), lessThan(1), reason: 'the case being tested');
+    });
+
+    testWidgets('a chart that already fits cannot be zoomed out at all', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      await seedPerson(2, 'Con');
+      await link(1, 2);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      expect(minScaleOf(tester), 1);
+    });
+
+    testWidgets('a chart shoved aside settles back to the middle', (
+      tester,
+    ) async {
+      onAPhone(tester);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await seedPerson(1, 'Thuỷ Tổ');
+      await seedPerson(2, 'Con');
+      await link(1, 2);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      final settled = offsetOf(tester);
+      await tester.drag(find.byType(InteractiveViewer), const Offset(-60, -40));
+      await tester.pumpAndSettle();
+
+      expect(offsetOf(tester), settled);
+    });
+
+    testWidgets('a chart bigger than the screen is left where it was put', (
+      tester,
+    ) async {
+      // There is more of it to look at in every direction, so pulling the
+      // reader back would be taking the chart away from them.
+      onAPhone(tester);
+      await seedWide(tester, 12);
+      await openTree(tester);
+      await facing(tester, TreeOrientation.topDown);
+
+      final before = offsetOf(tester);
+      await tester.drag(find.byType(InteractiveViewer), const Offset(-60, 0));
+      await tester.pumpAndSettle();
+
+      final after = offsetOf(tester);
+      expect(after.dx, lessThan(before.dx), reason: 'the drag took effect');
+      expect(
+        after.dx,
+        isNot(closeTo(before.dx, 0.5)),
+        reason: 'and was not undone the moment the hand let go',
+      );
+    });
+
+    testWidgets('a tap settles nothing, having moved nothing', (tester) async {
+      // A tap ends an interaction like any other gesture. Sliding the chart
+      // because somebody touched it is the unasked-for movement this screen
+      // has been getting rid of.
+      onAPhone(tester);
+      await seedWide(tester, 12);
+      await openTree(tester);
+
+      await tester.drag(find.byType(InteractiveViewer), const Offset(-60, 0));
+      await tester.pumpAndSettle();
+      final shoved = offsetOf(tester);
+
+      await tapPerson(tester, 1);
+
+      expect(offsetOf(tester), shoved);
     });
   });
 

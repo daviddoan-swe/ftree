@@ -33,8 +33,28 @@ class TreeScreen extends ConsumerStatefulWidget {
   ConsumerState<TreeScreen> createState() => _TreeScreenState();
 }
 
-class _TreeScreenState extends ConsumerState<TreeScreen> {
+class _TreeScreenState extends ConsumerState<TreeScreen>
+    with SingleTickerProviderStateMixin {
   final TransformationController _view = TransformationController();
+
+  /// Drives the slide that brings a newly opened generation into sight.
+  ///
+  /// Short. It is there so the reader can see that the chart moved and which
+  /// way, not to be admired: the badge they pressed slides out from under
+  /// their finger either way, and a long slide would only delay the answer.
+  late final AnimationController _slide = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+
+  /// Where the slide is going, or null when nothing is sliding.
+  Animation<Matrix4>? _sliding;
+
+  /// The view as it stood when the current touch began.
+  ///
+  /// Kept so that a gesture which moved nothing — a tap on a box, a tap on a
+  /// badge — can be told apart from one that did.
+  Matrix4? _touchedFrom;
 
   /// Whom the chart is drawn from, once the reader has chosen. Null means the
   /// default root, recomputed as the family changes.
@@ -59,6 +79,9 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   /// Set by the fit button, which is the reader asking for the shape of the
   /// whole tree and accepting that the names go with it.
   bool _showEverything = false;
+
+  /// A fold just opened whose new generation has still to be brought in sight.
+  String? _reveal;
 
   /// The folds the reader has opened, on top of the default depth.
   ///
@@ -107,9 +130,87 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   static const double _rootInset = 24;
 
   @override
+  void initState() {
+    super.initState();
+    _slide.addListener(() {
+      final sliding = _sliding;
+      if (sliding != null) _view.value = sliding.value;
+    });
+  }
+
+  @override
   void dispose() {
+    _slide.dispose();
     _view.dispose();
     super.dispose();
+  }
+
+  /// Slides the view to [target] rather than putting it there.
+  void _slideTo(Matrix4 target) {
+    _sliding = Matrix4Tween(begin: _view.value, end: target).animate(
+      CurvedAnimation(parent: _slide, curve: Curves.easeOutCubic),
+    );
+    _slide.forward(from: 0);
+  }
+
+  /// Abandons a slide in progress.
+  ///
+  /// Left running, the slide would go on writing to the same controller the
+  /// drag is writing to, and the chart would pull against the hand moving it.
+  void _stopSliding() {
+    if (!_slide.isAnimating) return;
+    _slide.stop();
+    _sliding = null;
+  }
+
+  /// A finger has landed on the chart.
+  void _touched() {
+    _stopSliding();
+    _touchedFrom = _view.value.clone();
+  }
+
+  /// Settles the chart back to the middle of whichever axis it no longer
+  /// fills, once the hand has left it.
+  ///
+  /// Only such an axis: where the drawing is larger than the viewport there
+  /// is more of it to look at in every direction, and pulling the reader back
+  /// would be taking the chart away from them. Where it is smaller there is
+  /// nothing off to the side but empty page, and a chart shoved into a corner
+  /// has no way back except a button the reader has to think of.
+  ///
+  /// A tap settles nothing. It ends an interaction like any other gesture,
+  /// but it has moved nothing, and sliding the chart because somebody touched
+  /// it would be exactly the unasked-for movement this screen has been
+  /// getting rid of.
+  void _recentreIfAdrift(TreeLayout layout, Size viewport) {
+    final from = _touchedFrom;
+    _touchedFrom = null;
+    if (viewport.isEmpty || from == null || from == _view.value) return;
+
+    final matrix = _view.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final at = matrix.getTranslation();
+
+    /// The centred offset, or null where the axis is worth panning along.
+    double? settled(double extent, double room, double offset) {
+      if (extent > room) return null;
+      final middle = (room - extent) / 2;
+      return (offset - middle).abs() < 0.5 ? null : middle;
+    }
+
+    final x = settled(
+      (layout.width + _Chart.padding * 2) * scale,
+      viewport.width,
+      at.x,
+    );
+    final y = settled(
+      (layout.height + _Chart.padding * 2) * scale,
+      viewport.height,
+      at.y,
+    );
+    if (x == null && y == null) return;
+
+    _slideTo(matrix.clone()..setTranslationRaw(x ?? at.x, y ?? at.y, at.z));
   }
 
   /// The person to draw from: the first without recorded parents.
@@ -154,49 +255,41 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
         ? whole
         : _readableScale;
 
-    // Two placements, and they must not be confused with each other.
-    //
-    // The fit button means "show me the whole shape", so the whole chart is
-    // centred in the viewport. Opening means something else: the same place
-    // every time, whatever the family holds.
-    //
-    // Every family therefore opens with the founding ancestor centred across
-    // and a fixed distance down — measured on the screen, not in the drawing.
-    // The chart's own padding is in chart units, so it shrinks with the zoom:
-    // a small family opened forty pixels below the bar and a large one
-    // twenty-four, which is why no two families opened alike. Anchoring the
-    // root box itself takes the zoom out of it.
+    // One rule, used for opening and for the fit button alike. Two of them is
+    // what made the chart jump: it opened against the top and moved to the
+    // middle the moment anything was pressed.
     final root = layout.nodeFor(rootId);
     final metrics = layout.metrics;
     final topDown = metrics.orientation.isTopDown;
 
-    final double dx;
-    final double dy;
+    // Centred over the root's own box on the sibling axis. Not over the middle
+    // of the drawing, which is a different place: the root sits above the span
+    // of its own children, and a family whose descendants are mostly down one
+    // branch carries its weight to one side — six hundred points away from the
+    // ancestor on a real gia phả, which is more than a screen.
+    final rootAlongCentre =
+        (topDown
+            ? (root?.x ?? 0) + metrics.nodeWidth / 2
+            : (root?.y ?? 0) + metrics.nodeHeight / 2) +
+        _Chart.padding;
+    final rootDepthStart =
+        (topDown ? (root?.y ?? 0) : (root?.x ?? 0)) + _Chart.padding;
 
-    if (everything) {
-      dx = (viewport.width - chartWidth * scale) / 2;
-      dy = (viewport.height - chartHeight * scale) / 2;
-    } else {
-      // Centred on the sibling axis, a fixed inset down the generation axis.
-      // Which of those is x depends only on how the page is turned, so both
-      // orientations open with the ancestor in the same place relative to the
-      // direction its descendants run.
-      final rootAlongCentre =
-          (topDown
-              ? (root?.x ?? 0) + metrics.nodeWidth / 2
-              : (root?.y ?? 0) + metrics.nodeHeight / 2) +
-          _Chart.padding;
-      final rootDepthStart =
-          (topDown ? (root?.y ?? 0) : (root?.x ?? 0)) + _Chart.padding;
-
-      final along =
+    final along = _place(
+      viewport: topDown ? viewport.width : viewport.height,
+      extent: (topDown ? chartWidth : chartHeight) * scale,
+      preferred:
           (topDown ? viewport.width : viewport.height) / 2 -
-          rootAlongCentre * scale;
-      final depth = _rootInset - rootDepthStart * scale;
+          rootAlongCentre * scale,
+    );
+    final depth = _place(
+      viewport: topDown ? viewport.height : viewport.width,
+      extent: (topDown ? chartHeight : chartWidth) * scale,
+      preferred: _rootInset - rootDepthStart * scale,
+    );
 
-      dx = topDown ? along : depth;
-      dy = topDown ? depth : along;
-    }
+    final dx = topDown ? along : depth;
+    final dy = topDown ? depth : along;
 
     final matrix = Matrix4.identity()
       ..translateByDouble(dx, dy, 0, 1)
@@ -210,8 +303,34 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
     // After this frame: the viewer is still being laid out, and assigning to a
     // controller mid-build would rebuild what is already building.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _view.value = matrix;
+      if (!mounted) return;
+      _stopSliding();
+      _view.value = matrix;
     });
+  }
+
+  /// Where one axis of the chart sits in one axis of the viewport.
+  ///
+  /// Two cases, and the reason they are written as one function is that they
+  /// have to agree where they meet. A rule that changes at a threshold moves
+  /// the chart as a family grows past it, which is the jump this replaces.
+  ///
+  /// * **It fits.** Centred, and nothing else is worth considering: there is
+  ///   no other position that shows more of it.
+  /// * **It does not fit.** [preferred] decides — the ancestor, centred across
+  ///   and a fixed inset down — but never far enough to leave a margin at an
+  ///   edge the drawing could be covering.
+  ///
+  /// The two agree exactly when the chart is the size of the viewport: the
+  /// slack is zero, so the centre is zero and the clamp has nowhere to go but
+  /// zero. Nothing jumps, at any size.
+  static double _place({
+    required double viewport,
+    required double extent,
+    required double preferred,
+  }) {
+    final slack = viewport - extent;
+    return slack >= 0 ? slack / 2 : preferred.clamp(slack, 0);
   }
 
   /// Redraws the chart with [personId] at the top.
@@ -276,8 +395,91 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
   /// Only that generation: whoever comes into view is folded in their turn
   /// (see [collapseToDepth]), so the chart never widens by more than the
   /// reader asked for.
-  void _openFold(String personId) =>
-      setState(() => _expanded = <String>{..._expanded, personId});
+  void _openFold(String personId) => setState(() {
+    _expanded = <String>{..._expanded, personId};
+    _reveal = personId;
+  });
+
+  /// Pans the least distance that brings a newly opened generation into sight.
+  ///
+  /// Opening a fold does not move the view on its own, which is right — the
+  /// reader keeps their place. But the people revealed hang below the box that
+  /// was pressed, and once the chart is centred there is less room under it
+  /// than there used to be, so they can arrive off the edge. Pressing a badge
+  /// and seeing nothing happen is the worst of both.
+  ///
+  /// The least distance, and no zoom change: this is not a refit. Anything
+  /// already in sight is left exactly where it is, because movement nobody
+  /// asked for is the thing that made the chart feel unsteady in the first
+  /// place.
+  void _revealOnce(TreeLayout layout, FamilyGraph graph, Size viewport) {
+    final personId = _reveal;
+    if (personId == null || viewport.isEmpty) return;
+    _reveal = null;
+
+    final metrics = layout.metrics;
+    Rect boxOf(LayoutNode node) => Rect.fromLTWH(
+      node.x + _Chart.padding,
+      node.y + _Chart.padding,
+      metrics.nodeWidth,
+      metrics.nodeHeight,
+    );
+
+    // The generation just revealed, and only it. Including the parent would
+    // make the group taller than the screen on a wide family, and then what
+    // gets shown is the parent — which was already in sight.
+    Rect? revealed;
+    for (final child in graph.children(personId)) {
+      final node = layout.nodeFor(child.id);
+      if (node == null) continue;
+      revealed = revealed == null
+          ? boxOf(node)
+          : revealed.expandToInclude(boxOf(node));
+    }
+    if (revealed == null) return;
+
+    final target = revealed;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final matrix = _view.value;
+      final shift = _shiftInto(
+        MatrixUtils.transformRect(matrix, target),
+        // A margin, so what arrives is not flush against the edge with its
+        // connector cut off.
+        (Offset.zero & viewport).deflate(16),
+      );
+      if (shift == Offset.zero) return;
+
+      // The view matrix is a translation times a scale, so its translation
+      // column is already in screen units: adding to it pans, and leaves the
+      // zoom alone.
+      final panned = matrix.clone();
+      final at = panned.getTranslation();
+      panned.setTranslationRaw(at.x + shift.dx, at.y + shift.dy, at.z);
+      _slideTo(panned);
+    });
+  }
+
+  /// The least movement that brings [rect] inside [viewport].
+  ///
+  /// Zero on an axis where it already sits inside, and zero also where it is
+  /// larger than the viewport and already spans it — there is nothing to show
+  /// that is not being shown. Where it is too large and lies off to one side,
+  /// its near edge is what gets brought in, because that is the end the reader
+  /// is coming from.
+  static Offset _shiftInto(Rect rect, Rect viewport) {
+    double along(double low, double high, double from, double to) {
+      if (low >= from && high <= to) return 0;
+      if (low <= from && high >= to) return 0;
+      return low < from ? from - low : to - high;
+    }
+
+    return Offset(
+      along(rect.left, rect.right, viewport.left, viewport.right),
+      along(rect.top, rect.bottom, viewport.top, viewport.bottom),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -370,6 +572,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     _fitOnce(layout, rootId, constraints.biggest);
+                    _revealOnce(layout, graph, constraints.biggest);
                     return _Chart(
                       layout: layout,
                       selectedId: selected?.id,
@@ -378,6 +581,10 @@ class _TreeScreenState extends ConsumerState<TreeScreen> {
                           setState(() => _selectedId = personId),
                       onDrawFrom: _drawFrom,
                       onOpenFold: _openFold,
+                      onTouched: _touched,
+                      onSettled: () =>
+                          _recentreIfAdrift(layout, constraints.biggest),
+                      viewport: constraints.biggest,
                     );
                   },
                 ),
@@ -442,6 +649,9 @@ class _Chart extends StatefulWidget {
     required this.onTapPerson,
     required this.onDrawFrom,
     required this.onOpenFold,
+    required this.onTouched,
+    required this.onSettled,
+    required this.viewport,
   });
 
   final TreeLayout layout;
@@ -454,6 +664,32 @@ class _Chart extends StatefulWidget {
 
   /// Tapping the badge on a folded box opens it.
   final ValueChanged<String> onOpenFold;
+
+  /// A finger has landed on the chart.
+  final VoidCallback onTouched;
+
+  /// The last finger has left it.
+  final VoidCallback onSettled;
+
+  /// How much room the chart is being shown in.
+  final Size viewport;
+
+  /// The smallest zoom worth allowing: the one that shows the whole chart.
+  ///
+  /// Past it there is nothing further to see — the drawing simply shrinks in
+  /// the middle of a growing emptiness, and the reader can lose it in a
+  /// corner with no way back but the fit button. Where the chart already fits
+  /// at natural size this comes out at 1, and zooming out is refused
+  /// altogether, which is the same statement.
+  double get smallestUsefulScale {
+    if (viewport.isEmpty) return 0.1;
+
+    return <double>[
+      viewport.width / (layout.width + padding * 2),
+      viewport.height / (layout.height + padding * 2),
+      1,
+    ].reduce((a, b) => a < b ? a : b);
+  }
 
   /// Room around the drawing, so the outermost boxes are not against the edge.
   static const double padding = 40;
@@ -478,11 +714,14 @@ class _ChartState extends State<_Chart> {
 
     return InteractiveViewer(
       transformationController: widget.view,
+      // A hand on the chart wins over anything the screen was doing to it.
+      onInteractionStart: (_) => widget.onTouched(),
+      onInteractionEnd: (_) => widget.onSettled(),
       // Generous margin: without it the chart cannot be dragged away from the
       // corner it starts in, which on a tall tree means the lower generations
       // are unreachable.
       boundaryMargin: const EdgeInsets.all(400),
-      minScale: 0.1,
+      minScale: widget.smallestUsefulScale,
       maxScale: 3,
       constrained: false,
       child: GestureDetector(
