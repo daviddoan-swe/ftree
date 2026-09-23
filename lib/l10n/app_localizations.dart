@@ -481,6 +481,18 @@ abstract class AppText {
   /// **'Về nhánh trước'**
   String get treeBack;
 
+  /// Chip that clears the đời filter on a list of people
+  ///
+  /// In vi, this message translates to:
+  /// **'Tất cả'**
+  String get generationFilterAll;
+
+  /// Chip for people the founding line does not reach, who have no đời in this family’s counting
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa rõ đời'**
+  String get generationFilterUnknown;
+
   /// Nhãn một đời trên dải dọc theo trục đời, đếm từ thuỷ tổ
   ///
   /// In vi, this message translates to:

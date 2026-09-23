@@ -252,6 +252,12 @@ class AppTextEn extends AppText {
   String get treeBack => 'Back to the previous branch';
 
   @override
+  String get generationFilterAll => 'All';
+
+  @override
+  String get generationFilterUnknown => 'Generation unknown';
+
+  @override
   String treeGenerationOrdinal(int number) {
     return 'Generation $number';
   }

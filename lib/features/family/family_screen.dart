@@ -8,6 +8,7 @@ import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
 import '../../domain/name_search.dart';
+import 'generation_filter.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
 import '../person/person_form_screen.dart';
@@ -34,6 +35,9 @@ class FamilyScreen extends ConsumerStatefulWidget {
 
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
   final TextEditingController _query = TextEditingController();
+
+  /// The đời being shown, or null for all of them.
+  GenerationChoice _generation;
 
   @override
   void dispose() {
@@ -80,8 +84,21 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
           // Diacritics are ignored, because half the family will type the name
           // without them (PRODUCT.md §1.1).
           final typed = _query.text.trim();
+
+          // Đời from the graph, which is where every screen gets them, so no
+          // two can disagree about a reader's own family (DOMAIN.md §11.1).
+          final doi = data.graph.generations();
+          final counts = countByGeneration(people, doi);
+          final filter = GenerationFilter(
+            counts: counts,
+            chosen: _generation,
+            onChosen: (at) => setState(() => _generation = at),
+          );
+
+          // Both narrow at once: đời five and named Hải is a reasonable thing
+          // to be looking for, and either alone may be hundreds of people.
           final matches = <Person>[
-            for (final person in people)
+            for (final person in ofGeneration(people, doi, _generation))
               if (nameMatches(person.displayName, typed)) person,
           ];
 
@@ -105,6 +122,8 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                         ),
                       ),
                     ),
+                    if (filter.isWorthShowing)
+                      SliverToBoxAdapter(child: filter),
                     if (matches.isEmpty)
                       SliverToBoxAdapter(
                         child: GroupedSection(
@@ -131,11 +150,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                       )
                     else
                       GroupedSliverSection(
-                        // The count only earns its place while filtering; the
-                        // badge on the avatar already gives the total.
-                        header: typed.isEmpty
-                            ? null
-                            : text.familyPersonCount(matches.length),
+                        // No count above the list: the chip that is chosen
+                        // carries its own, and the same number twice on one
+                        // screen is one of them going stale.
                         itemCount: matches.length,
                         itemBuilder: (context, index) =>
                             _PersonTile(person: matches[index]),

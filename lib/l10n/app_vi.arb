@@ -130,6 +130,16 @@
     "description": "Quay lại gốc đã vẽ trước đó, sau khi chạm hai lần để sang nhánh khác"
   },
 
+  "generationFilterAll": "Tất cả",
+  "@generationFilterAll": {
+    "description": "Chip that clears the đời filter on a list of people"
+  },
+
+  "generationFilterUnknown": "Chưa rõ đời",
+  "@generationFilterUnknown": {
+    "description": "Chip for people the founding line does not reach, who have no đời in this family\u2019s counting"
+  },
+
   "treeGenerationOrdinal": "Đời {number}",
   "@treeGenerationOrdinal": {
     "description": "Nhãn một đời trên dải dọc theo trục đời, đếm từ thuỷ tổ",

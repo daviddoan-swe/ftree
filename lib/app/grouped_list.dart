@@ -52,6 +52,14 @@ final class GroupedColors {
   static const Color teal = Color(0xFF40C8E0);
   static const Color orange = Color(0xFFFF9F0A);
   static const Color pink = Color(0xFFFF375F);
+
+  /// The red a count sits on, so that how many there are is the first thing
+  /// read off a row or a box.
+  ///
+  /// Borrowed from the same system palette as the rest. It carries the usual
+  /// warning of red, which a count does not deserve; it is here because being
+  /// noticed is the whole job of these badges.
+  static const Color red = Color(0xFFFF3B30);
   static const Color purple = Color(0xFFBF5AF2);
   static const Color grey = Color(0xFF8E8E93);
 }

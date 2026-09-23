@@ -248,6 +248,12 @@ class AppTextVi extends AppText {
   String get treeBack => 'Về nhánh trước';
 
   @override
+  String get generationFilterAll => 'Tất cả';
+
+  @override
+  String get generationFilterUnknown => 'Chưa rõ đời';
+
+  @override
   String treeGenerationOrdinal(int number) {
     return 'Đời $number';
   }

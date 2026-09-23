@@ -579,16 +579,15 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
       visibleGenerations: _visibleGenerations,
     ).difference(_expanded);
 
-    // Which đời each generation of the chart is, counted from the family's
-    // thuỷ tổ rather than from whatever the chart happens to be rooted at.
-    // DOMAIN.md §11 leaves the display free to choose; a gia phả does not,
-    // because đời thứ năm is a fact about a person, and redrawing from
-    // somebody else must not renumber everybody.
-    final counted = GenerationAssignment.fromRoot(
-      graph,
-      graph.foundingAncestor()?.id ?? rootId,
-    );
-    final rootGeneration = counted.generationOf(rootId) ?? 0;
+    // Which đời the top of the chart is, counted from the family's thuỷ tổ
+    // rather than from whatever the chart happens to be rooted at (§11.1).
+    // Read from the graph, which is where every screen gets these, so that no
+    // two of them can contradict each other about a reader's own family.
+    //
+    // One where the founder's line does not reach this root, which is a
+    // separate line with no đời in this family's counting: the chart still
+    // draws, and counts its own generations from the top.
+    final rootDoi = graph.generations()[rootId] ?? 1;
 
     final orientation = _decideOrientation(graph, rootId, folded);
     final layout = layoutDescendants(
@@ -614,7 +613,7 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
     final band = _GenerationStrip(
       layout: layout,
       view: _view,
-      rootGeneration: rootGeneration,
+      rootDoi: rootDoi,
       padding: _Chart.padding,
     );
 
@@ -1184,7 +1183,7 @@ class _GenerationStrip extends StatelessWidget {
   const _GenerationStrip({
     required this.layout,
     required this.view,
-    required this.rootGeneration,
+    required this.rootDoi,
     required this.padding,
   });
 
@@ -1193,7 +1192,7 @@ class _GenerationStrip extends StatelessWidget {
 
   /// The đời of the person the chart is drawn from, so that redrawing from
   /// somebody lower down does not start counting again at one.
-  final int rootGeneration;
+  final int rootDoi;
 
   final double padding;
 
@@ -1259,7 +1258,7 @@ class _GenerationStrip extends StatelessWidget {
               left: topDown ? 6 : along,
               top: topDown ? along : 6,
               child: _GenerationLabel(
-                ordinal: rootGeneration + generations[i] + 1,
+                ordinal: rootDoi + generations[i],
                 drawn: drawn[generations[i]] ?? 0,
               ),
             ),
@@ -1355,7 +1354,7 @@ class _GenerationLabel extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer,
+                  color: GroupedColors.red,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Text(
@@ -1363,7 +1362,7 @@ class _GenerationLabel extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSecondaryContainer,
+                    color: Colors.white,
                   ),
                 ),
               ),

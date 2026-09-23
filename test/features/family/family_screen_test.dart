@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart' as domain;
 import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/person.dart';
+import 'package:ftree/domain/relationship.dart';
 import 'package:ftree/features/family/family_screen.dart';
+import 'package:ftree/features/family/generation_filter.dart';
 import 'package:ftree/l10n/app_localizations.dart';
 
 void main() {
@@ -158,7 +161,15 @@ void main() {
       // "Họ Nguyễn" is N, not H: the leading word means "the family of" and
       // carries no identity.
       expect(find.text('N'), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
+      // Scoped to the header: the đời chips carry counts of their own, and a
+      // bare finder for the number cannot tell one badge from another.
+      expect(
+        find.descendant(
+          of: find.byType(AvatarHeader),
+          matching: find.text('2'),
+        ),
+        findsOneWidget,
+      );
 
       // The bar above already carries the name, and the notes were read on the
       // way in from the list.
@@ -177,8 +188,16 @@ void main() {
       await tester.enterText(find.byType(TextField), 'nguyen');
       await tester.pumpAndSettle();
 
-      expect(find.text('3'), findsOneWidget, reason: 'still three people');
-      expect(find.text('1 person'), findsOneWidget, reason: 'one match');
+      expect(
+        find.descendant(
+          of: find.byType(AvatarHeader),
+          matching: find.text('3'),
+        ),
+        findsOneWidget,
+        reason: 'the header counts the family, not what is left of the list',
+      );
+      expect(find.text('Nguyễn Văn Cả'), findsOneWidget, reason: 'the match');
+      expect(find.text('Trần Thị Mậu'), findsNothing);
     });
   });
 
@@ -242,6 +261,196 @@ void main() {
 
       expect(find.text('Người Không Rõ'), findsOneWidget);
       expect(find.textContaining('–'), findsNothing);
+    });
+  });
+
+  group('filtering by doi', () {
+    String personId(int n) =>
+        'p0000000-0000-7000-8000-${n.toString().padLeft(12, '0')}';
+
+    Future<void> link(int parent, int child) =>
+        repository.saveRelationship(
+          Relationship.parentChild(
+            id: 'r0000000-0000-7000-8000-${parent.toString().padLeft(6, '0')}'
+                '${child.toString().padLeft(6, '0')}',
+            familyId: familyId,
+            parent: personId(parent),
+            child: personId(child),
+          ),
+        );
+
+    /// A founder, two children, and one grandchild.
+    Future<void> seedLine() async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Thuy To');
+      await seedPerson(2, 'Con Ca');
+      await seedPerson(3, 'Con Thu');
+      await seedPerson(4, 'Chau');
+      await link(1, 2);
+      await link(1, 3);
+      await link(2, 4);
+    }
+
+    testWidgets('shows a chip for each doi the family occupies', (
+      tester,
+    ) async {
+      await seedLine();
+      await openFamily(tester);
+
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Generation 1'), findsOneWidget);
+      expect(find.text('Generation 2'), findsOneWidget);
+      expect(find.text('Generation 3'), findsOneWidget);
+      expect(find.text('Generation 4'), findsNothing);
+    });
+
+    testWidgets('the All chip counts everybody, and the parts add up', (
+      tester,
+    ) async {
+      await seedLine();
+      await openFamily(tester);
+
+      // Four people across three doi: one, two, one. The chips are a set of
+      // parts and their whole, so a reader can check the one against the
+      // others without counting rows.
+      //
+      // Scoped to the row, because the header carries a headcount of its own
+      // and a bare finder for a number cannot tell the two apart.
+      Finder inRow(String n) => find.descendant(
+        of: find.byType(GenerationFilter),
+        matching: find.text(n),
+      );
+
+      expect(inRow('4'), findsOneWidget);
+      expect(inRow('2'), findsOneWidget);
+      expect(inRow('1'), findsNWidgets(2));
+    });
+
+    testWidgets('brings the chosen doi to the middle of the row', (
+      tester,
+    ) async {
+      // On a family of twelve the chip chosen can be off the right-hand end,
+      // and a reader would see a shortened list with no sign of why. A phone,
+      // because the default test window is wide enough to hold the whole row
+      // and so never exercises this.
+      tester.view.physicalSize = const Size(402, 756);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Doi 1');
+      for (var n = 2; n <= 12; n++) {
+        await seedPerson(n, 'Doi $n');
+        await link(n - 1, n);
+      }
+      await openFamily(tester);
+
+      final row = tester.getRect(find.byType(GenerationFilter));
+
+      // Built but off the end — every chip is laid out, which is what makes
+      // one reachable at all, but only some of them are on screen.
+      expect(
+        tester.getRect(find.text('Generation 9')).left,
+        greaterThan(row.right),
+        reason: 'the case tested: it starts beyond the right-hand edge',
+      );
+
+      final scroller = find
+          .ancestor(
+            of: find.byType(GenerationFilter),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(find.text('Generation 9'), 200,
+          scrollable: scroller);
+      await tester.tap(find.text('Generation 9'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getRect(find.text('Generation 9')).center.dx,
+        closeTo(row.center.dx, 40),
+      );
+    });
+
+    testWidgets('narrows the list to the doi chosen', (tester) async {
+      await seedLine();
+      await openFamily(tester);
+      expect(find.text('Thuy To'), findsOneWidget);
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Con Ca'), findsOneWidget);
+      expect(find.text('Con Thu'), findsOneWidget);
+      expect(find.text('Thuy To'), findsNothing);
+      expect(find.text('Chau'), findsNothing);
+    });
+
+    testWidgets('choosing the same doi again puts everybody back', (
+      tester,
+    ) async {
+      await seedLine();
+      await openFamily(tester);
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+      expect(find.text('Thuy To'), findsNothing);
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thuy To'), findsOneWidget);
+    });
+
+    testWidgets('doi and name narrow together', (tester) async {
+      // Either alone may be hundreds of people in a real gia pha.
+      await seedLine();
+      await openFamily(tester);
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'ca');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Con Ca'), findsOneWidget);
+      expect(find.text('Con Thu'), findsNothing);
+    });
+
+    testWidgets('a family of one doi is offered no choice', (tester) async {
+      // A row of a single chip is furniture.
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Mot Nguoi');
+      await openFamily(tester);
+
+      expect(find.text('All'), findsNothing);
+    });
+
+    testWidgets('somebody outside the founder line is still reachable', (
+      tester,
+    ) async {
+      // They belong to no doi in this family's counting, so every numbered
+      // chip filters them out. Without one of their own they would be
+      // findable by no chip at all.
+      // Wide enough for every chip at once: what is being tested is that the
+      // unnumbered have a chip of their own, not that the row scrolls.
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await seedLine();
+      await seedPerson(9, 'Ngoai Toc');
+      await openFamily(tester);
+
+      await tester.tap(find.text('Generation unknown'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ngoai Toc'), findsOneWidget);
+      expect(find.text('Thuy To'), findsNothing);
     });
   });
 }

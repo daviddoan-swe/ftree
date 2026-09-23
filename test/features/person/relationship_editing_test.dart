@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
@@ -291,6 +292,261 @@ void main() {
       expect(find.text('Con D'), findsOneWidget);
       // One unlink button: the parent. The sibling row has none.
       expect(find.byIcon(Icons.link_off), findsOneWidget);
+    });
+  });
+
+  group('narrowing the list of candidates by doi', () {
+    Future<void> link(int parent, int child) =>
+        repository.saveRelationship(
+          Relationship.parentChild(
+            id: 'r0000000-0000-7000-8000-${parent.toString().padLeft(6, '0')}'
+                '${child.toString().padLeft(6, '0')}',
+            familyId: familyId,
+            parent: personId(parent),
+            child: personId(child),
+          ),
+        );
+
+    /// A founder, a child, and a grandchild, plus somebody unconnected.
+    Future<void> seedLine() async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Thuy To');
+      await seedPerson(2, 'Con Ca');
+      await seedPerson(3, 'Chau Dich');
+      await seedPerson(4, 'Nguoi La');
+      await link(1, 2);
+      await link(2, 3);
+    }
+
+    Future<void> openPicker(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Add relationship'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add a parent'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('offers the doi the candidates stand in', (tester) async {
+      await seedLine();
+      await openProfile(tester, 3);
+      await openPicker(tester);
+
+      // Everybody but the subject, so doi one and two and the unnumbered.
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Generation 1'), findsOneWidget);
+      expect(find.text('Generation 2'), findsOneWidget);
+    });
+
+    testWidgets('narrows the candidates to the doi chosen', (tester) async {
+      await seedLine();
+      await openProfile(tester, 3);
+      await openPicker(tester);
+
+      // It opens on the đời a parent would stand in, so everybody has to be
+      // asked for before the narrowing can be watched happening.
+      await tester.tap(find.text('All'));
+      await tester.pumpAndSettle();
+      expect(find.text('Thuy To'), findsOneWidget);
+      expect(find.text('Con Ca'), findsOneWidget);
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Con Ca'), findsOneWidget);
+      expect(find.text('Thuy To'), findsNothing);
+      expect(find.text('Nguoi La'), findsNothing);
+    });
+
+    testWidgets('a relative can still be added once narrowed', (tester) async {
+      // The filter must not get in the way of the thing the screen is for.
+      //
+      // The unconnected one is the subject: adding Con Ca as a parent of his
+      // own son would be the edge the family already holds, and refused.
+      await seedLine();
+      await openProfile(tester, 4);
+      await openPicker(tester);
+
+      await tester.tap(find.text('Generation 2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Con Ca'));
+      await tester.pumpAndSettle();
+
+      final stored = await storedRelationships();
+      expect(stored, hasLength(3), reason: 'the two seeded, and the new one');
+      expect(
+        stored.where(
+          (r) =>
+              r.personAId == personId(2) && r.personBId == personId(4),
+        ),
+        hasLength(1),
+      );
+    });
+  });
+
+  group('looking like the list it stands in for', () {
+    Future<void> openPicker(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Add relationship'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add a parent'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('carries the same search field as the family list', (
+      tester,
+    ) async {
+      await seed();
+      await openProfile(tester, 1);
+      await openPicker(tester);
+
+      expect(find.byType(SearchPill), findsOneWidget);
+    });
+
+    testWidgets('marks a person the way the family list marks them', (
+      tester,
+    ) async {
+      // Man, woman or unknown, and grey once a death is recorded. A reader
+      // should not have to learn the code twice.
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await repository.savePerson(
+        Person(
+          id: personId(1),
+          familyId: familyId,
+          displayName: 'Ong A',
+          sex: Sex.male,
+        ),
+      );
+      await repository.savePerson(
+        Person(
+          id: personId(2),
+          familyId: familyId,
+          displayName: 'Ba B',
+          sex: Sex.female,
+          deathDate: GenealogicalDate(year: 1900),
+        ),
+      );
+      await openProfile(tester, 1);
+      await openPicker(tester);
+
+      final icon = tester.widget<RowIcon>(find.byType(RowIcon));
+      expect(icon.icon, Icons.woman, reason: 'the one candidate is a woman');
+      expect(
+        icon.color,
+        GroupedColors.grey,
+        reason: 'and her death is recorded, so she is drawn back',
+      );
+    });
+
+    testWidgets('shows the years beside a name, as the list does', (
+      tester,
+    ) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Ong A');
+      await repository.savePerson(
+        Person(
+          id: personId(2),
+          familyId: familyId,
+          displayName: 'Ba B',
+          birthDate: GenealogicalDate(year: 1880),
+          deathDate: GenealogicalDate(year: 1946),
+        ),
+      );
+      await openProfile(tester, 1);
+      await openPicker(tester);
+
+      expect(find.text('1880 – 1946'), findsOneWidget);
+    });
+  });
+
+  group('opening on the doi a relative would stand in', () {
+    Future<void> link(int parent, int child) =>
+        repository.saveRelationship(
+          Relationship.parentChild(
+            id: 'r0000000-0000-7000-8000-${parent.toString().padLeft(6, '0')}'
+                '${child.toString().padLeft(6, '0')}',
+            familyId: familyId,
+            parent: personId(parent),
+            child: personId(child),
+          ),
+        );
+
+    /// Four doi, one person in each, and a spare in the middle one.
+    Future<void> seedLine() async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Ho Nguyen'),
+      );
+      await seedPerson(1, 'Doi Mot');
+      await seedPerson(2, 'Doi Hai');
+      await seedPerson(3, 'Doi Ba');
+      await seedPerson(4, 'Doi Bon');
+      await seedPerson(5, 'Doi Ba Khac');
+      await link(1, 2);
+      await link(2, 3);
+      await link(3, 4);
+      await link(2, 5);
+    }
+
+    Future<void> pick(WidgetTester tester, int subject, String role) async {
+      await openProfile(tester, subject);
+      await tester.tap(find.byTooltip('Add relationship'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(role));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a parent opens one doi above', (tester) async {
+      await seedLine();
+      await pick(tester, 3, 'Add a parent');
+
+      // Doi Ba stands in the third; a parent of his is in the second.
+      expect(find.text('Doi Hai'), findsOneWidget);
+      expect(find.text('Doi Mot'), findsNothing);
+      expect(find.text('Doi Bon'), findsNothing);
+    });
+
+    testWidgets('a spouse opens alongside', (tester) async {
+      await seedLine();
+      await pick(tester, 3, 'Add a spouse');
+
+      expect(find.text('Doi Ba Khac'), findsOneWidget);
+      expect(find.text('Doi Hai'), findsNothing);
+      expect(find.text('Doi Bon'), findsNothing);
+    });
+
+    testWidgets('a child opens one doi below', (tester) async {
+      await seedLine();
+      await pick(tester, 3, 'Add a child');
+
+      expect(find.text('Doi Bon'), findsOneWidget);
+      expect(find.text('Doi Hai'), findsNothing);
+    });
+
+    testWidgets('it is a suggestion, not a restriction', (tester) async {
+      // A gia pha holds a second wife half a generation younger and a son
+      // adopted in. Every one of them has to be recordable.
+      await seedLine();
+      await pick(tester, 3, 'Add a parent');
+      expect(find.text('Doi Mot'), findsNothing);
+
+      await tester.tap(find.text('All'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Doi Mot'), findsOneWidget);
+      expect(find.text('Doi Bon'), findsOneWidget);
+    });
+
+    testWidgets('an empty doi opens on everybody instead', (tester) async {
+      // Nobody stands above the thuy to. Opening on a doi with nobody in it
+      // reads as a screen that failed to load.
+      await seedLine();
+      await pick(tester, 1, 'Add a parent');
+
+      expect(find.text('Doi Hai'), findsOneWidget);
+      expect(find.text('Doi Bon'), findsOneWidget);
     });
   });
 }
