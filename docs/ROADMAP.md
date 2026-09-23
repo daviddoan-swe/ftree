@@ -296,8 +296,7 @@ Before cloud work:
 
 * ~~review domain~~ — sibling order, below
 * ~~review schema~~ — indexes and migration proof, below
-* profile tree rendering — **still open**, and now measurable against the
-  generated family
+* ~~profile tree rendering~~ — measured, below
 * ~~fix UX issues~~ — the tree screen's, below; more will arrive with use
 * improve tests
 * ~~validate larger synthetic family trees~~ — `lib/dev/`, below
@@ -351,8 +350,9 @@ people (ARCHITECTURE.md §8.1, §8.2).
 Doing this before the M11 hardening pass was deliberate. The index is standard
 practice rather than speculative tuning, but the reason to spend the time now
 is that M7 brings Postgres and a run of schema changes, and until this landed
-nothing had ever demonstrated that a migration works. What it does *not* answer
-is how much time the index saves; that still belongs to the measurement task.
+nothing had ever demonstrated that a migration works. What it did *not* answer
+is how much time the indexes save. They have since been measured, and the
+answer is below.
 
 From the domain review: **sibling order was not modelled.** `children()`
 returned the order the parent-child edges happened to be created in, while the
@@ -400,10 +400,9 @@ here and would take a hundred years of somebody's family history with it.
 `lib/dev/` is unreachable from `lib/main.dart`, so none of it reaches a release
 build and there is no debug flag to remember to turn off.
 
-What this does **not** do is measure anything. The entry point prints how long
-generating and writing took, because those cost nothing to collect, but
-profiling the tree rendering is still open — as is the question the M6 index
-work left behind (ARCHITECTURE.md §8.1).
+What this does **not** do is measure anything beyond the two timings the entry
+point prints, because those cost nothing to collect. The measuring is a harness
+of its own, below.
 
 ### What three hundred people did to the tree screen
 
@@ -483,6 +482,76 @@ still read by scrolling. The form that would fit — the indented outline a gia
 phả is written in on paper, measured at 0.95 screens wide — is recorded here as
 the option not taken rather than as work outstanding. Use the chart on real
 data first.
+
+### What the tree screen actually costs
+
+`test/performance/tree_rendering.dart`. Deliberately not named `_test.dart`, so
+the suite does not carry it; run it with `flutter test` and the path. A harness
+rather than a page of numbers, because a measurement nobody can repeat is a
+measurement nobody can check.
+
+It runs in the Dart VM under JIT against a recording canvas, not AOT on a phone
+against a GPU. The absolute figures are therefore an upper bound and the
+*ratios* are what carry over. Median of twenty-one runs — one run in twenty
+meets the garbage collector, and a mean carries that into every conclusion.
+
+A thousand people, twelve generations, drawn five đời deep with the generations
+as rows:
+
+| | |
+| ----------------------------------- | -------: |
+| `TreePainter.paint`, 192 boxes      | 47.8 ms  |
+| — of which laying out the labels    | 31.9 ms  |
+| — of which rebuilding the drop points | 0.03 ms |
+| `layoutDescendants`                 |  0.9 ms  |
+| `FamilyGraph(...)`                  |  0.6 ms  |
+| `generations()` on a fresh graph    |  3.0 ms  |
+| `loadFamily`                        | 29.2 ms  |
+
+**A suspicion recorded here was wrong.** `_barsByParent` walks every edge on
+every paint and was named as a likely cost; it is five hundredths of a
+millisecond, 0.05% of a paint. Nothing there is worth touching, and the note
+that said otherwise is now this paragraph.
+
+The cost is the **labels**: every box builds a `TextPainter` and lays it out
+again from nothing, sixty-seven per cent of the paint. What takes the sting out
+is that panning and zooming do not repaint at all — `InteractiveViewer`
+transforms a layer that is already drawn. The 47 ms is paid when the layout
+changes: opening the screen, turning the page, redrawing from somebody else —
+and selecting a person, because that rebuilds and `TreeLayout` has no value
+equality, so `shouldRepaint` sees a new object every time.
+
+What keeps this off the list of work: **at three hundred people the same paint
+is 10.9 ms**, inside a frame. A thousand is the synthetic family, not a gia phả
+anybody has. Caching a person's laid-out label by id would cut two thirds of
+the paint and is the obvious repair — to be done when somebody reports a stall
+on real data, and not before (§5, avoid premature optimization).
+
+### What the indexes are worth
+
+The question ARCHITECTURE.md §8.1 left open, measured on the same harness at a
+thousand people. The answer has two halves and only one of them was expected:
+
+| | with indexes | without | |
+| -------------- | ------: | ------: | ---- |
+| `loadFamily`   | 29.2 ms | 28.7 ms | 0.98× |
+| `deletePerson` |  0.65 ms |  1.80 ms | 2.77× |
+
+Reading a whole family touches most of both tables, and for that a sequential
+scan beats consulting an index — `persons_by_family` and
+`relationships_by_family` earn nothing on the read they were named for. What
+they do earn is on `deleteFamily`, which is the same filter over a table it
+does not read whole.
+
+`relationships_by_person_a` and `relationships_by_person_b` are worth what was
+hoped: finding one person's edges is a handful of rows out of thousands, which
+is the shape an index wins, and deleting a person is **2.8× faster** for having
+them.
+
+So the decision to index was right and the reasoning written down for it was
+not. Both indexes stay: the read loses nothing measurable by their presence,
+and M7 brings a server where the same tables are read by family under a
+different engine.
 
 ---
 

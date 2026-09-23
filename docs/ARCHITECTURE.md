@@ -224,6 +224,27 @@ later.
 `families` is left unindexed: a device holds a handful of them, and scanning
 five rows beats consulting an index.
 
+**Measured afterwards**, at a thousand people (ROADMAP M6, "What the indexes
+are worth"), and half of the table above turns out to be justified by the wrong
+query:
+
+| | with | without | |
+| -------------- | ------: | ------: | ----: |
+| `loadFamily`   | 29.2 ms | 28.7 ms | 0.98× |
+| `deletePerson` |  0.65 ms |  1.80 ms | 2.77× |
+
+Loading a family reads most of both tables, and a sequential scan beats an
+index for that — so `persons_by_family` and `relationships_by_family` earn
+nothing on the read. They earn their keep on `deleteFamily`, the same filter
+over a table it does not read whole. `relationships_by_person_a` and `_b` are
+worth what was hoped: a person's edges are a handful of rows out of thousands,
+and removing a person is **2.8× faster** for having them.
+
+Both pairs stay. The read loses nothing measurable by their presence, and the
+same filters are what a server will read by in M7. The lesson is about the
+reasoning rather than the decision: an index was declared for every filter,
+and it was never true that every filter wanted one.
+
 ### 8.2 Migrations are verified against the schema that shipped
 
 Schema history lives in `drift_schemas/` as one JSON file per version, captured
