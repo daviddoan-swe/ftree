@@ -7,25 +7,36 @@ import 'package:ftree/data/database/app_database.dart';
 import 'schema_versions/schema.dart';
 import 'schema_versions/schema_v1.dart' as v1;
 
-/// The project's first migration, verified against the real v1 schema rather
-/// than against a hand-written approximation of it.
+/// Every migration, verified against the real shipped schemas rather than
+/// against hand-written approximations of them.
 ///
 /// A schema mistake costs a migration on every installed device (DOMAIN.md
-/// §18), so the shape of v1 is captured in `drift_schemas/` and replayed here.
+/// §18), so each version's shape is captured in `drift_schemas/` and replayed
+/// here.
+///
+/// **Every earlier version is upgraded to the current one, not merely to the
+/// next.** A device that has not been opened since v1 does not stop at v2 on
+/// its way; it runs both steps in one go, and that is the path that has to
+/// work.
 void main() {
+  /// Read from the database rather than written down, so this file cannot
+  /// fall behind a version bump without failing.
+  final currentSchema = AppDatabase(NativeDatabase.memory()).schemaVersion;
+
   late SchemaVerifier verifier;
 
   setUpAll(() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('upgrading from v1 produces the v2 schema', () async {
-    final connection = await verifier.startAt(1);
-    final db = AppDatabase(connection);
+  for (final from in <int>[1, 2]) {
+    test('upgrading from v$from produces the current schema', () async {
+      final db = AppDatabase(await verifier.startAt(from));
 
-    await verifier.migrateAndValidate(db, 2);
-    await db.close();
-  });
+      await verifier.migrateAndValidate(db, currentSchema);
+      await db.close();
+    });
+  }
 
   test('a device that already holds data keeps it', () async {
     const familyId = 'f0000000-0000-7000-8000-000000000000';
@@ -48,12 +59,17 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 2);
+    await verifier.migrateAndValidate(db, currentSchema);
 
     final families = await db.select(db.families).get();
     final people = await db.select(db.persons).get();
     expect(families.single.name, 'Họ Nguyễn');
     expect(people.single.displayName, 'Cụ Tổ');
+    expect(
+      families.single.sharedAt,
+      isNull,
+      reason: 'nothing was shared before there was anywhere to share it to',
+    );
 
     await db.close();
   });

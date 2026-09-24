@@ -54,6 +54,20 @@ class Families extends Table with _SyncColumns {
 
   /// Whether the family keeps its dates and anniversaries by the lunar
   /// calendar. Travels with the tree rather than following the viewer.
+  /// When this device sent this family to the cloud, or null.
+  ///
+  /// **Local only, and not part of [Family].** It says nothing about the gia
+  /// phả — it records what this device did with it — so the domain entity
+  /// stays clear of it, the same way it stays clear of `updatedAt` (§15.2).
+  ///
+  /// A mark rather than a question asked of the server: offline there is
+  /// nobody to ask, and the answer decides what the interface offers.
+  ///
+  /// A time rather than a flag, matching `deletedAt` beside it. It reads back
+  /// as "shared on the 24th" where a boolean reads as "shared, at some point
+  /// nobody wrote down".
+  DateTimeColumn get sharedAt => dateTime().nullable()();
+
   BoolColumn get usesLunarCalendar =>
       boolean().withDefault(const Constant(false))();
 
@@ -186,8 +200,10 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   /// 2 — indexes on the columns every read filters by.
+  /// 3 — `families.sharedAt`, so a device knows which families it has shared
+  ///     without asking a server it may not be able to reach.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -217,6 +233,11 @@ class AppDatabase extends _$AppDatabase {
         await m.create(relationshipsByFamily);
         await m.create(relationshipsByPersonA);
         await m.create(relationshipsByPersonB);
+      }
+      if (from < 3) {
+        // Null for every family already here, which is the truth: nothing has
+        // been shared, because until now there was nowhere to share it to.
+        await m.addColumn(families, families.sharedAt);
       }
     },
     beforeOpen: (OpeningDetails details) async {
