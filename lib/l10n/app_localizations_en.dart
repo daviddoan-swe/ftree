@@ -261,11 +261,11 @@ class AppTextEn extends AppText {
   String get generationFilterAll => 'All';
 
   @override
-  String get generationFilterUnknown => 'Generation unknown';
+  String get generationFilterUnknown => 'Gen unknown';
 
   @override
   String treeGenerationOrdinal(int number) {
-    return 'Generation $number';
+    return 'Gen $number';
   }
 
   @override
