@@ -409,6 +409,84 @@ abstract class AppText {
   /// **'Về cây gia phả'**
   String get trailToTree;
 
+  /// No description provided for @importTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nhập gia phả'**
+  String get importTitle;
+
+  /// Ngày file được xuất ra, theo đồng hồ của máy đã xuất
+  ///
+  /// In vi, this message translates to:
+  /// **'File ghi ngày {date}'**
+  String importFrom(String date);
+
+  /// No description provided for @importNewFamily.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng họ này chưa có trên máy'**
+  String get importNewFamily;
+
+  /// No description provided for @importAddsPeople.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =0{Không thêm người nào} =1{Thêm 1 người} other{Thêm {count} người}}'**
+  String importAddsPeople(int count);
+
+  /// No description provided for @importAddsRelationships.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =0{Không thêm quan hệ nào} =1{Thêm 1 quan hệ} other{Thêm {count} quan hệ}}'**
+  String importAddsRelationships(int count);
+
+  /// No description provided for @importAlreadyHerePeople.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{1 người đã có sẵn} other{{count} người đã có sẵn}}'**
+  String importAlreadyHerePeople(int count);
+
+  /// No description provided for @importAlreadyHereRelationships.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{1 quan hệ đã có sẵn} other{{count} quan hệ đã có sẵn}}'**
+  String importAlreadyHereRelationships(int count);
+
+  /// Quan hệ bị luật của dòng họ từ chối — thiếu người ở một đầu, hoặc tạo thành vòng tổ tiên
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{1 quan hệ không nhận được} other{{count} quan hệ không nhận được}}'**
+  String importRejected(int count);
+
+  /// Giới hạn của việc gộp, phải nói thẳng chứ không để người dùng tự phát hiện (PRODUCT §9.1)
+  ///
+  /// In vi, this message translates to:
+  /// **'Chỉ thêm, không sửa gì đang có. Bản sửa trên máy người khác không truyền sang được.'**
+  String get importAddOnly;
+
+  /// No description provided for @importNothingNew.
+  ///
+  /// In vi, this message translates to:
+  /// **'File này không có gì mới so với máy'**
+  String get importNothingNew;
+
+  /// No description provided for @importAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nhập'**
+  String get importAction;
+
+  /// No description provided for @importFailed.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không đọc được file'**
+  String get importFailed;
+
+  /// No description provided for @importDonePeople.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =0{Không thêm người nào} =1{Đã thêm 1 người} other{Đã thêm {count} người}}'**
+  String importDonePeople(int count);
+
   /// No description provided for @personProfile.
   ///
   /// In vi, this message translates to:

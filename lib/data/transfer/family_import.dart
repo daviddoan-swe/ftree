@@ -81,7 +81,16 @@ final class ImportPlan {
     required this.personsAlreadyHere,
     required this.relationshipsAlreadyHere,
     required this.rejected,
+    this.exportedAt,
   });
+
+  /// When the file said it was written, if it said.
+  ///
+  /// Carried through from the file so that showing a plan needs nothing but
+  /// the plan. It decides nothing — it is a clock reading from somebody
+  /// else's device (§15.3) — and is shown so a reader can tell an old export
+  /// from a recent one.
+  final DateTime? exportedAt;
 
   /// The family the file belongs to, as the file describes it.
   ///
@@ -188,6 +197,7 @@ ImportPlan planImport(FamilyFile file, {FamilySnapshotLike? existing}) {
 
   return ImportPlan(
     family: file.family,
+    exportedAt: file.exportedAt,
     familyIsNew: existing == null,
     newPersons: newPersons,
     newRelationships: newRelationships,

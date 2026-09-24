@@ -208,6 +208,100 @@ class AppTextEn extends AppText {
   String get trailToTree => 'Back to the family tree';
 
   @override
+  String get importTitle => 'Import a family';
+
+  @override
+  String importFrom(String date) {
+    return 'Written $date';
+  }
+
+  @override
+  String get importNewFamily => 'This family is not on the device yet';
+
+  @override
+  String importAddsPeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Add $count people',
+      one: 'Add 1 person',
+      zero: 'No people to add',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importAddsRelationships(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Add $count relationships',
+      one: 'Add 1 relationship',
+      zero: 'No relationships to add',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importAlreadyHerePeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people are already here',
+      one: '1 person is already here',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importAlreadyHereRelationships(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count relationships are already here',
+      one: '1 relationship is already here',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importRejected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count relationships cannot be taken',
+      one: '1 relationship cannot be taken',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importAddOnly =>
+      'Adds only; nothing already here is changed. A correction made on someone else\'s device does not travel.';
+
+  @override
+  String get importNothingNew =>
+      'There is nothing in this file that is not already here';
+
+  @override
+  String get importAction => 'Import';
+
+  @override
+  String get importFailed => 'The file could not be read';
+
+  @override
+  String importDonePeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count people',
+      one: 'Added 1 person',
+      zero: 'No people added',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get personProfile => 'Profile';
 
   @override

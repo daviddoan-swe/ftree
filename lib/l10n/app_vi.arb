@@ -115,6 +115,43 @@
     "description": "Như trailToList, khi chuỗi hồ sơ bắt đầu từ màn hình cây"
   },
 
+  "importTitle": "Nhập gia phả",
+  "importFrom": "File ghi ngày {date}",
+  "@importFrom": {
+    "description": "Ngày file được xuất ra, theo đồng hồ của máy đã xuất",
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "importNewFamily": "Dòng họ này chưa có trên máy",
+  "importAddsPeople": "{count, plural, =0{Không thêm người nào} =1{Thêm 1 người} other{Thêm {count} người}}",
+  "@importAddsPeople": { "placeholders": { "count": { "type": "int" } } },
+
+  "importAddsRelationships": "{count, plural, =0{Không thêm quan hệ nào} =1{Thêm 1 quan hệ} other{Thêm {count} quan hệ}}",
+  "@importAddsRelationships": { "placeholders": { "count": { "type": "int" } } },
+
+  "importAlreadyHerePeople": "{count, plural, =1{1 người đã có sẵn} other{{count} người đã có sẵn}}",
+  "@importAlreadyHerePeople": { "placeholders": { "count": { "type": "int" } } },
+
+  "importAlreadyHereRelationships": "{count, plural, =1{1 quan hệ đã có sẵn} other{{count} quan hệ đã có sẵn}}",
+  "@importAlreadyHereRelationships": { "placeholders": { "count": { "type": "int" } } },
+
+  "importRejected": "{count, plural, =1{1 quan hệ không nhận được} other{{count} quan hệ không nhận được}}",
+  "@importRejected": {
+    "description": "Quan hệ bị luật của dòng họ từ chối — thiếu người ở một đầu, hoặc tạo thành vòng tổ tiên",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "importAddOnly": "Chỉ thêm, không sửa gì đang có. Bản sửa trên máy người khác không truyền sang được.",
+  "@importAddOnly": {
+    "description": "Giới hạn của việc gộp, phải nói thẳng chứ không để người dùng tự phát hiện (PRODUCT §9.1)"
+  },
+
+  "importNothingNew": "File này không có gì mới so với máy",
+  "importAction": "Nhập",
+  "importFailed": "Không đọc được file",
+  "importDonePeople": "{count, plural, =0{Không thêm người nào} =1{Đã thêm 1 người} other{Đã thêm {count} người}}",
+  "@importDonePeople": { "placeholders": { "count": { "type": "int" } } },
+
   "personProfile": "Hồ sơ",
   "personRelatives": "Quan hệ",
   "personNoRelatives": "Chưa nối người này với ai",

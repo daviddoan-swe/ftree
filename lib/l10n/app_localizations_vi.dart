@@ -204,6 +204,99 @@ class AppTextVi extends AppText {
   String get trailToTree => 'Về cây gia phả';
 
   @override
+  String get importTitle => 'Nhập gia phả';
+
+  @override
+  String importFrom(String date) {
+    return 'File ghi ngày $date';
+  }
+
+  @override
+  String get importNewFamily => 'Dòng họ này chưa có trên máy';
+
+  @override
+  String importAddsPeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Thêm $count người',
+      one: 'Thêm 1 người',
+      zero: 'Không thêm người nào',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importAddsRelationships(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Thêm $count quan hệ',
+      one: 'Thêm 1 quan hệ',
+      zero: 'Không thêm quan hệ nào',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importAlreadyHerePeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count người đã có sẵn',
+      one: '1 người đã có sẵn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importAlreadyHereRelationships(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count quan hệ đã có sẵn',
+      one: '1 quan hệ đã có sẵn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importRejected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count quan hệ không nhận được',
+      one: '1 quan hệ không nhận được',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importAddOnly =>
+      'Chỉ thêm, không sửa gì đang có. Bản sửa trên máy người khác không truyền sang được.';
+
+  @override
+  String get importNothingNew => 'File này không có gì mới so với máy';
+
+  @override
+  String get importAction => 'Nhập';
+
+  @override
+  String get importFailed => 'Không đọc được file';
+
+  @override
+  String importDonePeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Đã thêm $count người',
+      one: 'Đã thêm 1 người',
+      zero: 'Không thêm người nào',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get personProfile => 'Hồ sơ';
 
   @override
