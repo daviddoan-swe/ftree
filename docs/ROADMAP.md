@@ -687,17 +687,78 @@ back-filling every row on every installed device, which is the shape of cost
 
 Implement:
 
-* PostgreSQL schema
-* authentication
-* FamilyMembership — the entity arrives here, with the first real `userId`
+* ~~PostgreSQL schema~~ — `supabase/migrations/…_schema.sql`
+* ~~authentication~~ — `lib/data/cloud/cloud_session.dart`
+* ~~FamilyMembership~~ — the entity arrives here, with the first real `userId`
   (DOMAIN.md §12.1)
-* remote repositories
-* database migrations
-* initial security configuration
+* ~~remote repositories~~ — `SupabaseFamilyRepository`, held to the same
+  contract as the SQLite one
+* ~~database migrations~~ — four, replayable with `supabase db reset`
+* ~~initial security configuration~~ — RLS on every table, policies per role
 
 Exit criteria:
 
 Authenticated development users can securely access cloud-backed test data.
+**Met**, against a Postgres running on the developer's own machine. A cloud
+project of its own is not needed to develop against and is not set up.
+
+### One contract, two stores
+
+`test/support/repository_contract.dart` holds sixteen checks written against
+`FamilyRepository` rather than against either store. SQLite answers them in the
+ordinary suite; Postgres answers the same ones, **unchanged**, in `test/cloud/`.
+
+That the file is imported rather than adapted is the point. Two implementations
+each passing tests of their own prove nothing about swapping one for the other,
+which is what M9 is going to do.
+
+Running it against Postgres for the first time failed fourteen of sixteen, all
+on one thing, and the thing was worth finding.
+
+### Creating a family and editing one are different acts
+
+Postgres judges `INSERT … ON CONFLICT DO UPDATE` against the UPDATE policies
+whether or not anything conflicts. Creating a family asks for a role in a
+family nobody has a role in yet — the owner arrives a moment later, from the
+trigger — so an upsert of a *new* family was always refused, while an upsert of
+an existing one, or of a person into a family already owned, worked.
+
+Not a fault in the policies. Anyone signed in may start a family; only its
+owner or editor may change one. SQLite has no way to tell those apart and so
+never had to. `save_family_all` now branches, and `saveFamily` goes through it.
+
+### Three promises PostgREST cannot keep
+
+Every request it serves is its own transaction, and the contract promises more:
+`saveAll` is all or nothing, `deletePerson` must take the person's edges with
+them, `deleteFamily` likewise. Left as separate requests, an interruption
+between them leaves the half state each promise exists to prevent — most
+sharply a tombstoned person whose edges still point at them and still
+synchronise as real (§15.1).
+
+So all three are functions, and all three are `SECURITY INVOKER`: the policies
+judge every statement inside them exactly as from outside. Only two functions
+step around RLS — `my_role`, because a policy that reads the table it guards
+recurses for ever, and `owner_on_create`, because the creator of a family holds
+no membership at the instant they need one. Each is a hole in the wall and each
+says why where it is written.
+
+### What is deliberately not here
+
+**No permission check in the Dart.** One would be a second, weaker copy of a
+rule the server already enforces, and the first to fall out of step. What the
+policies allow is what happens.
+
+**No screen.** `lib/features` is untouched by this milestone. The decision was
+taken before any of it was built (above), and holds: reading from the server
+when there is a network would cost offline use and be dismantled again at M9.
+
+**A refused UPDATE does not look like one.** Worth carrying into M9: a
+forbidden INSERT throws 42501, but `USING` decides which rows an UPDATE can
+see, so a forbidden one matches nothing, changes nothing, and reports success —
+HTTP 204. A viewer who edits a name is told it worked. Whatever eventually
+writes through this has to ask for the changed rows back rather than trust the
+status.
 
 ---
 

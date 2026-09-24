@@ -14,6 +14,12 @@ The local-only version comes first: domain model, family graph, local
 persistence, and tree rendering. Cloud sync and sharing follow once the local
 application is stable.
 
+The cloud schema, authentication and access policies exist and are checked
+against a Postgres running on the developer's own machine — but **no screen
+uses them**. The application reads and writes SQLite exactly as it did, and
+will until synchronisation gives the two copies something to say to each
+other. A family leaves the device today as a file, not over a network.
+
 ## Documentation
 
 | Document | Contents |
@@ -34,7 +40,7 @@ expensive or impossible to reverse once real data exists.
 | Client | Flutter / Dart |
 | State management | Riverpod |
 | Local persistence | Drift / SQLite |
-| Cloud (later) | Supabase — PostgreSQL, Auth, Storage |
+| Cloud | Supabase — PostgreSQL, Auth, Storage |
 
 Platform targets are iOS and Android. `web/` is kept as a development
 convenience for inspecting graph and layout output quickly; it is not a
@@ -215,9 +221,84 @@ is slow or cries wolf is one people learn to bypass:
 git commit --no-verify    # when you are certain it is a false alarm
 ```
 
-### Changing the database schema
+### The cloud, on your own machine
 
-Drift generates the table code, and the schema history has to be captured
+The cloud half of the project — PostgreSQL, authentication, and the policies
+that decide who may read what — runs locally. Nothing needs a Supabase account
+to develop against.
+
+```sh
+brew install supabase/tap/supabase   # once; 2.117.0 at the time of writing
+supabase start                       # needs Docker Desktop running
+```
+
+The first start pulls a few images and takes several minutes. It prints the
+addresses and keys; `supabase status -o env` prints them again later. The
+database sits on port 54322, the API on 54321, and a web console on 54323.
+
+Migrations in `supabase/migrations/` are applied automatically on start, and
+by hand afterwards:
+
+```sh
+supabase migration up --local        # apply what is new
+supabase db reset --local            # throw it away and replay from the top
+```
+
+`[analytics]` is off in `supabase/config.toml`. It runs a log shipper — the
+`vector` container — that nothing here reads, and it is the one piece of the
+local stack that fails to come up.
+
+### Running the checks that need the cloud
+
+They are **not** part of `flutter test`, and deliberately have no `_test.dart`
+suffix: they need Docker and a running stack, and a check that fails on a
+machine without one says nothing about the code.
+
+```sh
+flutter test test/cloud/auth.dart                 # signing in, and who the server thinks you are
+flutter test test/cloud/repository_contract.dart  # Postgres answering the repository contract
+```
+
+The second is the one worth understanding. `test/support/repository_contract.dart`
+holds sixteen checks written against `FamilyRepository` rather than against
+either store; SQLite answers them in the ordinary suite and Postgres answers
+the same ones here, unchanged. If a change makes the two disagree, that file
+is where it shows.
+
+`test/performance/tree_rendering.dart` is arranged the same way, for the same
+reason: the suite has to stay runnable anywhere.
+
+### Changing the cloud schema
+
+```sh
+supabase migration new <name>        # creates a timestamped, empty file
+# write it, then:
+supabase db reset --local            # replay everything, including yours
+```
+
+Read ARCHITECTURE.md §8.2 first. **A migration that has been applied anywhere
+but a local scratch database is never edited** — the file is the shipped
+history, and every environment has to run the same sequence. Editing one is
+allowed only while it has never been committed, and `supabase db reset` is
+what proves it still works from scratch.
+
+Two traps the existing migrations have comments about, worth knowing before
+writing a new one:
+
+* **Enable row-level security in the same file that creates the table.**
+  PostgREST serves every table through the publishable key, which ships inside
+  the application. A table without RLS is a public table, and nothing warns
+  about it.
+* **A policy on a table that reads that same table recurses for ever.** The
+  way out is a `SECURITY DEFINER` function, which runs outside RLS — see
+  `my_role` in `20260924000002_memberships.sql`. Every such function is a hole
+  in the wall, so there are two of them and both say why where they are
+  written.
+
+### Changing the local schema
+
+SQLite, on the device. Drift generates the table code, and the schema history
+has to be captured
 before the migration can be tested against it:
 
 ```sh
