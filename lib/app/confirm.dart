@@ -1,9 +1,13 @@
-/// Asking before something is destroyed.
+/// Asking before something that cannot be taken back.
 ///
-/// Two prompts, because the friction should be proportional to the damage.
+/// Two prompts, because the friction should be proportional to the harm.
 /// Removing one relationship or one person is a dialog. Deleting a whole family
 /// — years of transcription, with no undo anywhere in the application — asks
 /// for the name to be typed.
+///
+/// Destroying is not the only thing that cannot be undone. Sending a family
+/// out of the device puts it somewhere the application can never reach again,
+/// which is why an export asks too (PRODUCT.md §10).
 library;
 
 import 'package:flutter/material.dart';
@@ -11,7 +15,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 /// Asks whether to go ahead. False if the user declines or dismisses.
-Future<bool> confirmDestructive(
+Future<bool> confirmIrreversible(
   BuildContext context, {
   required String title,
   required String body,

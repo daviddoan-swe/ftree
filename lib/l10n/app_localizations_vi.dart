@@ -204,6 +204,26 @@ class AppTextVi extends AppText {
   String get trailToTree => 'Về cây gia phả';
 
   @override
+  String get exportConfirmTitle => 'Xuất dòng họ này?';
+
+  @override
+  String exportConfirmBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Gửi toàn bộ $count người ra khỏi máy',
+      one: 'Gửi 1 người ra khỏi máy',
+    );
+    return '$_temp0, kèm ngày tháng, nơi chốn và ghi chú — gồm cả người còn sống. File gửi đi rồi thì không thu lại được.';
+  }
+
+  @override
+  String get exportAction => 'Xuất';
+
+  @override
+  String get exportNothing => 'Dòng họ này không còn gì để xuất';
+
+  @override
   String get importTitle => 'Nhập gia phả';
 
   @override

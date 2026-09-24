@@ -45,7 +45,7 @@ Future<ImportPlan?> importFamilyFromText(
   try {
     file = decodeFamilyFile(text);
   } on FamilyFileException catch (e) {
-    if (context.mounted) await _sayItCannotBeRead(context, e.reason);
+    if (context.mounted) await showImportFailure(context, e.reason);
     return null;
   }
 
@@ -81,10 +81,29 @@ Future<ImportPlan?> importFamilyFromText(
   ref.invalidate(familyListProvider);
   ref.invalidate(familySnapshotProvider(plan.family.id));
 
+  // Said out loud, and said here rather than by whoever called: a write that
+  // reports nothing leaves the reader on the screen they started from with no
+  // way to tell whether three hundred people arrived or the tap was missed.
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppText.of(context).importDonePeople(plan.newPersons.length),
+        ),
+      ),
+    );
+  }
+
   return plan;
 }
 
-Future<void> _sayItCannotBeRead(BuildContext context, String reason) {
+/// Tells the reader why an import stopped, in the words of whatever stopped it.
+///
+/// Public because the part that fetches the file is somewhere else and can
+/// fail in its own ways — an unreadable file, a picker that refuses — and
+/// silence is the worst of the possible answers: somebody who taps Import and
+/// sees nothing has nothing to report and no reason to try again.
+Future<void> showImportFailure(BuildContext context, String reason) {
   final text = AppText.of(context);
 
   return showDialog<void>(

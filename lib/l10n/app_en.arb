@@ -88,6 +88,11 @@
 
   "trailToList": "Back to the list of people",
   "trailToTree": "Back to the family tree",
+  "exportConfirmTitle": "Export this family?",
+  "exportConfirmBody": "{count, plural, =1{Sends 1 person off the device} other{Sends all {count} people off the device}}, with their dates, places and notes — including those still living. A file that has been sent cannot be called back.",
+  "exportAction": "Export",
+  "exportNothing": "There is nothing left in this family to export",
+
   "importTitle": "Import a family",
   "importFrom": "Written {date}",
   "importNewFamily": "This family is not on the device yet",

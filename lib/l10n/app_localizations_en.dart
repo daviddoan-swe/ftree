@@ -208,6 +208,26 @@ class AppTextEn extends AppText {
   String get trailToTree => 'Back to the family tree';
 
   @override
+  String get exportConfirmTitle => 'Export this family?';
+
+  @override
+  String exportConfirmBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sends all $count people off the device',
+      one: 'Sends 1 person off the device',
+    );
+    return '$_temp0, with their dates, places and notes — including those still living. A file that has been sent cannot be called back.';
+  }
+
+  @override
+  String get exportAction => 'Export';
+
+  @override
+  String get exportNothing => 'There is nothing left in this family to export';
+
+  @override
   String get importTitle => 'Import a family';
 
   @override

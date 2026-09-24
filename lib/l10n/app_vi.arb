@@ -115,6 +115,15 @@
     "description": "Như trailToList, khi chuỗi hồ sơ bắt đầu từ màn hình cây"
   },
 
+  "exportConfirmTitle": "Xuất dòng họ này?",
+  "exportConfirmBody": "{count, plural, =1{Gửi 1 người ra khỏi máy} other{Gửi toàn bộ {count} người ra khỏi máy}}, kèm ngày tháng, nơi chốn và ghi chú — gồm cả người còn sống. File gửi đi rồi thì không thu lại được.",
+  "@exportConfirmBody": {
+    "description": "Xuất là đưa dữ liệu riêng tư ra ngoài, không thu lại được (PRODUCT §10)",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "exportAction": "Xuất",
+  "exportNothing": "Dòng họ này không còn gì để xuất",
+
   "importTitle": "Nhập gia phả",
   "importFrom": "File ghi ngày {date}",
   "@importFrom": {

@@ -41,6 +41,23 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   flutter_slidable: ^4.0.3
+  # Leaving the device and coming back (PRODUCT.md §9.1). Until cloud
+  # synchronisation exists, a file is the only way a family's record survives
+  # an uninstall or reaches a relative.
+  #
+  # share_plus opens the system share sheet, which is what makes sending a
+  # branch one tap rather than a trip through the Files app — in Vietnam that
+  # means Zalo. file_selector reads one back; it is the Flutter team's own
+  # package, chosen over the more popular file_picker for a smaller surface.
+  # path_provider gives the temporary directory an export is written to: the
+  # file lives only long enough to be handed to the share sheet, so it is not
+  # kept in Documents where it would pile up unseen.
+  #
+  # It is already present through drift_flutter, but declared here because
+  # depending on a transitive dependency breaks the day that package drops it.
+  share_plus: ^13.3.0
+  file_selector: ^1.1.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

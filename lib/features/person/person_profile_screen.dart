@@ -483,7 +483,7 @@ class _DeletePerson extends ConsumerWidget {
         .where((r) => r.involves(person.id))
         .length;
 
-    final confirmed = await confirmDestructive(
+    final confirmed = await confirmIrreversible(
       context,
       title: text.deleteTitle(person.displayName),
       body: text.personDeleteBody(losing),

@@ -409,6 +409,30 @@ abstract class AppText {
   /// **'Về cây gia phả'**
   String get trailToTree;
 
+  /// No description provided for @exportConfirmTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xuất dòng họ này?'**
+  String get exportConfirmTitle;
+
+  /// Xuất là đưa dữ liệu riêng tư ra ngoài, không thu lại được (PRODUCT §10)
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{Gửi 1 người ra khỏi máy} other{Gửi toàn bộ {count} người ra khỏi máy}}, kèm ngày tháng, nơi chốn và ghi chú — gồm cả người còn sống. File gửi đi rồi thì không thu lại được.'**
+  String exportConfirmBody(int count);
+
+  /// No description provided for @exportAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xuất'**
+  String get exportAction;
+
+  /// No description provided for @exportNothing.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng họ này không còn gì để xuất'**
+  String get exportNothing;
+
   /// No description provided for @importTitle.
   ///
   /// In vi, this message translates to:

@@ -261,6 +261,35 @@ void main() {
     });
   });
 
+  testWidgets('importing says what it added, rather than nothing', (
+    tester,
+  ) async {
+    // Found by running it: the import worked, wrote the rows, and said
+    // nothing at all — leaving a reader on the list they started from with no
+    // way to tell whether it had happened.
+    await runImport(tester, aFile());
+    await tapImport(tester);
+
+    expect(find.text('Added 3 people'), findsOneWidget);
+  });
+
+  testWidgets('a family deleted here comes back from a file', (tester) async {
+    // The other half of the same defect. The rows were written and every one
+    // kept its tombstone, so the family stayed invisible and the import still
+    // reported success.
+    await runImport(tester, aFile());
+    await tapImport(tester);
+    await repository.deleteFamily(familyId);
+    expect(await repository.loadFamily(familyId), isNull);
+
+    await runImport(tester, aFile());
+    await tapImport(tester);
+
+    final stored = await repository.loadFamily(familyId);
+    expect(stored, isNotNull);
+    expect(stored!.graph.persons, hasLength(3));
+  });
+
   testWidgets('a file cannot rename the family already on the device', (
     tester,
   ) async {

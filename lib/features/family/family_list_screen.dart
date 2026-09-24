@@ -9,8 +9,12 @@ import '../../app/confirm.dart';
 import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
+import 'package:file_selector/file_selector.dart';
+
 import '../../l10n/app_localizations.dart';
+import 'export_family.dart';
 import 'family_form_sheet.dart';
+import 'import_family.dart';
 import 'family_screen.dart';
 
 class FamilyListScreen extends ConsumerWidget {
@@ -22,7 +26,22 @@ class FamilyListScreen extends ConsumerWidget {
     final families = ref.watch(familyListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(text.familiesTitle)),
+      appBar: AppBar(
+        title: Text(text.familiesTitle),
+        actions: <Widget>[
+          // On the bar rather than on a row: an import belongs to no family
+          // in particular, and the file may bring one this device has never
+          // seen.
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.file_download_outlined),
+              tooltip: text.importTitle,
+              onPressed: () => _pickAndImport(context, ref),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         shape: const CircleBorder(),
         onPressed: () => showFamilyFormSheet(context),
@@ -86,6 +105,16 @@ class _FamilyList extends ConsumerWidget {
         motion: const DrawerMotion(),
         extentRatio: 0.5,
         children: <Widget>[
+          // What is exported is one family, so the action belongs to its own
+          // row. Before Edit, so that Delete keeps the outermost place a
+          // practised swipe already reaches for.
+          SlidableAction(
+            onPressed: (_) => _export(context, ref, family),
+            icon: Icons.ios_share,
+            label: text.exportAction,
+            backgroundColor: colors.surfaceContainerHighest,
+            foregroundColor: colors.onSurfaceVariant,
+          ),
           SlidableAction(
             onPressed: (_) => showFamilyFormSheet(context, editing: family),
             icon: Icons.edit_outlined,
@@ -125,6 +154,56 @@ class _FamilyList extends ConsumerWidget {
   }
 }
 
+/// Picks a file and, if the reader agrees to what it would do, imports it.
+///
+/// The picker is the only part that needs the operating system; everything
+/// after it runs on the text and is covered by `import_family_test`.
+Future<void> _pickAndImport(BuildContext context, WidgetRef ref) async {
+  const json = XTypeGroup(
+    label: 'JSON',
+    extensions: <String>['json'],
+    // iOS filters by uniform type rather than by extension, and a file that
+    // arrived through a chat application often carries no useful type at all —
+    // so the export's own type and plain text are both allowed through.
+    uniformTypeIdentifiers: <String>['public.json', 'public.plain-text'],
+  );
+
+  // Everything here is guarded, because nothing awaits this function: it is
+  // started by a tap and its future is dropped. An unguarded throw would
+  // vanish into the zone and leave the reader looking at a screen that did
+  // nothing, with no idea whether the file was wrong or the tap was missed.
+  //
+  // readAsString is the likely one: pick something that is not UTF-8 text —
+  // a photo, a PDF — and it throws rather than returning nonsense.
+  try {
+    final picked = await openFile(acceptedTypeGroups: <XTypeGroup>[json]);
+    if (picked == null) return;
+
+    // Read before the check, not inside the call: reading is itself an await,
+    // and a screen can go away during it.
+    final text = await picked.readAsString();
+    if (!context.mounted) return;
+
+    await importFamilyFromText(context, ref, text);
+  } on Object catch (e) {
+    if (context.mounted) await showImportFailure(context, '$e');
+  }
+}
+
+/// Writes a family out and hands it to the share sheet.
+Future<void> _export(
+  BuildContext context,
+  WidgetRef ref,
+  Family family,
+) async {
+  final hadSomething = await exportFamily(context, ref, family.id);
+  if (hadSomething || !context.mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(exportEmptyMessage(context))),
+  );
+}
+
 /// Asks before tombstoning a family, its people, and their relationships.
 ///
 /// A family with people in it asks for its name to be typed back. That is years
@@ -148,7 +227,7 @@ Future<void> _confirmAndDelete(
 
   final people = snapshot.graph.persons.length;
   final confirmed = people == 0
-      ? await confirmDestructive(
+      ? await confirmIrreversible(
           context,
           title: text.deleteTitle(family.name),
           body: text.familyDeleteEmptyBody,

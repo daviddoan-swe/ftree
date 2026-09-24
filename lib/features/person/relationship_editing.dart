@@ -188,7 +188,7 @@ Future<void> removeRelative(
   if (relationship == null) return;
 
   final text = AppText.of(context);
-  final confirmed = await confirmDestructive(
+  final confirmed = await confirmIrreversible(
     context,
     title: text.relationshipRemoveTitle,
     body: text.relationshipRemoveBody(
