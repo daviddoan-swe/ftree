@@ -261,6 +261,24 @@ Users should eventually be able to:
 
 Detailed synchronization behavior is not part of the first implementation milestone.
 
+### 9.1 The data must be able to leave the device
+
+A family tree lives in the application's own private storage, which both iOS
+and Android delete when the application is uninstalled. A user must be able to
+**export one family to a file** they keep themselves, and to **import** such a
+file back.
+
+This is not a feature waiting on synchronization. Until synchronization exists,
+a file is the only way a hundred years of transcription survives a reinstall.
+After it exists, a file is still how a branch reaches a relative who does not
+want an account.
+
+**Import adds; it never overwrites.** Deciding which copy is newer needs a
+clock that can be trusted, and devices do not have one (DOMAIN.md §15.3).
+Anything already on this device is left exactly as it is. The cost has to be
+said plainly in the interface rather than discovered: a correction made on a
+relative's device does not travel.
+
 ---
 
 ## 10. Privacy
@@ -302,7 +320,10 @@ Do NOT initially implement:
 * payment/subscription systems
 * advanced analytics
 * public APIs
-* GEDCOM import/export
+* GEDCOM import/export — the international interchange format, and worth
+  adding later so a family is never locked into this application. The
+  application's **own** file format is in scope now, and is a different job
+  (§9.1)
 
 These features may be reconsidered later.
 
@@ -320,5 +341,12 @@ The initial product milestone is successful when:
 5. A multi-generation family tree can be generated from the data.
 6. The tree can be rendered and navigated on iOS and Android.
 7. Person information can be created, viewed, and edited.
+8. A family can be exported to a file and imported back, and importing loses
+   nothing that was already there.
+
+Item 8 is listed alongside the rest rather than after them. Until it is done,
+every family entered into the application is one uninstall away from gone —
+which is a larger risk than any of the others on this list, several of which
+are already met.
 
 Only after this foundation is stable should cloud sharing become a priority.

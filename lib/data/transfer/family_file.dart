@@ -1,4 +1,4 @@
-/// A gia phả as a file somebody can keep, send, and read.
+/// A gia phả as a file somebody can keep, send, and read (PRODUCT.md §9.1).
 ///
 /// The application stores everything in one SQLite file inside its own private
 /// directory, which both platforms delete when the application is uninstalled.
@@ -11,11 +11,28 @@
 /// be merged, and merging is the whole point: the ids in it are globally
 /// unique (DOMAIN.md §14.1), so two people's exports never collide.
 ///
-/// **JSON rather than GEDCOM.** GEDCOM would open the door to other genealogy
-/// software, which matters, but it cannot carry a lunar date and has no way to
-/// say "this date is known only to the year" without inventing the rest. Both
-/// are things this application treats as central (DOMAIN.md §4). A GEDCOM
-/// export can be added later beside this one; it cannot replace it.
+/// **JSON rather than GEDCOM, for this job.** GEDCOM is the international
+/// interchange format — written by genealogists in 1984 and read by every
+/// serious program since — and a GEDCOM export is worth adding. It is not what
+/// this file is for, and two reasons keep it from being:
+///
+/// * **No lunar calendar.** The version everything actually supports names
+///   Gregorian, Julian, Hebrew, French Republican and Roman. There is no
+///   Chinese or Vietnamese lunisolar calendar in it, and a giỗ is kept by the
+///   lunar date (DOMAIN.md §4.4).
+/// * **Its identifiers are local to the file.** `@I1@` means "the first
+///   individual in *this* file" — so merging two exports is exactly the
+///   collision problem UUID v7 exists to avoid (§14.1). GEDCOM 7 adds a stable
+///   `UID`, but the format in universal use does not have one.
+///
+/// What GEDCOM handles *well* is the thing this comment previously and wrongly
+/// said it could not: partial and approximate dates are native to it — `1887`,
+/// `MAR 1887`, `ABT 1890`, `BET 1880 AND 1890`. It was designed by people with
+/// the same problem.
+///
+/// The two formats do different jobs. GEDCOM takes a family *out* to other
+/// software; this file backs one up and merges it between two copies of this
+/// application. Neither replaces the other.
 ///
 /// ## The format
 ///
