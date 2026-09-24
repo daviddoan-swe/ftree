@@ -296,11 +296,26 @@ than the same data about ancestors.
 
 This is not built for V1, but two things follow from it now:
 
-* Whether a person is living is a deliberate recorded decision, not something
-  inferred from a missing death date. Many deceased ancestors have no recorded
-  death date.
+* **Death is derived, and one-way.** A person has died when a death date *or* a
+  place of death is recorded (DOMAIN.md §3.5). Either is somebody writing down
+  that this person died; neither is a record that says nothing on the subject.
+  Nothing may read the absence of both as "living" — it means *nothing was
+  recorded*, which for most of a gia phả is the truth. Where the difference
+  matters, the words are "no death recorded".
 * The eventual sharing mechanism must be able to give a user part of a family
   rather than all of it.
+
+**What this cannot yet express.** A person the family knows perfectly well has
+died, but whose date and place nobody remembers, cannot be recorded as dead:
+the form refuses a claim it has nothing to store behind. Such an ancestor is
+shown the same as somebody nothing is known about — not greyed on the chart,
+not greyed in a list.
+
+For a gia phả reaching back three centuries this is common rather than rare,
+and the current rule was chosen knowing it: a derived answer cannot be wrong,
+needs no migration, and needs nothing back-filled. Closing the gap means
+storing the fact separately from its evidence, which is a schema decision and
+is recorded here as open rather than settled.
 
 ---
 

@@ -192,6 +192,13 @@ Consequences elsewhere:
   person form's switch requires a date or a place before it will save, because
   an empty claim would vanish the moment it was written.
 
+**Open: a death with no evidence.** A person the family knows has died, but
+whose date and place nobody remembers, cannot be recorded as dead at all — and
+in a gia phả reaching back three centuries that is common. They are shown the
+same as somebody nothing is known about. Closing it means storing the fact
+separately from its evidence, which is a schema decision (PRODUCT §10); it is
+recorded here as open rather than settled, and §18 does not lock it.
+
 The privacy question this feeds — hiding living people from Viewers — is a
 separate matter and needs per-person filtering (ARCHITECTURE §11.1).
 
