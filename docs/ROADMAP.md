@@ -810,6 +810,39 @@ What is missing is one column: the device has to remember which families are
 shared. It travels with the synchronisation metadata the local schema needs
 anyway.
 
+### Chia sẻ is offered once, and what happens when it is not
+
+Checked against the running stack rather than reasoned about, because the
+question — *what if the family is already up there?* — has three answers and
+only one of them was obvious.
+
+**Sharing the same family twice is harmless.** The second press takes the
+update branch, and `owner_on_create` fires only on insert, so there is still
+exactly one membership row. Nothing is duplicated.
+
+**Sharing a family somebody else already shared is refused**, with
+`23505 duplicate key value violates unique constraint "families_pkey"`. The
+effect is right — nobody takes over a family that is not theirs — but that
+sentence tells a person nothing, and the case is not rare. It is the ordinary
+consequence of the file export: one person sends a copy, the other imports it,
+and both devices now hold a family with the same id. Whichever presses second
+meets this.
+
+What it should say is that the family is already kept by somebody else, and
+that an invitation from them is the way in. Saying so leaks nothing: whoever
+meets it already holds the whole family, which is how they came to have its id.
+
+**A member pressing Chia sẻ on a family already shared is the one to prevent.**
+It takes the update branch and is allowed — and `saveAll` upserts the people
+and edges too, so a local copy would land on top of the shared one. That is
+"my copy wins", which is precisely the conflict resolution that cannot be done
+without an ordering nobody has yet (§15.3).
+
+So **Chia sẻ is offered only for a family that is not shared**. Once it is, the
+action on that family is *invite somebody*, not share it again. The column that
+remembers which families are shared is what makes the distinction visible
+without asking the server.
+
 ### Left open, on purpose
 
 **Email or phone number.** A phone number is the identity Vietnamese users
