@@ -660,6 +660,31 @@ which is the argument for ARCHITECTURE §14.1 made again: run it and look.
 
 Introduce Supabase.
 
+### Two decisions taken before any of it is built
+
+**The application keeps reading and writing SQLite.** The cloud repository is
+built and proved against the same contract, and is not wired into any screen
+until M9 brings synchronisation. Reading from the server when there is a
+network would show cloud data sooner and cost the thing CLAUDE.md §1 lists
+fourth — a gia phả that opens on a train. It would also have to be taken apart
+again at M9.
+
+What this means in practice: nothing in `lib/features` changes at M7. The
+milestone is finished when a signed-in developer can reach cloud-backed data
+*through the repository contract*, not when a screen shows it.
+
+**A server-assigned sequence column is added now, and left unused.** M7 has no
+need of it. It is the only way to answer "which copy is newer", because
+`updatedAt` cannot (§15.3) — and without an answer to that, merging two edits
+of the same person field by field is not merely unbuilt but impossible.
+
+That question came up while the file import was being built: two editors
+change different fields of one person, and the merge should take both. It
+needs three versions, not two — theirs, theirs, and the common ancestor — and
+an ordering to say which is which. Adding a monotonic column later means
+back-filling every row on every installed device, which is the shape of cost
+§18 exists to warn about.
+
 Implement:
 
 * PostgreSQL schema

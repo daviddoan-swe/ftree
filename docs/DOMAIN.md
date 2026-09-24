@@ -907,7 +907,25 @@ Device wall-clocks are not comparable — they drift, and users change them. A
 device with a wrong date would win every conflict permanently.
 
 Conflict ordering will use a server-assigned sequence or a hybrid logical clock,
-designed when synchronization requirements are concrete.
+designed when synchronization requirements are concrete. **The column arrives
+at M7**, unused, because adding a monotonic column later means back-filling
+every row on every installed device.
+
+**Open, for M9: merging two edits of one person.** Two editors change different
+fields — one the birth date, one the name — and the merge should take both.
+Nothing today does this: the file import skips a person whose id is already
+here, and `savePerson` replaces the whole row.
+
+It needs three versions rather than two. Given only the two edited copies there
+is no way to tell whether one side changed a field or the other side changed it
+back; both stories produce the same pair. So it needs the common ancestor as
+well — a stored base, per-field stamps, or a CRDT register per field — and all
+three need an ordering, which is what the sequence column is for.
+
+Where both editors changed the *same* field, nothing may choose for them. One
+of the two is the truth about somebody's ancestor. Both are kept and the reader
+decides, by the rule §6.2 already states for cycles: the user's data is more
+authoritative than the invariant.
 
 ---
 
