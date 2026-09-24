@@ -766,11 +766,60 @@ status.
 
 Implement:
 
+* **signing in, reached from Chia sẻ** — the first screen in the application
+  that knows an account exists (PRODUCT §4.1)
+* **marking a family as shared** — one column in the local schema, because the
+  device cannot ask the server while offline (PRODUCT §4.2)
 * Owner
 * Editor
 * Viewer
 * invitations
 * Row Level Security
+
+### Where signing in lives, and why it is here rather than at M7
+
+Not at the door. The application works with no account and no network, and
+most people will only ever want that (PRODUCT §4.1). A sign-in wall in front
+of it is a wall in front of the whole application.
+
+It sits behind **Chia sẻ**, one action on one family, beside export, edit and
+delete. Pressing it is somebody saying they want a record kept by more than one
+person, which is the only thing an account buys.
+
+M7 did not need it. Authentication is four functions in
+`lib/data/cloud/cloud_session.dart`, exercised against a real auth server; a
+screen is a way for a person to call three of them. What a screen adds is the
+human path and **a session that survives closing the application** — and that
+second one has never been checked, because the checks mock the device storage
+a session would live in. It is a simulator job, like the share sheet.
+
+### What the shared-family decision costs, measured against what exists
+
+Less than expected, because of two decisions already taken.
+
+Ids are UUID v7 and globally unique (§14.1), so a family pushed up keeps the id
+it had — no renumbering, no translation table. Had this been an auto-increment
+integer, this is where it would have stopped.
+
+`owner_on_create` reads the creator from the token, and fires on INSERT
+whatever id the client supplied. So whoever presses Chia sẻ becomes owner with
+nothing added, and `save_family_all` already branches insert from update in the
+way that needs.
+
+What is missing is one column: the device has to remember which families are
+shared. It travels with the synchronisation metadata the local schema needs
+anyway.
+
+### Left open, on purpose
+
+**Email or phone number.** A phone number is the identity Vietnamese users
+remember; an SMS code costs money per message. Decided when the cost is worth
+weighing rather than now.
+
+**Listing families from two places.** A family may be local, both, or — for
+somebody just invited — on the server alone. That third state is new, and it is
+the point at which the single repository becomes awkward rather than before
+(ARCHITECTURE §7). M9's.
 
 Membership rules to enforce server-side (DOMAIN.md §12.1):
 

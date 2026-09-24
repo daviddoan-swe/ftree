@@ -99,6 +99,69 @@ After the local application is stable, users should be able to:
 5. Assign family permissions.
 6. Share updates between authorized family members.
 
+### 4.1 An account is never needed to use the application
+
+**Decided.** The application works, completely, with no account and no
+network. Three ways of using it, and only the third asks for one:
+
+| | What somebody is doing | Account |
+| --- | --- | --- |
+| 1 | Recording their own family, on their own device | **No** |
+| 2 | Sending a relative a copy to read | **No** — a file (§9.1) |
+| 3 | Several people keeping **one** record between them | **Yes**, for those people |
+
+An account is asked for at the moment somebody wants the third thing, never at
+the door. Most people who use this will want the first, and a sign-in wall in
+front of it is a wall in front of the whole application — against the offline
+capability the project lists fourth among its goals.
+
+So there is no sign-in screen at launch. Sharing is an action on **one family**
+— a "Chia sẻ" alongside export, edit and delete — and signing in happens there,
+with a sentence saying what it is for. Somebody who never presses it never sees
+it.
+
+**A relative who is to edit must register.** There is no way round that: the
+server decides what anybody may touch from the identity in their token, and an
+identity means an account. It is real friction for an elderly relative, and it
+is reduced rather than removed — an invitation leads straight into signing up
+rather than leaving somebody to find it.
+
+**A relative who only wants to read does not.** They get a file. That path
+stays, and it is the right one for most of a family.
+
+Whether an account is made with an email address or a phone number is **open**.
+A phone number is the identity Vietnamese users actually remember; an SMS code
+costs real money per message, which §9's total-cost thinking has to weigh.
+
+### 4.2 Only a family that is shared leaves the device
+
+**Decided.** Pressing Chia sẻ on one family sends that family. Every other
+family on the device is untouched and unknown to the server, including after
+the account exists.
+
+This follows from what an account is for. Signing in is not a statement about
+everything on the device; it is what one family needs in order to be kept by
+more than one person.
+
+Two earlier decisions make it work rather than merely describe it:
+
+* Identifiers are globally unique (DOMAIN §14.1), so a family moves to the
+  server keeping the id it already had. There is no renumbering and no table
+  of translations.
+* The server decides who owns a family from the token of whoever created it,
+  so the person who presses Chia sẻ becomes its owner without anything being
+  asserted by the client.
+
+What it needs that does not exist yet: the device has to remember which of its
+families are shared, since it cannot ask the server while offline. That is one
+column, and it travels with the synchronisation metadata the local schema needs
+anyway.
+
+What stays open for synchronisation: a family may be on the device only, on
+both, or — for somebody who has just been invited — on the server only. Listing
+families then has to answer from two places, which is the point at which the
+repository boundary is worth splitting rather than before (ARCHITECTURE §7).
+
 ---
 
 ## 5. Family Permissions
