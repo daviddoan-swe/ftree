@@ -334,8 +334,8 @@ void main() {
 
       // Everybody but the subject, so doi one and two and the unnumbered.
       expect(find.text('All'), findsOneWidget);
-      expect(find.text('Generation 1'), findsOneWidget);
-      expect(find.text('Generation 2'), findsOneWidget);
+      expect(find.text('Gen 1'), findsOneWidget);
+      expect(find.text('Gen 2'), findsOneWidget);
     });
 
     testWidgets('narrows the candidates to the doi chosen', (tester) async {
@@ -354,7 +354,7 @@ void main() {
       expect(find.text('Thuy To'), findsOneWidget);
       expect(find.text('Con Ca'), findsOneWidget);
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
 
       expect(find.text('Con Ca'), findsOneWidget);
@@ -371,7 +371,7 @@ void main() {
       await openProfile(tester, 4);
       await openPicker(tester);
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Con Ca'));
       await tester.pumpAndSettle();

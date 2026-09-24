@@ -1005,10 +1005,10 @@ void main() {
       await facing(tester, TreeOrientation.leftToRight);
 
       // Three drawn, counted from the thuỷ tổ.
-      expect(find.text('Generation 1'), findsOneWidget);
-      expect(find.text('Generation 2'), findsOneWidget);
-      expect(find.text('Generation 3'), findsOneWidget);
-      expect(find.text('Generation 4'), findsNothing);
+      expect(find.text('Gen 1'), findsOneWidget);
+      expect(find.text('Gen 2'), findsOneWidget);
+      expect(find.text('Gen 3'), findsOneWidget);
+      expect(find.text('Gen 4'), findsNothing);
     });
 
     testWidgets('says how many of each đời this branch holds', (
@@ -1078,19 +1078,19 @@ void main() {
       await seedLine(6);
       await openTree(tester);
       await facing(tester, TreeOrientation.leftToRight);
-      expect(find.text('Generation 1'), findsOneWidget);
+      expect(find.text('Gen 1'), findsOneWidget);
 
       await tapPerson(tester, 2);
       await tester.tap(find.widgetWithText(TextButton, 'Draw from here'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Generation 1'),
+        find.text('Gen 1'),
         findsNothing,
         reason: 'Đời 2 is not suddenly Đời 1 for being at the top',
       );
-      expect(find.text('Generation 2'), findsOneWidget);
-      expect(find.text('Generation 4'), findsOneWidget);
+      expect(find.text('Gen 2'), findsOneWidget);
+      expect(find.text('Gen 4'), findsOneWidget);
     });
 
     testWidgets('a married-in spouse does not start a line of her own', (
@@ -1159,8 +1159,8 @@ void main() {
 
       final labels = <Rect>[
         for (var n = 1; n <= 6; n++)
-          if (find.text('Generation $n').evaluate().isNotEmpty)
-            tester.getRect(find.text('Generation $n')),
+          if (find.text('Gen $n').evaluate().isNotEmpty)
+            tester.getRect(find.text('Gen $n')),
       ];
 
       for (var i = 0; i < labels.length; i++) {
@@ -1185,7 +1185,7 @@ void main() {
       await facing(tester, TreeOrientation.leftToRight);
 
       final viewer = tester.getRect(find.byType(InteractiveViewer));
-      for (final label in <String>['Generation 1', 'Generation 2']) {
+      for (final label in <String>['Gen 1', 'Gen 2']) {
         expect(
           viewer.overlaps(tester.getRect(find.text(label))),
           isFalse,

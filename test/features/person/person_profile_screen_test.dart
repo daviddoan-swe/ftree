@@ -595,8 +595,8 @@ void main() {
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('Generation 2'), findsOneWidget);
-      expect(find.text('Generation 1'), findsNothing);
+      expect(find.text('Gen 2'), findsOneWidget);
+      expect(find.text('Gen 1'), findsNothing);
     });
   });
 }

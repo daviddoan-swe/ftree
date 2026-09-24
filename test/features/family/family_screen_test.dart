@@ -300,10 +300,10 @@ void main() {
       await openFamily(tester);
 
       expect(find.text('All'), findsOneWidget);
-      expect(find.text('Generation 1'), findsOneWidget);
-      expect(find.text('Generation 2'), findsOneWidget);
-      expect(find.text('Generation 3'), findsOneWidget);
-      expect(find.text('Generation 4'), findsNothing);
+      expect(find.text('Gen 1'), findsOneWidget);
+      expect(find.text('Gen 2'), findsOneWidget);
+      expect(find.text('Gen 3'), findsOneWidget);
+      expect(find.text('Gen 4'), findsNothing);
     });
 
     testWidgets('the All chip counts everybody, and the parts add up', (
@@ -353,7 +353,7 @@ void main() {
       // Built but off the end — every chip is laid out, which is what makes
       // one reachable at all, but only some of them are on screen.
       expect(
-        tester.getRect(find.text('Generation 9')).left,
+        tester.getRect(find.text('Gen 9')).left,
         greaterThan(row.right),
         reason: 'the case tested: it starts beyond the right-hand edge',
       );
@@ -364,13 +364,13 @@ void main() {
             matching: find.byType(Scrollable),
           )
           .first;
-      await tester.scrollUntilVisible(find.text('Generation 9'), 200,
+      await tester.scrollUntilVisible(find.text('Gen 9'), 200,
           scrollable: scroller);
-      await tester.tap(find.text('Generation 9'));
+      await tester.tap(find.text('Gen 9'));
       await tester.pumpAndSettle();
 
       expect(
-        tester.getRect(find.text('Generation 9')).center.dx,
+        tester.getRect(find.text('Gen 9')).center.dx,
         closeTo(row.center.dx, 40),
       );
     });
@@ -433,7 +433,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(AvatarHeader), findsNothing, reason: 'scrolled past');
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
 
       expect(
@@ -449,7 +449,7 @@ void main() {
       await openFamily(tester);
       expect(find.text('Thuy To'), findsOneWidget);
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
 
       expect(find.text('Con Ca'), findsOneWidget);
@@ -464,11 +464,11 @@ void main() {
       await seedLine();
       await openFamily(tester);
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
       expect(find.text('Thuy To'), findsNothing);
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
 
       expect(find.text('Thuy To'), findsOneWidget);
@@ -479,7 +479,7 @@ void main() {
       await seedLine();
       await openFamily(tester);
 
-      await tester.tap(find.text('Generation 2'));
+      await tester.tap(find.text('Gen 2'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, 'ca');
       await tester.pumpAndSettle();
@@ -515,7 +515,7 @@ void main() {
       await seedPerson(9, 'Ngoai Toc');
       await openFamily(tester);
 
-      await tester.tap(find.text('Generation unknown'));
+      await tester.tap(find.text('Gen unknown'));
       await tester.pumpAndSettle();
 
       expect(find.text('Ngoai Toc'), findsOneWidget);

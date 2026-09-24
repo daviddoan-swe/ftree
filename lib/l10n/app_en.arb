@@ -117,12 +117,12 @@
     "description": "Chip that clears the đời filter on a list of people"
   },
 
-  "generationFilterUnknown": "Generation unknown",
+  "generationFilterUnknown": "Gen unknown",
   "@generationFilterUnknown": {
     "description": "Chip for people the founding line does not reach, who have no đời in this family\u2019s counting"
   },
 
-  "treeGenerationOrdinal": "Generation {number}",
+  "treeGenerationOrdinal": "Gen {number}",
   "@treeGenerationOrdinal": {
     "description": "Label for one generation on the strip along the generation axis, counted from the founding ancestor",
     "placeholders": {
