@@ -93,10 +93,10 @@ Historical records are frequently incomplete, so the domain must not require inf
 * When creating a Person, the UI suggests a default composed from the name parts.
 * After creation, `displayName` is independent of the parts.
 * Rationale: mononyms, patronymics, religious names, and non-Western name
-  ordering cannot be produced reliably by composing three fields. A stored
-  display name is the only representation that always renders correctly.
+   ordering cannot be produced reliably by composing three fields. A stored
+   display name is the only representation that always renders correctly.
 * Accepted trade-off: `displayName` can drift from the parts. The UI should
-  offer to re-derive it, but must never overwrite it silently.
+   offer to re-derive it, but must never overwrite it silently.
 
 `additionalNames` is a single optional free-text field, not a `middleName`.
 
@@ -106,10 +106,10 @@ Historical records are frequently incomplete, so the domain must not require inf
 `birthFamilyName` is the surname at birth (maiden name).
 
 * This is core genealogical data, not an edge case: it is how a person is
-  linked into their parents' branch.
+   linked into their parents' branch.
 * It is cheap now and expensive later — retrofitting it requires changing the
-  entry UI, the local schema, the cloud schema, and the sync payload at once,
-  at a point where users no longer remember the missing values.
+   entry UI, the local schema, the cloud schema, and the sync payload at once,
+   at a point where users no longer remember the missing values.
 
 Alternate spellings and name variants across records are **deferred**.
 
@@ -167,7 +167,7 @@ This avoids coupling Person to assumptions about family structure.
 
 A person **has died** when a death date or a place of death is recorded:
 
-```
+```sh
 hasDied = deathDate != null || deathPlace != null
 ```
 
@@ -186,11 +186,11 @@ say "no death recorded".
 Consequences elsewhere:
 
 * An age is the span to the death date. Where a death is recorded without a
-  date, there is no age to show — counting to today would age a dead man.
+   date, there is no age to show — counting to today would age a dead man.
 * A person is drawn back in grey once `hasDied`.
 * The interface may not let somebody assert a death it cannot store. The
-  person form's switch requires a date or a place before it will save, because
-  an empty claim would vanish the moment it was written.
+   person form's switch requires a date or a place before it will save, because
+   an empty claim would vanish the moment it was written.
 
 **Open: a death with no evidence.** A person the family knows has died, but
 whose date and place nobody remembers, cannot be recorded as dead at all — and
@@ -220,7 +220,7 @@ Common cases:
 
 A genealogical date is:
 
-```
+```kt
 GenealogicalDate {
   year           : int        // Gregorian; required when a date is present
   month          : int?       // 1-12, null if unknown
@@ -273,7 +273,7 @@ Gregorian calendar. A single family tree will contain both.
 
 **The Gregorian date is mandatory and is the only basis for comparison.**
 
-```
+```kt
 LunarDate {
   year         : int
   month        : int?   // 1-12
@@ -288,15 +288,15 @@ recorded alongside, optional, and used only for display and provenance.
 Rules:
 
 * Ordering, intervals, and every warning in §9.2 read the Gregorian value
-  alone. A lunar annotation can never change whether a warning fires.
+   alone. A lunar annotation can never change whether a warning fires.
 * `Family.usesLunarCalendar` decides what is *offered and shown*, never what is
-  stored. Turning it off on a family that already has lunar readings hides
-  them; it must not erase them. They record what the source document said, and
-  a display setting has no business destroying that.
+   stored. Turning it off on a family that already has lunar readings hides
+   them; it must not erase them. They record what the source document said, and
+   a display setting has no business destroying that.
 * Nothing verifies that the two agree. That requires the conversion described
-  below; once it exists, a mismatch becomes a good warning candidate.
+   below; once it exists, a mismatch becomes a good warning candidate.
 * Day is bounded at 30 rather than resolved exactly, because knowing whether a
-  given lunar month has 29 or 30 days requires the astronomical calculation.
+   given lunar month has 29 or 30 days requires the astronomical calculation.
 
 Why the lunar value is stored rather than derived: the conversion does not
 exist yet, so without storage there is no way to show a lunar date or compute
@@ -354,7 +354,7 @@ becomes `(A, B)` on the way in and collides with the existing row.
 
 Uniqueness constraint:
 
-```
+```sql
 UNIQUE (familyId, type, personAId, personBId)
 ```
 
@@ -509,13 +509,13 @@ to the implementation.
 * `p` is **excluded** from its own sibling list.
 * Results are **deduplicated**. Sharing both parents yields one entry, not two.
 * Each result carries `sharedParentCount`, so full siblings (2) and half
-  siblings (1) are distinguishable by the caller without a second query.
+   siblings (1) are distinguishable by the caller without a second query.
 * Step-siblings (children of a parent's spouse, with no shared parent) are
-  **not** included.
+   **not** included.
 * With only one recorded parent, full and half siblings are indistinguishable.
-  This is a limitation of the data, not a defect.
+   This is a limitation of the data, not a defect.
 * Results come back eldest first as far as the recorded birth dates say, by the
-  rule in §13.3.
+   rule in §13.3.
 
 ---
 
@@ -526,7 +526,7 @@ correctly transcribed records and become unusable on real family documents.
 
 Validation therefore returns a result, not a boolean:
 
-```
+```scala
 ValidationSeverity = error | warning
 
 IssueCode          // a stable identifier, each declaring its own severity
@@ -576,12 +576,12 @@ proceed.
 * Death date before birth date
 * Parent born after child
 * Child born more than one year after the parent's death
-  (posthumous birth is real — this is a warning, never an error)
+   (posthumous birth is real — this is a warning, never an error)
 * Implausible parental age (below ~12 or above ~70 at a child's birth)
 * Lifespan beyond ~120 years
 * Spouses who are also ancestor/descendant of one another
-  (cousin marriage is historically common; parent-child marriage is almost
-  always a data-entry error — but it is the user's data)
+   (cousin marriage is historically common; parent-child marriage is almost
+   always a data-entry error — but it is the user's data)
 
 Every warning is subject to the partial-date rule in §4.3: no warning is
 produced when the comparison is indeterminate.
@@ -773,9 +773,9 @@ birth date at all. So a person moves ahead of another only when
 consequences, both deliberate:
 
 * Children with no recorded birth are not moved, and nobody is moved past
-  them. Passing them would be a reordering with nothing behind it.
+   them. Passing them would be a reordering with nothing behind it.
 * Where nothing is known, the order the relationships were created survives —
-  which for a transcription is usually the order of the book being copied.
+   which for a transcription is usually the order of the book being copied.
 
 The result can be incomplete; it is never wrong. That is the same bargain §4.3
 makes when it keeps a warning silent rather than guess.
@@ -930,7 +930,7 @@ Tree-layout concerns must not leak into Person or Relationship.
 8. Duplicate relationships are rejected — `UNIQUE (familyId, type, personAId, personBId)`.
 9. Symmetric relationship types are stored with canonically ordered ids.
 10. Parent-child relationships must not create ancestry cycles **on the write path**;
-    cycles arriving via merge are detected and reported, not assumed impossible.
+   cycles arriving via merge are detected and reported, not assumed impossible.
 11. All graph traversals terminate in the presence of a cycle.
 12. Relationships are represented independently from Person.
 13. Authentication identity is separate from genealogical identity.
@@ -945,7 +945,7 @@ Stated affirmatively so that no future schema or validation change introduces
 them by accident:
 
 * A Person may have **any number** of parents. There is no maximum of two.
-  Biological plus adoptive parents exceed two routinely.
+   Biological plus adoptive parents exceed two routinely.
 * A Person is not required to have any parents, children, or spouses.
 * A Person may have any number of spouse relationships.
 * No date field is required, and no date is required to be complete.
