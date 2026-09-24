@@ -192,12 +192,21 @@ Consequences elsewhere:
    person form's switch requires a date or a place before it will save, because
    an empty claim would vanish the moment it was written.
 
-**Open: a death with no evidence.** A person the family knows has died, but
-whose date and place nobody remembers, cannot be recorded as dead at all — and
-in a gia phả reaching back three centuries that is common. They are shown the
-same as somebody nothing is known about. Closing it means storing the fact
-separately from its evidence, which is a schema decision (PRODUCT §10); it is
-recorded here as open rather than settled, and §18 does not lock it.
+**A death with no evidence cannot be recorded — decided, and left.** A person
+the family knows has died, but whose date and place nobody remembers, cannot be
+marked dead at all, and in a gia phả reaching back three centuries that is
+common. They are shown the same as somebody nothing is known about.
+
+The alternative is to store the fact separately from its evidence: a `hasDied`
+column, plus the rule that a recorded date or place still implies death on its
+own, so the flag could only ever *add* to the answer and never subtract from it.
+That keeps §3.5's one-way property intact.
+
+It is not built. The present rule cannot be wrong about anything, because it
+derives the answer from fields that are already there; a stored flag introduces
+a way for the record to contradict itself, in exchange for a grey box. The
+reversal is a plain migration rather than one of the unrecoverable kind (§18),
+so the cost of waiting is the gap itself and nothing more.
 
 The privacy question this feeds — hiding living people from Viewers — is a
 separate matter and needs per-person filtering (ARCHITECTURE §11.1).
@@ -973,3 +982,4 @@ Recorded so they are not relitigated, and so their cost of reversal is visible.
 | Fixed `sex` value domain with first-class `unknown`   | §3.2    | Migration with no correct answer for existing rows    |
 | `birthFamilyName` present from the start              | §3.1    | Values no longer known by the time it is added        |
 | FamilyGraph built in memory per family                | §13.2   | Low — revisit with measurements                       |
+| Death derived only; no stored `hasDied` flag          | §3.5    | Low — one column and a migration                      |

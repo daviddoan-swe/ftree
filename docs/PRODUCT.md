@@ -311,11 +311,17 @@ the form refuses a claim it has nothing to store behind. Such an ancestor is
 shown the same as somebody nothing is known about — not greyed on the chart,
 not greyed in a list.
 
-For a gia phả reaching back three centuries this is common rather than rare,
-and the current rule was chosen knowing it: a derived answer cannot be wrong,
-needs no migration, and needs nothing back-filled. Closing the gap means
-storing the fact separately from its evidence, which is a schema decision and
-is recorded here as open rather than settled.
+For a gia phả reaching back three centuries this is common rather than rare.
+
+**Decided: left as it is for V1.** Closing the gap means storing the fact
+separately from its evidence — a column, and a schema version for every device
+already carrying one. What the present rule buys is that the answer is derived,
+so no column can be wrong about it and nothing can contradict anything else.
+The gap costs an ancestor the grey they have earned; it costs no data.
+
+Reversible cheaply, which is why it waits: adding the column later is an
+ordinary migration, not the kind whose price has to be paid at the start
+(DOMAIN.md §18).
 
 ---
 
