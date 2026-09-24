@@ -255,19 +255,42 @@ void main() {
       addTearDown(db.close);
       final FamilyRepository repository = DriftFamilyRepository(db);
 
-      final writing = Stopwatch()..start();
-      await repository.saveFamily(data.family);
+      final rows = data.persons.length + data.relationships.length;
+
+      // Row by row, which is what the single-row writes come to, and what
+      // saveAll exists to replace.
+      final lonely = AppDatabase(NativeDatabase.memory());
+      addTearDown(lonely.close);
+      final FamilyRepository oneAtATime = DriftFamilyRepository(lonely);
+
+      final slow = Stopwatch()..start();
+      await oneAtATime.saveFamily(data.family);
       for (final person in data.persons) {
-        await repository.savePerson(person);
+        await oneAtATime.savePerson(person);
       }
       for (final relationship in data.relationships) {
-        await repository.saveRelationship(relationship);
+        await oneAtATime.saveRelationship(relationship);
       }
-      writing.stop();
+      slow.stop();
       _say(
         'writing the family in, row by row',
-        writing.elapsedMicroseconds.toDouble(),
-        per: '${data.persons.length + data.relationships.length} rows',
+        slow.elapsedMicroseconds.toDouble(),
+        per: '$rows rows',
+      );
+
+      // The same rows through one transaction.
+      final quick = Stopwatch()..start();
+      await repository.saveAll(
+        family: data.family,
+        persons: data.persons,
+        relationships: data.relationships,
+      );
+      quick.stop();
+      _say(
+        'writing the family in, one transaction',
+        quick.elapsedMicroseconds.toDouble(),
+        per: '${(slow.elapsedMicroseconds / quick.elapsedMicroseconds)
+            .toStringAsFixed(1)}× faster',
       );
 
       final indexedRead = await _medianAsync(() async {

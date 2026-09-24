@@ -61,6 +61,29 @@ abstract interface class FamilyRepository {
   /// Inserts [relationship], or updates it if the id already exists.
   Future<void> saveRelationship(Relationship relationship);
 
+  /// Writes a family, people, and edges **together, or not at all**.
+  ///
+  /// The single-row writes above cannot express this. Calling [savePerson] a
+  /// thousand times leaves a thousand rows that are each already committed, so
+  /// anything that interrupts the run — the application killed, the battery
+  /// gone, the disk full — leaves a family half written, with edges naming
+  /// people who are not there and nothing to say it happened.
+  ///
+  /// Ordered within the write: the family, then its people, then the edges
+  /// between them. The foreign keys require it.
+  ///
+  /// Semantics per row match [savePerson] — insert, or update where the id is
+  /// already present. Choosing *which* rows to pass is the caller's, and where
+  /// a caller must not overwrite what is already stored it passes only what is
+  /// new (see `planImport`).
+  ///
+  /// [family] is null when writing into one already stored.
+  Future<void> saveAll({
+    Family? family,
+    Iterable<Person> persons,
+    Iterable<Relationship> relationships,
+  });
+
   /// Tombstones [personId] and every relationship naming them.
   Future<void> deletePerson(String personId);
 

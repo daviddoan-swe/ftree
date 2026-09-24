@@ -358,4 +358,140 @@ void main() {
       expect(row.deletedAt, clock);
     });
   });
+
+  group('writing a family in one piece', () {
+    /// Ten people in one family, with each the parent of the next.
+    (Family, List<Person>, List<Relationship>) aLine({int of = 10}) => (
+      const Family(id: familyId, name: 'Họ Nguyễn'),
+      <Person>[for (var n = 0; n < of; n++) personOf('p$n')],
+      <Relationship>[
+        for (var n = 1; n < of; n++)
+          Relationship.parentChild(
+            id: 'r$n',
+            familyId: familyId,
+            parent: 'p${n - 1}',
+            child: 'p$n',
+          ),
+      ],
+    );
+
+    test('the family, its people, and their edges all arrive', () async {
+      final (family, people, edges) = aLine();
+
+      await repository.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+
+      final stored = await repository.loadFamily(familyId);
+      expect(stored, isNotNull);
+      expect(stored!.graph.persons, hasLength(10));
+      expect(stored.graph.relationships, hasLength(9));
+    });
+
+    test('nothing at all arrives when the write fails part way', () async {
+      // The reason this method exists. One edge names a person nobody has, so
+      // the foreign key refuses it — after the ten people have been sent. With
+      // the single-row writes those ten would be committed and stay, leaving a
+      // family half entered with nothing to say it happened.
+      final (family, people, edges) = aLine();
+
+      await expectLater(
+        repository.saveAll(
+          family: family,
+          persons: people,
+          relationships: <Relationship>[
+            ...edges,
+            Relationship.parentChild(
+              id: 'r-dangling',
+              familyId: familyId,
+              parent: 'nobody',
+              child: 'p0',
+            ),
+          ],
+        ),
+        throwsA(anything),
+      );
+
+      expect(await repository.loadFamily(familyId), isNull);
+      expect(await db.select(db.persons).get(), isEmpty);
+      expect(await db.select(db.relationships).get(), isEmpty);
+    });
+
+    test('it writes into a family already stored', () async {
+      // The ordinary import: the family is here, the people are not. Passing
+      // no family must not be read as "no family".
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      final (_, people, edges) = aLine(of: 3);
+
+      await repository.saveAll(persons: people, relationships: edges);
+
+      final stored = await repository.loadFamily(familyId);
+      expect(stored!.graph.persons, hasLength(3));
+      expect(stored.graph.relationships, hasLength(2));
+      expect(stored.family.name, 'Họ Nguyễn');
+    });
+
+    test('writing the same rows twice adds nothing the second time', () async {
+      // Insert-or-update per row, as savePerson has always been. An import run
+      // twice must not double the family.
+      final (family, people, edges) = aLine(of: 4);
+
+      await repository.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+      await repository.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+
+      final stored = await repository.loadFamily(familyId);
+      expect(stored!.graph.persons, hasLength(4));
+      expect(stored.graph.relationships, hasLength(3));
+    });
+
+    test('every row carries the same timestamp', () async {
+      // One act, one time. Stamped row by row, a reader ordering by change
+      // would see the people arrive before the edges that join them.
+      //
+      // Against a clock that **moves**. The pinned one used everywhere else
+      // in this file returns the same instant however often it is asked, so a
+      // test using it would pass whether the timestamp was read once or once
+      // per row — it would assert nothing at all.
+      var ticks = 0;
+      final moving = DriftFamilyRepository(
+        db,
+        now: () => clock.add(Duration(seconds: ticks++)),
+      );
+      final (family, people, edges) = aLine(of: 3);
+
+      await moving.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+
+      final stamps = <DateTime>{
+        (await db.select(db.families).getSingle()).updatedAt,
+        for (final row in await db.select(db.persons).get()) row.updatedAt,
+        for (final row in await db.select(db.relationships).get())
+          row.updatedAt,
+      };
+      expect(stamps, hasLength(1), reason: 'one act, one instant');
+      expect(ticks, 1, reason: 'the clock was read once, not once per row');
+    });
+
+    test('an empty call writes nothing and does not fail', () async {
+      await repository.saveAll();
+
+      expect(await db.select(db.families).get(), isEmpty);
+      expect(await db.select(db.persons).get(), isEmpty);
+    });
+  });
 }

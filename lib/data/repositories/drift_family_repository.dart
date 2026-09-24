@@ -89,6 +89,43 @@ final class DriftFamilyRepository implements FamilyRepository {
   }
 
   @override
+  Future<void> saveAll({
+    Family? family,
+    Iterable<Person> persons = const <Person>[],
+    Iterable<Relationship> relationships = const <Relationship>[],
+  }) async {
+    // One timestamp for the whole write. Stamping each row as it goes would
+    // spread a single act across a range of times, and a reader ordering by
+    // change would see the people arrive before the edges that join them.
+    final at = _timestamp;
+
+    await _db.transaction(() async {
+      if (family != null) {
+        await _db
+            .into(_db.families)
+            .insertOnConflictUpdate(familyToRow(family, updatedAt: at));
+      }
+
+      // Batched rather than awaited one at a time: the round trip per
+      // statement is what made writing a thousand people slow, and inside a
+      // transaction there is no ordering to lose by sending them together.
+      await _db.batch((batch) {
+        batch.insertAllOnConflictUpdate(_db.persons, <PersonsCompanion>[
+          for (final person in persons) personToRow(person, updatedAt: at),
+        ]);
+        // After the people, because both endpoints are foreign keys.
+        batch.insertAllOnConflictUpdate(
+          _db.relationships,
+          <RelationshipsCompanion>[
+            for (final relationship in relationships)
+              relationshipToRow(relationship, updatedAt: at),
+          ],
+        );
+      });
+    });
+  }
+
+  @override
   Future<void> deletePerson(String personId) async {
     final at = _timestamp;
 
