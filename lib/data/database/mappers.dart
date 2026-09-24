@@ -8,6 +8,13 @@
 /// components are present, and that precision is what §4.2 says can never be
 /// recovered once lost. Every function here is written so that what goes in
 /// comes back identical, and the tests assert exactly that.
+///
+/// Every `toRow` clears `deletedAt`. Writing a row asserts that it exists, and
+/// a tombstone asserts that it does not; both cannot hold. Without it a row
+/// written over a tombstone lands in the table and stays invisible, because
+/// reads filter on exactly that column — which is what an import into a
+/// deleted family did: three hundred people written, none of them shown, and
+/// nothing anywhere to say why (§15.2).
 library;
 
 import 'package:drift/drift.dart';
@@ -39,6 +46,7 @@ FamiliesCompanion familyToRow(Family family, {required DateTime updatedAt}) =>
       name: family.name,
       description: Value<String?>(family.description),
       usesLunarCalendar: Value<bool>(family.usesLunarCalendar),
+      deletedAt: const Value<DateTime?>(null),
       updatedAt: updatedAt,
     );
 
@@ -106,6 +114,7 @@ PersonsCompanion personToRow(Person person, {required DateTime updatedAt}) {
     deathPlace: Value<String?>(person.deathPlace),
     biography: Value<String?>(person.biography),
     profileMediaRef: Value<String?>(person.profileMediaRef),
+    deletedAt: const Value<DateTime?>(null),
     updatedAt: updatedAt,
   );
 }
@@ -143,6 +152,7 @@ RelationshipsCompanion relationshipToRow(
   type: relationship.type,
   personAId: relationship.personAId,
   personBId: relationship.personBId,
+  deletedAt: const Value<DateTime?>(null),
   updatedAt: updatedAt,
 );
 

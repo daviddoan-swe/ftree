@@ -487,6 +487,72 @@ void main() {
       expect(ticks, 1, reason: 'the clock was read once, not once per row');
     });
 
+    test('it brings back a family that had been deleted', () async {
+      // Found by running it. A file imported into a family somebody had
+      // deleted wrote three hundred people and showed none of them: the rows
+      // landed, and every one kept the tombstone that reads filter on.
+      //
+      // Writing a row asserts that it exists; a tombstone asserts that it does
+      // not. Both cannot hold, so the write wins.
+      final (family, people, edges) = aLine(of: 3);
+      await repository.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+      await repository.deleteFamily(familyId);
+      expect(await repository.loadFamily(familyId), isNull);
+
+      await repository.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+
+      final stored = await repository.loadFamily(familyId);
+      expect(stored, isNotNull);
+      expect(stored!.graph.persons, hasLength(3));
+      expect(stored.graph.relationships, hasLength(2));
+    });
+
+    test('it brings back one person deleted from a family still here', () async {
+      // The narrower case: the family is fine, one person was removed, and an
+      // older file still holds them.
+      final (family, people, edges) = aLine(of: 3);
+      await repository.saveAll(
+        family: family,
+        persons: people,
+        relationships: edges,
+      );
+      await repository.deletePerson('p1');
+
+      await repository.saveAll(persons: people, relationships: edges);
+
+      final stored = await repository.loadFamily(familyId);
+      expect(stored!.graph.persons, hasLength(3));
+      expect(
+        stored.graph.relationships,
+        hasLength(2),
+        reason: 'the edges that went with them come back too',
+      );
+    });
+
+    test('saving one person over a tombstone brings them back as well', () async {
+      // Same rule, through the single-row write. It had the same hole; nothing
+      // in the application happened to exercise it, because a new person gets
+      // a new id.
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await repository.savePerson(personOf('p1'));
+      await repository.deletePerson('p1');
+
+      await repository.savePerson(personOf('p1'));
+
+      final stored = await repository.loadFamily(familyId);
+      expect(stored!.graph.persons, hasLength(1));
+    });
+
     test('an empty call writes nothing and does not fail', () async {
       await repository.saveAll();
 
