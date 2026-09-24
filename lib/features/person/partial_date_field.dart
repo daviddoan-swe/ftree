@@ -22,18 +22,10 @@ typedef PartialDateChanged = void Function(GenealogicalDate? date, bool valid);
 class PartialDateField extends StatefulWidget {
   const PartialDateField({
     required this.onChanged,
-    this.label,
     this.initial,
     this.allowLunar = false,
     super.key,
   });
-
-  /// What this date is — born, died.
-  ///
-  /// Null where the caller already shows the label itself, as the death section does:
-  /// its title sits on the row carrying the switch that reveals this field, so
-  /// repeating it here would be the same word twice.
-  final String? label;
 
   /// Called whenever the boxes change.
   final PartialDateChanged onChanged;
@@ -147,11 +139,34 @@ class _PartialDateFieldState extends State<PartialDateField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        // Everything that qualifies the date sits above the boxes: what it is,
+        // whether it is only approximate, and which calendar it is being typed
+        // in. Read left to right that is a sentence — "born, about, lunar" —
+        // and the boxes below are the answer to it.
+        //
+        // Approximate on the left, against the same edge the boxes below start
+        // at; the calendar on the right. Opposite edges rather than a queue,
+        // because the calendar switch changes what every box under it means,
+        // and a control that important wants an edge of its own.
+        //
+        // "Gregorian | Lunar" is half again the width of "Dương | Âm", so what
+        // fits in Vietnamese can be tight in English: the left side is given
+        // what is left over, and the word beside the tick gives way first.
         Row(
           children: <Widget>[
-            if (widget.label case final title?)
-              Text(title, style: theme.textTheme.titleSmall),
-            const Spacer(),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _toggle(
+                  label: text.dateApproximate,
+                  value: _approximate,
+                  onChanged: (value) {
+                    _approximate = value;
+                    _recompute();
+                  },
+                ),
+              ),
+            ),
             if (widget.allowLunar)
               SegmentedButton<bool>(
                 style: const ButtonStyle(visualDensity: VisualDensity.compact),
@@ -184,27 +199,24 @@ class _PartialDateFieldState extends State<PartialDateField> {
             Expanded(flex: 2, child: _box(_day, text.dateDay, 2)),
           ],
         ),
-        Row(
-          children: <Widget>[
-            _toggle(
-              label: text.dateApproximate,
-              value: _approximate,
-              onChanged: (value) {
-                _approximate = value;
-                _recompute();
-              },
-            ),
-            if (_lunarEntry)
-              _toggle(
-                label: text.dateLeapMonth,
-                value: _leapMonth,
-                onChanged: (value) {
-                  _leapMonth = value;
-                  _recompute();
-                },
+        // The leap month stays below, and only while the lunar calendar is
+        // chosen: it qualifies the month box rather than the date as a whole,
+        // and it means nothing at all in the Gregorian calendar.
+        if (_lunarEntry)
+          Row(
+            children: <Widget>[
+              Flexible(
+                child: _toggle(
+                  label: text.dateLeapMonth,
+                  value: _leapMonth,
+                  onChanged: (value) {
+                    _leapMonth = value;
+                    _recompute();
+                  },
+                ),
               ),
-          ],
-        ),
+            ],
+          ),
         if (_error != null)
           Text(
             _error!,
@@ -254,7 +266,11 @@ class _PartialDateFieldState extends State<PartialDateField> {
         value: value,
         onChanged: (v) => onChanged(v ?? false),
       ),
-      Text(label),
+      // Shrinks before the row does. The box itself never gives way — a tick
+      // nobody can hit is worse than a word nobody can finish reading.
+      Flexible(
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
       const SizedBox(width: 8),
     ],
   );

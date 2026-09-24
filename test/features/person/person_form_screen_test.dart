@@ -62,21 +62,44 @@ void main() {
     String? month,
     String? day,
   }) async {
-    // The form is longer than the screen and a ListView only builds what is
-    // visible, so the section has to be scrolled to before it can be typed in.
+    // Found by where each one sits, not by which comes first.
+    //
+    // Position was what this used before, and it was quietly wrong: a ListView
+    // builds only what is on screen, so with the death boxes still unbuilt
+    // `fields.last` resolved to the *birth* field — and typing the death date
+    // overwrote the birth date instead, leaving a form with no contradiction
+    // in it and a test that passed for the wrong reason.
+    //
+    // The death field is the one inside the AnimatedSize that the switch
+    // reveals; the birth field is the one carrying the "Born" heading. Neither
+    // can be mistaken for the other however the list is scrolled.
+    final field = section == 'Died'
+        ? find.descendant(
+            of: find.byType(AnimatedSize),
+            matching: find.byType(PartialDateField),
+          )
+        // The birth field is the only one outside that AnimatedSize, and its
+        // heading sits directly above it — so scrolling to the heading first
+        // guarantees the field is built, and it precedes death in tree order.
+        : find.byType(PartialDateField).first;
+
+    if (section != 'Died') {
+      await tester.scrollUntilVisible(
+        find.text(section),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // Scrolling to the field itself rather than to its heading, so it is
+    // reached only once it genuinely exists.
     await tester.scrollUntilVisible(
-      find.text(section),
+      field,
       120,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-
-    // By position, not by walking up from the label: the death section's
-    // title now sits on the switch that reveals it, in a different subtree
-    // from the boxes themselves. Birth is the first date field on the form and
-    // death, once revealed, the second.
-    final fields = find.byType(PartialDateField);
-    final field = section == 'Died' ? fields.last : fields.first;
     Finder box(String label) => find.descendant(
       of: field,
       matching: find.widgetWithText(TextField, label),
@@ -90,11 +113,18 @@ void main() {
 
   /// Reveals the death fields, which start folded away.
   Future<void> markAsDied(WidgetTester tester) async {
+    // Scrolled to by the switch, not by its title. The title is the switch's
+    // own label, so bringing the *text* into view can leave the row's centre —
+    // where a tap lands — just past the bottom edge, and the tap then misses
+    // with only a warning to show for it.
     await tester.scrollUntilVisible(
-      find.text('Died'),
+      find.byType(SwitchListTile),
       120,
       scrollable: find.byType(Scrollable).first,
     );
+    // Settle before tapping: scrollUntilVisible ends with an ensureVisible,
+    // and without a pump the tap is aimed at where the row used to be.
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(SwitchListTile));
     await tester.pumpAndSettle();
   }
@@ -412,11 +442,21 @@ void main() {
       );
 
       // Switch the birth field to lunar, then type a lunar date.
-      final bornSection = find
-          .ancestor(of: find.text('Born'), matching: find.byType(Column))
-          .first;
+      //
+      // Reached through the field rather than up from the heading: the heading
+      // now sits on its own line, outside the field, so there is no shared
+      // ancestor to walk to.
+      await tester.scrollUntilVisible(
+        find.text('Born'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(
-        find.descendant(of: bornSection, matching: find.text('Lunar')),
+        find.descendant(
+          of: find.byType(PartialDateField).first,
+          matching: find.text('Lunar'),
+        ),
       );
       await tester.pumpAndSettle();
 

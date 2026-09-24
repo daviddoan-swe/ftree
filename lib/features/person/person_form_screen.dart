@@ -234,8 +234,11 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
           ),
           const SizedBox(height: 20),
 
+          // Headed on its own line, like the sections above it. The heading
+          // used to sit inside the field, sharing a row with the controls that
+          // qualify the date — which left those controls no edge of their own.
+          _heading(text.personBirth),
           PartialDateField(
-            label: text.personBirth,
             initial: _birth,
             allowLunar: widget.usesLunarCalendar,
             onChanged: (date, valid) {
