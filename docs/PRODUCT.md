@@ -279,6 +279,9 @@ Anything already on this device is left exactly as it is. The cost has to be
 said plainly in the interface rather than discovered: a correction made on a
 relative's device does not travel.
 
+Built, in the application's own JSON format — see ROADMAP M6.5 for why not
+GEDCOM and not a copy of the database file.
+
 ---
 
 ## 10. Privacy
@@ -365,9 +368,11 @@ The initial product milestone is successful when:
 8. A family can be exported to a file and imported back, and importing loses
    nothing that was already there.
 
-Item 8 is listed alongside the rest rather than after them. Until it is done,
-every family entered into the application is one uninstall away from gone —
-which is a larger risk than any of the others on this list, several of which
-are already met.
+Item 8 is listed alongside the rest rather than after them. Until it was done,
+every family entered into the application was one uninstall away from gone —
+a larger risk than anything else on this list.
+
+**All eight are now met** (ROADMAP M6.5). What remains before cloud work is
+not a gap in this list.
 
 Only after this foundation is stable should cloud sharing become a priority.

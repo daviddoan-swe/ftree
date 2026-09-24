@@ -880,6 +880,24 @@ holding the row re-proposes it, and it returns. To the user this reads as
 "deleted relatives keep coming back", and there is no way to recover the intent
 after the fact.
 
+**A write clears the tombstone it lands on.** Writing a row asserts that it
+exists; a tombstone asserts that it does not. Both cannot hold, so the write
+wins and `deletedAt` is set back to null.
+
+This is not a detail of the storage layer. Found the other way round — by a
+row-level write that left the mark in place — it reads as data vanishing: an
+import into a deleted family wrote three hundred people, reported success, and
+showed none of them, because reads filter on exactly that column. The rows were
+in the table and invisible, with nothing to say why.
+
+The rule belongs to every write, not only to bulk ones. A person created in the
+application always gets a fresh id, so nothing reached it until a file carried
+an id the device had already tombstoned.
+
+When synchronization arrives this needs stating again from the other side: a
+peer proposing a row it has *deleted* is sending a tombstone, not a write, and
+the two paths must stay distinguishable.
+
 ### 15.3 updatedAt Is Metadata, Not a Conflict Resolver
 
 `updatedAt` records when a row changed. It must **not** be used to decide which

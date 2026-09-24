@@ -557,6 +557,105 @@ different engine.
 
 ---
 
+## M6.5 — A family that can leave the device
+
+Not planned, and not part of M6. It arrived from a question with an
+uncomfortable answer: *what happens to somebody's gia phả when they reinstall
+the application?* Nothing good. Both platforms delete the private directory
+the SQLite file lives in, there was no export, and cloud synchronisation does
+not protect anything until M9. A hundred years of transcription sat one
+uninstall from gone.
+
+So PRODUCT.md gained §9.1 and a success criterion, and this is the work that
+answers it.
+
+### JSON, and not the two obvious alternatives
+
+**Not a copy of `ftree.sqlite`.** Simpler and exact, but it can only *replace*
+what the receiving device holds — two relatives could not each contribute.
+
+**Not GEDCOM**, though GEDCOM is the international interchange format and
+belongs on the roadmap for its own sake: a family should never be locked into
+this application. It cannot carry a lunar date, and its identifiers are local
+to one file — `@I1@` means "the first individual in *this* file", which is
+exactly the collision problem UUID v7 exists to avoid. The two formats do
+different jobs.
+
+A correction while this was written: an earlier note here claimed GEDCOM could
+not express a date known only to the year. The opposite is true — `1887`,
+`MAR 1887`, `ABT 1890`, `BET 1880 AND 1890` are native to it, because it was
+written by people with this exact problem.
+
+### The merge rule: add only, never overwrite
+
+Anything already on the device is left exactly as it is, including the family's
+own name and calendar setting. Choosing the file's copy over the device's is
+conflict resolution, which needs to know which is newer, and §15.3 says device
+clocks cannot answer that.
+
+The cost is stated in the interface rather than discovered: a correction made
+on a relative's device does not travel. That is the honest limit of exchanging
+files, and it is why M9 still has work to do.
+
+Two kinds of duplicate, because ids alone are not enough: an edge is already
+here when its id matches *or* when the same relationship exists under another
+id — two devices each minting one for the same marriage. Matching on the key
+catches it, and the difference is what the reader is told: "already here"
+rather than "refused".
+
+Each accepted edge is validated against a graph holding the ones accepted
+before it, rebuilt each time. A cycle can be closed by two edges that are each
+valid alone — the merge case ARCHITECTURE §3.3 ③ describes — so judging them
+all against the starting graph would let one through, and a cycle hangs the
+tree screen forever. About a second for a thousand people, paid once.
+
+### One transaction, measured
+
+`saveAll` writes the family, its people and their edges together or not at all.
+The single-row writes could not express that: a thousand committed rows and an
+interruption leaves a family half entered, with edges naming people who are not
+there.
+
+|              | row by row | one transaction |         |
+| ------------ | ---------: | --------------: | ------- |
+| 300 people   |     839 ms |          106 ms | 7.9× |
+| 1000 people  |   1,149 ms |          238 ms | 4.8× |
+
+Speed is the side effect. The point is that there is no half state.
+
+### What running it found that the tests did not
+
+Two defects, both invisible to 837 passing tests, both obvious within a minute
+of using the feature on a device that had been used.
+
+**A write did not clear the tombstone it landed on.** Importing into a family
+somebody had deleted wrote three hundred people, reported success, and showed
+none of them: `insertOnConflictUpdate` updates only the columns it is given,
+and `deletedAt` was in none of the mappers' companions. The rows were there and
+every read filtered them out. The rule now stated in `mappers.dart`: writing a
+row asserts that it exists, a tombstone asserts that it does not, and both
+cannot hold. `savePerson` had the same hole — nothing had reached it because a
+person created in the application always gets a fresh id.
+
+**An import that worked said nothing.** The string for reporting it had been
+written and never called. The reader was returned to the list they started
+from with no way to tell whether anything had happened.
+
+Neither was a weak test. Both were conditions no test had thought to create,
+which is the argument for ARCHITECTURE §14.1 made again: run it and look.
+
+### Left for later, deliberately
+
+* **Exporting a subset** — only the deceased, say. ARCHITECTURE §11.1 requires
+  the protocol to be *able* to carry part of a family; it does not require V1
+  to offer it.
+* **Opening a file straight from a chat application.** Needs document types
+  registered on both platforms.
+* **Recognising that two records are the same person.** DOMAIN §14.1 calls this
+  the hardest problem in genealogy software, and V1 does not attempt it.
+
+---
+
 ## M7 — Cloud Foundation
 
 Introduce Supabase.
@@ -695,7 +794,8 @@ Collect feedback before adding major new features.
 
 Possible future features:
 
-* GEDCOM import/export
+* GEDCOM import/export — so a family is never locked into this application.
+  The application's own file format is done (M6.5) and does a different job
 * date ranges, non-Gregorian calendars, and BC dates
   (partial and approximate dates are already in V1 — DOMAIN.md §4)
 * name variants and alternate spellings
