@@ -58,6 +58,14 @@ dependencies:
   share_plus: ^13.3.0
   file_selector: ^1.1.0
   path_provider: ^2.1.6
+  # The cloud client (ROADMAP M7). Talks to PostgREST and to Supabase Auth.
+  #
+  # It reaches no screen at M7: the application still reads and writes SQLite,
+  # and this exists so a signed-in developer can prove the cloud schema works
+  # through the same repository contract. Wiring it into the interface is M9's
+  # job, when synchronisation gives the two sides something to say to each
+  # other.
+  supabase_flutter: ^2.17.2
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +79,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.34.5
   build_runner: ^2.15.1
+  shared_preferences: ^2.5.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
