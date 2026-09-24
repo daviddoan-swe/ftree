@@ -397,6 +397,18 @@ abstract class AppText {
   /// **'{count, plural, =0{Không thể hoàn tác.} =1{Gỡ luôn 1 quan hệ của người này. Không thể hoàn tác.} other{Gỡ luôn {count} quan hệ của người này. Không thể hoàn tác.}}'**
   String personDeleteBody(int count);
 
+  /// Đầu dải đường đi: thoát khỏi chuỗi hồ sơ, về danh sách người của dòng họ
+  ///
+  /// In vi, this message translates to:
+  /// **'Về danh sách người'**
+  String get trailToList;
+
+  /// Như trailToList, khi chuỗi hồ sơ bắt đầu từ màn hình cây
+  ///
+  /// In vi, this message translates to:
+  /// **'Về cây gia phả'**
+  String get trailToTree;
+
   /// No description provided for @personProfile.
   ///
   /// In vi, this message translates to:

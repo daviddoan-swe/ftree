@@ -86,6 +86,8 @@
     }
   },
 
+  "trailToList": "Back to the list of people",
+  "trailToTree": "Back to the family tree",
   "personProfile": "Profile",
   "personRelatives": "Relatives",
   "personNoRelatives": "Not connected to anybody yet",

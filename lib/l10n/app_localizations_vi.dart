@@ -198,6 +198,12 @@ class AppTextVi extends AppText {
   }
 
   @override
+  String get trailToList => 'Về danh sách người';
+
+  @override
+  String get trailToTree => 'Về cây gia phả';
+
+  @override
   String get personProfile => 'Hồ sơ';
 
   @override

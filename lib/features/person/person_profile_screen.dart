@@ -18,19 +18,46 @@ import '../tree/tree_screen.dart';
 import 'date_display.dart';
 import 'person_form_screen.dart';
 import 'person_style.dart';
+import 'person_trail.dart';
 import 'relationship_editing.dart';
 
 /// Opens the profile of [personId] within [familyId].
+///
+/// [walkedFrom] is the path of people already opened on the way here, oldest
+/// first and **excluding** [personId]. Empty means this is the first profile
+/// of a walk, opened from the list or from the chart.
+///
+/// Passed down as plain ids rather than kept anywhere central: the trail is a
+/// property of this route, the [Navigator] already holds the routes it
+/// describes, and a second record of the same thing would be one more thing
+/// that can fall out of step. The names are read from the family snapshot at
+/// build time, so renaming somebody deeper in the walk shows in the trail.
 Future<void> showPersonProfile(
   BuildContext context, {
   required String familyId,
   required String personId,
+  List<String> walkedFrom = const <String>[],
+  TrailOrigin origin = TrailOrigin.personList,
 }) => Navigator.of(context).push(
   MaterialPageRoute<void>(
-    builder: (_) =>
-        PersonProfileScreen(familyId: familyId, personId: personId),
+    builder: (_) => PersonProfileScreen(
+      familyId: familyId,
+      personId: personId,
+      walkedFrom: walkedFrom,
+      origin: origin,
+    ),
   ),
 );
+
+/// Drops [screens] routes, which is how a trail entry is reached.
+///
+/// Counted rather than matched against a route name: the walk's length is
+/// known here exactly, and naming routes would put the same fact in two
+/// places for the two to disagree about later.
+void _stepBack(BuildContext context, int screens) {
+  var dropped = 0;
+  Navigator.of(context).popUntil((_) => dropped++ >= screens);
+}
 
 /// A person, read-only.
 ///
@@ -41,8 +68,16 @@ class PersonProfileScreen extends ConsumerWidget {
   const PersonProfileScreen({
     required this.familyId,
     required this.personId,
+    this.walkedFrom = const <String>[],
+    this.origin = TrailOrigin.personList,
     super.key,
   });
+
+  /// Who was opened on the way here, oldest first, excluding this person.
+  final List<String> walkedFrom;
+
+  /// Where the walk began, which is where its first entry returns to.
+  final TrailOrigin origin;
 
   final String familyId;
   final String personId;
@@ -73,7 +108,32 @@ class PersonProfileScreen extends ConsumerWidget {
             ),
       appBar: AppBar(
         leading: circleBackButton(context),
-        title: Text(person?.displayName ?? ''),
+        // The trail takes the title's place rather than a row beneath it: the
+        // bar costs no height this way, and on a phone height is the scarcest
+        // thing a screen has. What it gives up is the subject's name, which
+        // moves under the portrait where a profile should have carried it
+        // anyway.
+        //
+        // No inset, and the row is told to fill what is left: the theme
+        // centres titles, so a row that sized itself would sit shrunk in the
+        // middle with air either side — the narrowest possible reading of a
+        // path.
+        //
+        // A walk of one keeps the name: the back button already says where it
+        // goes, and a lone given name where a full name was is a loss.
+        titleSpacing: 0,
+        title: walkedFrom.isEmpty || data == null
+            ? Text(person?.displayName ?? '')
+            : PersonTrail(
+                path: <Person>[
+                  for (final id in <String>[...walkedFrom, personId])
+                    ?data.graph.personById(id),
+                ],
+                origin: origin,
+                onGoTo: (index) =>
+                    _stepBack(context, walkedFrom.length - index),
+                onGoHome: () => _stepBack(context, walkedFrom.length + 1),
+              ),
         actions: <Widget>[
           // Adding a relative is the one thing done from here often enough to
           // earn the corner. Editing is rarer and waits at the foot of the
@@ -104,17 +164,32 @@ class PersonProfileScreen extends ConsumerWidget {
         // Deleted from under us, or the id was never in this family. Nothing to
         // say about a person who is not there; the user can go back.
         _ when person == null || data == null => const SizedBox.shrink(),
-        _ => _Profile(person: person, snapshot: data),
+        _ => _Profile(
+          person: person,
+          snapshot: data,
+          walkedFrom: walkedFrom,
+          origin: origin,
+        ),
       },
     );
   }
 }
 
 class _Profile extends StatelessWidget {
-  const _Profile({required this.person, required this.snapshot});
+  const _Profile({
+    required this.person,
+    required this.snapshot,
+    required this.walkedFrom,
+    required this.origin,
+  });
 
   final Person person;
   final FamilySnapshot snapshot;
+
+  /// The walk so far, carried down so a relative opened from here can extend
+  /// it rather than start a new one.
+  final List<String> walkedFrom;
+  final TrailOrigin origin;
 
   Family get family => snapshot.family;
   FamilyGraph get graph => snapshot.graph;
@@ -175,6 +250,9 @@ class _Profile extends StatelessWidget {
         // (DOMAIN.md §3.2).
         AvatarHeader(
           initials: initialsOf(person.displayName),
+          // The name in full, under the portrait, because at any depth past
+          // the first the title row is carrying the walk instead.
+          title: person.displayName,
           subtitle: _age(context),
           badge: CountBadge(icon: personIcon(person)),
           color: personColor(person),
@@ -216,6 +294,8 @@ class _Profile extends StatelessWidget {
           people: parents,
           snapshot: snapshot,
           subject: person,
+          walkedFrom: walkedFrom,
+          origin: origin,
           removes: RelationshipType.parentChild,
         ),
         _Relatives(
@@ -223,6 +303,8 @@ class _Profile extends StatelessWidget {
           people: spouses,
           snapshot: snapshot,
           subject: person,
+          walkedFrom: walkedFrom,
+          origin: origin,
           removes: RelationshipType.spouse,
         ),
         _Relatives(
@@ -230,6 +312,8 @@ class _Profile extends StatelessWidget {
           people: children,
           snapshot: snapshot,
           subject: person,
+          walkedFrom: walkedFrom,
+          origin: origin,
           removes: RelationshipType.parentChild,
         ),
         _Relatives(
@@ -237,6 +321,8 @@ class _Profile extends StatelessWidget {
           people: <Person>[for (final s in siblings) s.person],
           snapshot: snapshot,
           subject: person,
+          walkedFrom: walkedFrom,
+          origin: origin,
           // Nothing to remove: siblinghood is not an edge. It follows from the
           // parents they share, so it is unmade by unmaking one of those
           // (DOMAIN.md §8.1).
@@ -424,8 +510,14 @@ class _Relatives extends ConsumerWidget {
     required this.snapshot,
     required this.subject,
     required this.removes,
+    required this.walkedFrom,
+    required this.origin,
     this.subtitles,
   });
+
+  /// The walk that reached [subject], which opening anyone here extends.
+  final List<String> walkedFrom;
+  final TrailOrigin origin;
 
   final String label;
   final List<Person> people;
@@ -470,10 +562,15 @@ class _Relatives extends ConsumerWidget {
               ),
               null => null,
             },
+            // Where the walk lengthens. The subject joins the path behind
+            // the relative being opened, so the trail on the next screen
+            // reads as the route actually taken.
             onTap: () => showPersonProfile(
               context,
               familyId: subject.familyId,
               personId: person.id,
+              walkedFrom: <String>[...walkedFrom, subject.id],
+              origin: origin,
             ),
           ),
       ],

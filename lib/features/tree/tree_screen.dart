@@ -16,6 +16,7 @@ import '../../domain/layout/tree_layout.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
 import '../person/person_profile_screen.dart';
+import '../person/person_trail.dart';
 import '../person/person_style.dart';
 
 /// Opens the tree for [familyId].
@@ -751,6 +752,10 @@ class _TreeScreenState extends ConsumerState<TreeScreen>
                       context,
                       familyId: widget.familyId,
                       personId: selected.id,
+                      // A walk begun on the chart goes back to the chart, not
+                      // to the list of people — the reader was looking at a
+                      // branch, and that is what they are returning to.
+                      origin: TrailOrigin.tree,
                     ),
                     onDrawFrom: () => _drawFrom(selected.id, from: rootId),
                   ),

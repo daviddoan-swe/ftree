@@ -202,6 +202,12 @@ class AppTextEn extends AppText {
   }
 
   @override
+  String get trailToList => 'Back to the list of people';
+
+  @override
+  String get trailToTree => 'Back to the family tree';
+
+  @override
   String get personProfile => 'Profile';
 
   @override

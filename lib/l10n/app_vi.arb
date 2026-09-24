@@ -105,6 +105,16 @@
     }
   },
 
+  "trailToList": "Về danh sách người",
+  "@trailToList": {
+    "description": "Đầu dải đường đi: thoát khỏi chuỗi hồ sơ, về danh sách người của dòng họ"
+  },
+
+  "trailToTree": "Về cây gia phả",
+  "@trailToTree": {
+    "description": "Như trailToList, khi chuỗi hồ sơ bắt đầu từ màn hình cây"
+  },
+
   "personProfile": "Hồ sơ",
   "personRelatives": "Quan hệ",
   "personNoRelatives": "Chưa nối người này với ai",
