@@ -318,6 +318,9 @@ A link that opens the application directly was considered and deferred: it
 needs a domain and a file hosted on it for the phone to verify, which is
 infrastructure rather than code.
 
+A code meant for a whole branch, reusable and gated by approval, is proposed in
+§5.8 and deferred to M9. It does not replace this one; it sits beside it.
+
 ### 5.3 No approval, and what stands in its place
 
 **Decided.** A valid code lets somebody in immediately. There is no queue for
@@ -337,6 +340,10 @@ later refinement; it is the other half of this decision.
 
 The last owner cannot be removed. A family nobody can manage is a family nobody
 can ever be invited into.
+
+This holds for a code sent to **one person**. §5.8 proposes a code sent to a
+group, where the owner never chooses a recipient at all — and there approval
+becomes the only per-person decision there is, rather than a second one.
 
 ### 5.4 The owner's device keeps the codes it issued
 
@@ -462,6 +469,65 @@ The membership row is tombstoned rather than erased, as everything else here
 is (DOMAIN §15.1). That keeps the record of who was let in, and it means
 inviting them again later simply works: accepting revives the membership they
 had.
+
+### 5.8 A code for a whole branch, with approval — deferred to M9
+
+**Proposed and written down rather than built.** One code an owner can hand to
+a family group, reusable for a while, giving **viewer** access only — so that
+nobody has to make a code per relative. Everybody who uses it lands in a
+pending list, and the owner lets them in one at a time.
+
+This revisits §5.2 and §5.3 rather than adding to them, so the reasoning is
+kept here in full.
+
+**Reusable and approval need each other.** Single use earns its place by making
+theft *visible* (§5.2): whoever intercepts a code and uses it leaves the
+intended reader looking at "already used". A reusable code gives that up — a
+stranger walks in silently. Approval restores it by another route: a stranger
+appears in a list, with a name the owner does not know. So the pair is coherent
+and **either half alone is not**. A reusable code with no approval is the
+dangerous shape.
+
+**And the argument against approval does not reach this case.** §5.3 rejects a
+queue because the owner already decided twice — making the code, and choosing
+who to send it to. With a code meant for a group, the owner never made the
+second decision at all. Approval is then the only place a decision about a
+particular person is ever taken, which is the opposite of a gate clicked
+through.
+
+It also only became workable when accounts started carrying names (§5.6).
+Approving `nguyenvana1983@gmail.com` is guessing; approving *Nguyễn Văn Hải* is
+deciding.
+
+**"Without even registering" contradicts approval, with one way out.** To
+approve somebody you must be able to name them and grant access to *them*. With
+no account there is no them. Dropping approval and letting whoever holds the
+code download is the bearer-key design §4.4 already rejected: nothing can be
+withdrawn from one person, nobody can be told apart, and RLS is written against
+`auth.uid()`, so it would mean issuing tokens ourselves.
+
+The way out is **anonymous sign-in** — a real `auth.uid()` with no email and no
+password. §4.4 rejects it, but rejects it *for owners*: losing the phone loses
+the identity and the family with it. A viewer owns nothing, so losing it costs
+them a second look at the code. The objection does not cover them.
+
+What that buys is a name the person types themselves, which **nobody
+verifies**. An owner approving is trusting the name together with the fact that
+whoever typed it had the code. For a code passed around a family's own group
+chat that is a reasonable thing to trust — but it should be understood as
+trust, not as proof.
+
+**Why it waits for M9.** Until synchronisation exists, a viewer who downloads
+through the cloud has exactly what somebody sent the exported file has: one
+snapshot, never updated. §4.1 already offers that, and it costs nothing. What
+the cloud path adds is that the server remembers them, ready for the day two
+copies can speak — which is M9. Building the pending list now would be building
+a queue to hand out something a file already hands out.
+
+**The cost to weigh when it is built:** a pending list is an inbox the owner
+has to remember to open. With no push notifications a request can sit for
+weeks. Somebody who asked with a group code expects to wait, which softens it,
+but it is still a new obligation on the one person who did not ask for one.
 
 ---
 

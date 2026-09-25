@@ -994,6 +994,14 @@ Unauthorized users cannot access another family's private data.
 
 ## M9 — Synchronization
 
+Also waiting here, because until two copies can speak it delivers nothing a
+file does not: **a reusable code for a whole branch, gated by approval**
+(PRODUCT §5.8). It revisits two M8 decisions rather than extending them —
+single use, and no approval — and the reasoning for revisiting them is written
+out there. The short of it: reusable and approval need each other, and the
+argument against a queue does not reach a code whose owner never chose a
+recipient.
+
 Design and implement:
 
 * local/cloud synchronization
