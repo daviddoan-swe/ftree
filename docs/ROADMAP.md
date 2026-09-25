@@ -1059,9 +1059,38 @@ through an INSERT and `persons_insert` raises 42501. A viewer removing a
 *relationship* is refused in silence, because that is a plain UPDATE. Both are
 checked, and the second is the one the confirmation exists for.
 
+**Step 3 — conflict. Done, for people.** Two relatives filling in different
+halves of the same person now merge without anybody being asked.
+
+It needs three versions, not two. Given only mine and theirs there is no
+telling an edit from an absence of one — both look like values. The device
+therefore keeps the row exactly as the server last gave it, from the first
+local edit until that edit has gone, and `persons.baseFields` is where. The
+base is kept on the *first* edit only: overwritten by the second, a merge would
+compare this device's work against itself, find no change where there was one,
+and hand the field back to the other side.
+
+Per field: neither moved it, it stays; one moved it, that side wins; both moved
+it the same way, they agree; both moved it differently, **conflict**, and
+nothing is chosen. Nothing is chosen because there is nothing to choose by — a
+later `change_seq` says which write reached the server second, not which
+reading of a hundred-year-old record is right.
+
+A conflict has to outlive the pull that found it, so the other version is kept
+in `persons.theirsFields`. `lastSeen` moves past the change either way, and a
+conflict only reported would never be offered again: the disagreement would
+quietly become this device's version winning. For the same reason a row in
+conflict is **not pushed**, though it is unsent — pushing would settle it in
+this device's favour with nobody asked.
+
+Only people. A family has three mergeable fields and a relationship has none
+worth merging — changing which two people an edge joins makes it a different
+edge — so both keep step one's behaviour and hold.
+
 Still to do:
 
-* **Step 3 — conflict.** Ordered by `change_seq`, never by device clocks.
+* **Step 3b — asking.** A conflict is detected, kept and counted; there is no
+  screen yet where somebody chooses between the two versions.
 * **Step 4 — deletion travelling both ways**, on the tombstones from M3.
 * **Step 5 — synchronisation status**, so it is not a black box: last brought
   down, and what is still waiting to go up.

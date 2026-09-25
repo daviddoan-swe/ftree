@@ -34,10 +34,14 @@
 /// a silent hole, which is the worst shape a synchronisation defect can take.
 library;
 
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../domain/family.dart';
 import '../../domain/person.dart';
+import '../../domain/merge.dart';
+import '../../domain/record_fields.dart';
 import '../../domain/relationship.dart';
 import '../database/app_database.dart';
 import '../database/mappers.dart';
@@ -83,13 +87,27 @@ final class PullResult {
     required this.applied,
     required this.held,
     required this.lastSeen,
+    this.conflicted = const <String>[],
+    this.merged = 0,
   });
 
   /// Rows written into the local database.
   final int applied;
 
-  /// Ids left alone because this device holds unsent changes to them.
+  /// Ids left alone because this device holds unsent changes to them and
+  /// there is no version the two edits started from to merge against.
   final List<String> held;
+
+  /// Rows where both sides changed the same field to different values.
+  ///
+  /// The server's version is kept beside the device's so the disagreement
+  /// outlives the pull that found it — `lastSeen` moves past the change either
+  /// way, and a conflict only reported would never be offered again.
+  final List<String> conflicted;
+
+  /// Rows where both sides had changed something, and the changes fitted
+  /// together without anybody having to decide.
+  final int merged;
 
   /// The number now recorded for the family.
   final int lastSeen;
@@ -122,7 +140,9 @@ final class FamilyPull {
     }
 
     final held = <String>[];
+    final conflicted = <String>[];
     var applied = 0;
+    var merged = 0;
     final at = _now().toUtc();
 
     await _db.transaction(() async {
@@ -154,7 +174,14 @@ final class FamilyPull {
 
       for (final person in changes.persons) {
         if (unsentPersons.contains(person.id)) {
-          held.add(person.id);
+          switch (await _merge(person, at)) {
+            case _Outcome.merged:
+              merged++;
+            case _Outcome.conflicted:
+              conflicted.add(person.id);
+            case _Outcome.held:
+              held.add(person.id);
+          }
           continue;
         }
         await _db
@@ -227,8 +254,67 @@ final class FamilyPull {
     return PullResult(
       applied: applied,
       held: held,
+      conflicted: conflicted,
+      merged: merged,
       lastSeen: changes.highestSeq,
     );
+  }
+
+  /// Tries to fit [theirs] into a person this device has edited.
+  ///
+  /// Three versions are needed and the device keeps the third: the row exactly
+  /// as the server last gave it, from the first local edit until that edit has
+  /// gone. Without it there is no telling an edit from an absence of one, and
+  /// the row is simply held.
+  ///
+  /// A clean merge keeps the row **unsent**, because this device's own part of
+  /// it still has to go up. The base moves on to the other side's version,
+  /// which is what the two are now agreed to have started from.
+  ///
+  /// A conflict writes nothing and keeps the other version beside the row, so
+  /// somebody can be asked later. Choosing for them would mean picking by
+  /// `change_seq`, which says which write arrived second and not which reading
+  /// of a hundred-year-old record is right.
+  Future<_Outcome> _merge(Person theirs, DateTime at) async {
+    final row = await (_db.select(
+      _db.persons,
+    )..where((p) => p.id.equals(theirs.id))).getSingleOrNull();
+
+    final stored = row?.baseFields;
+    if (row == null || stored == null) return _Outcome.held;
+
+    final base = (jsonDecode(stored) as Map<String, dynamic>)
+        .cast<String, Object?>();
+    final mine = personFromRow(row);
+    final theirFields = personFields(theirs);
+
+    final result = merge3(
+      base: base,
+      mine: personFields(mine),
+      theirs: theirFields,
+    );
+
+    if (!result.isClean) {
+      await (_db.update(
+        _db.persons,
+      )..where((p) => p.id.equals(theirs.id))).write(
+        PersonsCompanion(theirsFields: Value<String?>(jsonEncode(theirFields))),
+      );
+      return _Outcome.conflicted;
+    }
+
+    await (_db.update(_db.persons)..where((p) => p.id.equals(theirs.id))).write(
+      personToRow(
+        personFromFields(mine, result.fields),
+        updatedAt: at,
+      ).copyWith(
+        unsent: const Value<bool>(true),
+        baseFields: Value<String?>(jsonEncode(theirFields)),
+        theirsFields: const Value<String?>(null),
+      ),
+    );
+
+    return _Outcome.merged;
   }
 
   Future<Set<String>> _unsentPersons(String familyId) async {
@@ -247,3 +333,6 @@ final class FamilyPull {
     return <String>{for (final row in rows) row.id};
   }
 }
+
+/// What became of one person a pull could not simply write.
+enum _Outcome { merged, conflicted, held }

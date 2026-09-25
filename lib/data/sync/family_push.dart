@@ -92,9 +92,18 @@ final class FamilyPush {
               ..where((f) => f.id.equals(familyId) & f.unsent.equals(true)))
             .getSingleOrNull();
 
-    final personRows = await (_db.select(
-      _db.persons,
-    )..where((p) => p.familyId.equals(familyId) & p.unsent.equals(true))).get();
+    // A row in disagreement is not sent. It is unsent, so it would otherwise
+    // go — and going would settle the disagreement in this device's favour
+    // without anybody being asked, which is the one thing the conflict was
+    // kept for (ROADMAP M9, step 3).
+    final personRows =
+        await (_db.select(_db.persons)..where(
+              (p) =>
+                  p.familyId.equals(familyId) &
+                  p.unsent.equals(true) &
+                  p.theirsFields.isNull(),
+            ))
+            .get();
 
     final edgeRows = await (_db.select(
       _db.relationships,
@@ -141,8 +150,14 @@ final class FamilyPush {
         await (_db.update(_db.families)..where((f) => f.id.isValue(id))).write(
           const FamiliesCompanion(unsent: Value<bool>(false)),
         );
+        // The base goes with the flag. Once the server holds this version
+        // there is no longer an earlier one the two sides started from — the
+        // next edit will keep its own.
         await (_db.update(_db.persons)..where((p) => p.id.isValue(id))).write(
-          const PersonsCompanion(unsent: Value<bool>(false)),
+          const PersonsCompanion(
+            unsent: Value<bool>(false),
+            baseFields: Value<String?>(null),
+          ),
         );
         await (_db.update(_db.relationships)..where((r) => r.id.isValue(id)))
             .write(const RelationshipsCompanion(unsent: Value<bool>(false)));

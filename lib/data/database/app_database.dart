@@ -49,8 +49,7 @@ mixin _SyncColumns on Table {
   /// the device's own clock whether an edit came after the last sync, and a
   /// clock that steps backwards — a timezone change, a manual correction, an
   /// NTP jump — would drop the edit silently. This is exact.
-  BoolColumn get unsent =>
-      boolean().withDefault(const Constant<bool>(false))();
+  BoolColumn get unsent => boolean().withDefault(const Constant<bool>(false))();
 }
 
 /// A managed family-tree dataset — a boundary, not a kinship group.
@@ -120,6 +119,33 @@ class Families extends Table with _SyncColumns {
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};
 }
 
+/// The two columns a three-way merge needs, on the table people actually edit
+/// (ROADMAP M9, step 3).
+///
+/// Only on [Persons]. A family has three mergeable fields and a relationship
+/// has none worth merging — changing which two people an edge joins makes it a
+/// different edge — so both keep step one's behaviour and hold rather than
+/// merge. People are where two relatives fill in different halves of the same
+/// record, which is the case this exists for.
+mixin _MergeColumns on Table {
+  /// The row exactly as the server last gave it, kept from the moment this
+  /// device first edits it until that edit has gone.
+  ///
+  /// Without it there is no telling an edit from an absence of one: two
+  /// versions both look like values, and only the one they started from says
+  /// which side moved. Null whenever the row is not `unsent`, because then
+  /// there is nothing to be merged against.
+  TextColumn get baseFields => text().nullable()();
+
+  /// The server's version, kept when it could not be merged.
+  ///
+  /// A conflict has to outlive the pull that found it. `lastSeen` moves past
+  /// the change either way, so a conflict only reported would never be offered
+  /// again and the disagreement would quietly become this device's version
+  /// winning.
+  TextColumn get theirsFields => text().nullable()();
+}
+
 /// Someone recorded in a tree.
 ///
 /// Twelve date columns — six per date — rather than one blob each. Explicit
@@ -134,7 +160,7 @@ class Families extends Table with _SyncColumns {
 /// would leave out (§15.2), and that is a trap which only springs later.
 @TableIndex(name: 'persons_by_family', columns: <Symbol>{#familyId, #deletedAt})
 @DataClassName('PersonRow')
-class Persons extends Table with _SyncColumns {
+class Persons extends Table with _SyncColumns, _MergeColumns {
   TextColumn get id => text()();
 
   TextColumn get familyId =>
@@ -289,8 +315,10 @@ class AppDatabase extends _$AppDatabase {
   /// 6 — `unsent` on everything that synchronises, and `families.lastSeen`:
   ///     the two facts a pull needs, which of these rows are mine and where I
   ///     had got to.
+  /// 7 — `persons.baseFields` and `persons.theirsFields`: the version two
+  ///     edits started from, and the one that could not be merged into them.
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -360,6 +388,13 @@ class AppDatabase extends _$AppDatabase {
         // lastSeen above zero would make it skip everything below that number.
         // Starting at "nothing is mine, I have seen nothing" costs one full
         // pull and cannot lose anything.
+      }
+      if (from < 7) {
+        // Null for everything, which is the truth: no row on a device that has
+        // not synchronised yet has a version it was edited away from, and none
+        // is in disagreement with anybody.
+        await m.addColumn(persons, persons.baseFields);
+        await m.addColumn(persons, persons.theirsFields);
       }
     },
     beforeOpen: (OpeningDetails details) async {

@@ -178,6 +178,36 @@ void main() {
     });
   });
 
+  group('what it will not send', () {
+    test('a person in disagreement stays where it is', () async {
+      // It is unsent, so it would otherwise go — and going would settle the
+      // disagreement in this device's favour without anybody being asked,
+      // which is the one thing the conflict was kept for.
+      await repository.savePerson(person(1, 'sửa ở máy này'));
+      await db.customStatement(
+        "UPDATE persons SET theirs_fields = '{}' WHERE id = ?",
+        <Object>[personId(1)],
+      );
+
+      final outgoing = await push.pending(familyId);
+
+      expect(outgoing.persons, isEmpty);
+    });
+
+    test('but the rest of the family still goes', () async {
+      await repository.savePerson(person(1, 'sửa ở máy này'));
+      await repository.savePerson(person(2, 'cũng sửa'));
+      await db.customStatement(
+        "UPDATE persons SET theirs_fields = '{}' WHERE id = ?",
+        <Object>[personId(1)],
+      );
+
+      final outgoing = await push.pending(familyId);
+
+      expect(outgoing.persons.map((p) => p.id), <String>[personId(2)]);
+    });
+  });
+
   group('what it counts', () {
     test('nothing waiting reads as nothing', () async {
       expect(await push.waiting(familyId), 0);

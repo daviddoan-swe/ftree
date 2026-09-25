@@ -1,12 +1,15 @@
 /// SQLite-backed implementation of [FamilyRepository].
 library;
 
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../domain/family.dart';
 import '../../domain/family_graph.dart';
 import '../../domain/family_repository.dart';
 import '../../domain/person.dart';
+import '../../domain/record_fields.dart';
 import '../../domain/relationship.dart';
 import '../database/app_database.dart';
 import '../database/mappers.dart';
@@ -71,9 +74,38 @@ final class DriftFamilyRepository implements FamilyRepository {
 
   @override
   Future<void> savePerson(Person person) async {
-    await _db
-        .into(_db.persons)
-        .insertOnConflictUpdate(personToRow(person, updatedAt: _timestamp));
+    await _db.transaction(() async {
+      await _rememberBase(person.id);
+      await _db
+          .into(_db.persons)
+          .insertOnConflictUpdate(personToRow(person, updatedAt: _timestamp));
+    });
+  }
+
+  /// Keeps the row as it stands, before this edit changes it.
+  ///
+  /// Only on the first edit after a synchronisation: while `unsent` is already
+  /// true the base is the version the server last gave, and a second edit must
+  /// not overwrite it with the first edit's result. That would leave a merge
+  /// comparing this device's work against itself and finding no change where
+  /// there was one (ROADMAP M9, step 3).
+  ///
+  /// Nothing is kept for a row being created here. There is no version two
+  /// people started from if only one of them has ever had it.
+  Future<void> _rememberBase(String personId) async {
+    final row = await (_db.select(
+      _db.persons,
+    )..where((p) => p.id.equals(personId))).getSingleOrNull();
+
+    if (row == null || row.unsent) return;
+
+    await (_db.update(_db.persons)..where((p) => p.id.equals(personId))).write(
+      PersonsCompanion(
+        baseFields: Value<String?>(
+          jsonEncode(personFields(personFromRow(row))),
+        ),
+      ),
+    );
   }
 
   @override
@@ -106,6 +138,13 @@ final class DriftFamilyRepository implements FamilyRepository {
       // Batched rather than awaited one at a time: the round trip per
       // statement is what made writing a thousand people slow, and inside a
       // transaction there is no ordering to lose by sending them together.
+      // The same rule as a single edit, before the batch rather than inside
+      // it: a batch that skipped this would lose the version a merge needs
+      // (ROADMAP M9, step 3), and a batch cannot read while it writes.
+      for (final person in persons) {
+        await _rememberBase(person.id);
+      }
+
       await _db.batch((batch) {
         batch.insertAllOnConflictUpdate(_db.persons, <PersonsCompanion>[
           for (final person in persons) personToRow(person, updatedAt: at),

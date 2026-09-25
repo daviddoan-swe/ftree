@@ -158,11 +158,84 @@ void main() {
     });
   });
 
-  group('what it refuses to land on', () {
-    test('a person this device has changed is held, not overwritten', () async {
-      // The one failure a pull must not have. Until pushing exists there is
-      // nowhere the local edit could have gone, so overwriting it destroys it.
-      await asIfDownloaded();
+  group('two edits of the same person', () {
+    setUp(asIfDownloaded);
+
+    test('different fields fit together, and nobody is asked', () async {
+      // The case the whole of step three is for: two relatives filling in
+      // different halves of the same record.
+      await repository.savePerson(
+        Person(
+          id: personId(1),
+          familyId: familyId,
+          displayName: 'Cụ Tổ',
+          birthPlace: 'Nam Định',
+        ),
+      );
+
+      final result = await pull.apply(
+        familyId,
+        IncomingChanges(
+          highestSeq: 7,
+          persons: <Person>[
+            Person(
+              id: personId(1),
+              familyId: familyId,
+              displayName: 'Cụ Tổ',
+              biography: 'Làm nghề dạy học.',
+            ),
+          ],
+        ),
+      );
+
+      expect(result.merged, 1);
+      expect(result.conflicted, isEmpty);
+
+      final here = (await repository.loadFamily(
+        familyId,
+      ))!.graph.personById(personId(1))!;
+      expect(here.birthPlace, 'Nam Định', reason: 'mine survived');
+      expect(here.biography, 'Làm nghề dạy học.', reason: 'and theirs came');
+    });
+
+    test('a merged row still has to go up', () async {
+      // Half of it is this device's, and the server has never seen that half.
+      await repository.savePerson(
+        Person(
+          id: personId(1),
+          familyId: familyId,
+          displayName: 'Cụ Tổ',
+          birthPlace: 'Nam Định',
+        ),
+      );
+
+      await pull.apply(
+        familyId,
+        IncomingChanges(
+          highestSeq: 7,
+          persons: <Person>[
+            Person(
+              id: personId(1),
+              familyId: familyId,
+              displayName: 'Cụ Tổ',
+              biography: 'Làm nghề dạy học.',
+            ),
+          ],
+        ),
+      );
+
+      final row = (await db.select(db.persons).get()).firstWhere(
+        (p) => p.id == personId(1),
+      );
+      expect(row.unsent, isTrue);
+      expect(
+        row.baseFields,
+        isNotNull,
+        reason: 'and the base has moved on to what they now hold',
+      );
+    });
+
+    test('the same field, changed differently, is a conflict', () async {
       await repository.savePerson(person(1, 'Cụ Tổ — sửa ở máy này'));
 
       final result = await pull.apply(
@@ -173,31 +246,112 @@ void main() {
         ),
       );
 
-      expect(result.held, <String>[personId(1)]);
+      expect(result.conflicted, <String>[personId(1)]);
       expect(result.applied, 0);
-      final here = await repository.loadFamily(familyId);
-      expect(
-        here!.graph.personById(personId(1))!.displayName,
-        'Cụ Tổ — sửa ở máy này',
-      );
     });
 
-    test('and a deletion does not take one either', () async {
-      await asIfDownloaded();
-      await repository.savePerson(person(1, 'Cụ Tổ — sửa ở máy này'));
+    test('and nothing is decided for anybody', () async {
+      // A later change_seq says which write reached the server second, not
+      // which reading of a hundred-year-old record is right.
+      await repository.savePerson(person(1, 'sửa ở máy này'));
+
+      final reported = await pull.apply(
+        familyId,
+        IncomingChanges(
+          highestSeq: 7,
+          persons: <Person>[person(1, 'sửa ở máy khác')],
+        ),
+      );
+
+      final here = (await repository.loadFamily(
+        familyId,
+      ))!.graph.personById(personId(1))!;
+      expect(here.displayName, 'sửa ở máy này');
+      expect(
+        reported.conflicted,
+        <String>[personId(1)],
+        reason: 'it has to be reported as one, not quietly merged',
+      );
+      expect(reported.merged, 0);
+    });
+
+    test('two edits here still merge against what the server gave', () async {
+      // The base is kept on the *first* edit after a synchronisation and not
+      // touched again. Overwritten by the second, a merge would compare this
+      // device's work against itself, find no change where there was one, and
+      // hand the field back to the other side.
+      await repository.savePerson(
+        Person(
+          id: personId(1),
+          familyId: familyId,
+          displayName: 'Cụ Tổ',
+          birthPlace: 'Nam Định',
+        ),
+      );
+      await repository.savePerson(
+        Person(
+          id: personId(1),
+          familyId: familyId,
+          displayName: 'Cụ Tổ',
+          birthPlace: 'Nam Định, Ý Yên',
+        ),
+      );
 
       final result = await pull.apply(
         familyId,
-        IncomingChanges(highestSeq: 7, deletedPersons: <String>[personId(1)]),
+        IncomingChanges(
+          highestSeq: 7,
+          persons: <Person>[
+            // They left the birthplace where the base had it — empty — and
+            // only added a life. Had they set it too, that would be a real
+            // disagreement about the birthplace, which is a different test.
+            Person(
+              id: personId(1),
+              familyId: familyId,
+              displayName: 'Cụ Tổ',
+              biography: 'Làm nghề dạy học.',
+            ),
+          ],
+        ),
       );
 
-      expect(result.held, <String>[personId(1)]);
-      final here = await repository.loadFamily(familyId);
-      expect(here!.graph.persons, hasLength(1));
+      expect(result.merged, 1);
+      final here = (await repository.loadFamily(
+        familyId,
+      ))!.graph.personById(personId(1))!;
+      expect(
+        here.birthPlace,
+        'Nam Định, Ý Yên',
+        reason: 'both of my edits are still mine',
+      );
+      expect(here.biography, 'Làm nghề dạy học.');
     });
 
-    test('holding one leaves the rest to arrive', () async {
-      await asIfDownloaded();
+    test(
+      'the other version is kept, so the question outlives the pull',
+      () async {
+        // `lastSeen` moves past the change either way. A conflict only reported
+        // would never be offered again, and the disagreement would quietly
+        // become this device's version winning.
+        await repository.savePerson(person(1, 'sửa ở máy này'));
+
+        await pull.apply(
+          familyId,
+          IncomingChanges(
+            highestSeq: 7,
+            persons: <Person>[person(1, 'sửa ở máy khác')],
+          ),
+        );
+
+        final row = (await db.select(db.persons).get()).firstWhere(
+          (p) => p.id == personId(1),
+        );
+        expect(row.theirsFields, isNotNull);
+        expect(row.theirsFields, contains('sửa ở máy khác'));
+      },
+    );
+
+    test('a conflict in one person does not stop another arriving', () async {
       await repository.savePerson(person(1, 'sửa ở máy này'));
 
       final result = await pull.apply(
@@ -208,16 +362,19 @@ void main() {
         ),
       );
 
-      expect(result.held, <String>[personId(1)]);
+      expect(result.conflicted, <String>[personId(1)]);
       expect(result.applied, 1);
-      final here = await repository.loadFamily(familyId);
-      expect(here!.graph.persons, hasLength(2));
+      expect(
+        (await repository.loadFamily(familyId))!.graph.persons,
+        hasLength(2),
+      );
     });
+  });
 
-    test('everything is unsent before anything has been pulled', () async {
-      // Every local write sets the flag, which is what makes the check above
-      // mean anything. Were it the other way round a pull would quietly land
-      // on a family somebody typed in by hand.
+  group('when there is no version to merge against', () {
+    test('a person edited before anything was ever pulled is held', () async {
+      // Nothing was downloaded, so there is no version the two started from.
+      // Holding is all that can honestly be done.
       final result = await pull.apply(
         familyId,
         IncomingChanges(
@@ -227,6 +384,21 @@ void main() {
       );
 
       expect(result.held, <String>[personId(1)]);
+      expect(result.conflicted, isEmpty);
+    });
+
+    test('and a deletion still does not take an edited person', () async {
+      await asIfDownloaded();
+      await repository.savePerson(person(1, 'sửa ở máy này'));
+
+      final result = await pull.apply(
+        familyId,
+        IncomingChanges(highestSeq: 7, deletedPersons: <String>[personId(1)]),
+      );
+
+      expect(result.held, <String>[personId(1)]);
+      final here = await repository.loadFamily(familyId);
+      expect(here!.graph.persons, hasLength(1));
     });
   });
 
