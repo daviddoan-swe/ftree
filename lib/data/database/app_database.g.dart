@@ -31,6 +31,19 @@ class $FamiliesTable extends Families
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _unsentMeta = const VerificationMeta('unsent');
+  @override
+  late final GeneratedColumn<bool> unsent = GeneratedColumn<bool>(
+    'unsent',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("unsent" IN (0, 1))',
+    ),
+    defaultValue: const Constant<bool>(false),
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -80,6 +93,18 @@ class $FamiliesTable extends Families
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _lastSeenMeta = const VerificationMeta(
+    'lastSeen',
+  );
+  @override
+  late final GeneratedColumn<int> lastSeen = GeneratedColumn<int>(
+    'last_seen',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant<int>(0),
+  );
   static const VerificationMeta _usesLunarCalendarMeta = const VerificationMeta(
     'usesLunarCalendar',
   );
@@ -99,11 +124,13 @@ class $FamiliesTable extends Families
   List<GeneratedColumn> get $columns => [
     updatedAt,
     deletedAt,
+    unsent,
     id,
     name,
     description,
     sharedAt,
     myRole,
+    lastSeen,
     usesLunarCalendar,
   ];
   @override
@@ -130,6 +157,12 @@ class $FamiliesTable extends Families
       context.handle(
         _deletedAtMeta,
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('unsent')) {
+      context.handle(
+        _unsentMeta,
+        unsent.isAcceptableOrUnknown(data['unsent']!, _unsentMeta),
       );
     }
     if (data.containsKey('id')) {
@@ -166,6 +199,12 @@ class $FamiliesTable extends Families
         myRole.isAcceptableOrUnknown(data['my_role']!, _myRoleMeta),
       );
     }
+    if (data.containsKey('last_seen')) {
+      context.handle(
+        _lastSeenMeta,
+        lastSeen.isAcceptableOrUnknown(data['last_seen']!, _lastSeenMeta),
+      );
+    }
     if (data.containsKey('uses_lunar_calendar')) {
       context.handle(
         _usesLunarCalendarMeta,
@@ -192,6 +231,10 @@ class $FamiliesTable extends Families
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      unsent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}unsent'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -212,6 +255,10 @@ class $FamiliesTable extends Families
         DriftSqlType.string,
         data['${effectivePrefix}my_role'],
       ),
+      lastSeen: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_seen'],
+      )!,
       usesLunarCalendar: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}uses_lunar_calendar'],
@@ -228,6 +275,18 @@ class $FamiliesTable extends Families
 class FamilyRow extends DataClass implements Insertable<FamilyRow> {
   final DateTime updatedAt;
   final DateTime? deletedAt;
+
+  /// Whether this row holds a change this device has not sent (ROADMAP M9).
+  ///
+  /// Set by every write the application makes and cleared by every write
+  /// synchronisation makes, so the two can be told apart — which is the whole
+  /// of what a pull needs in order not to land on top of somebody's work.
+  ///
+  /// A flag rather than a comparison against `updatedAt`. That would be asking
+  /// the device's own clock whether an edit came after the last sync, and a
+  /// clock that steps backwards — a timezone change, a manual correction, an
+  /// NTP jump — would drop the edit silently. This is exact.
+  final bool unsent;
   final String id;
   final String name;
   final String? description;
@@ -266,15 +325,30 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
   /// provenance, and clearing it would hand full rights to anybody who signed
   /// out of an editor's copy.
   final String? myRole;
+
+  /// The highest `change_seq` this device has taken from the server for this
+  /// family, or 0 for one it has never pulled (ROADMAP M9).
+  ///
+  /// One number for the whole family rather than one per row: the device does
+  /// not order anything, it only says where it is, and the server answers with
+  /// what came after. `0` therefore means "everything", which makes the first
+  /// download and every later pull the same request.
+  ///
+  /// Written in the same transaction as the rows it accounts for. Written
+  /// first, a pull interrupted halfway would leave the rest below a number
+  /// already recorded, and nothing would ever ask for them again.
+  final int lastSeen;
   final bool usesLunarCalendar;
   const FamilyRow({
     required this.updatedAt,
     this.deletedAt,
+    required this.unsent,
     required this.id,
     required this.name,
     this.description,
     this.sharedAt,
     this.myRole,
+    required this.lastSeen,
     required this.usesLunarCalendar,
   });
   @override
@@ -284,6 +358,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['unsent'] = Variable<bool>(unsent);
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || description != null) {
@@ -295,6 +370,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     if (!nullToAbsent || myRole != null) {
       map['my_role'] = Variable<String>(myRole);
     }
+    map['last_seen'] = Variable<int>(lastSeen);
     map['uses_lunar_calendar'] = Variable<bool>(usesLunarCalendar);
     return map;
   }
@@ -305,6 +381,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      unsent: Value(unsent),
       id: Value(id),
       name: Value(name),
       description: description == null && nullToAbsent
@@ -316,6 +393,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       myRole: myRole == null && nullToAbsent
           ? const Value.absent()
           : Value(myRole),
+      lastSeen: Value(lastSeen),
       usesLunarCalendar: Value(usesLunarCalendar),
     );
   }
@@ -328,11 +406,13 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     return FamilyRow(
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      unsent: serializer.fromJson<bool>(json['unsent']),
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
       sharedAt: serializer.fromJson<DateTime?>(json['sharedAt']),
       myRole: serializer.fromJson<String?>(json['myRole']),
+      lastSeen: serializer.fromJson<int>(json['lastSeen']),
       usesLunarCalendar: serializer.fromJson<bool>(json['usesLunarCalendar']),
     );
   }
@@ -342,11 +422,13 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     return <String, dynamic>{
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'unsent': serializer.toJson<bool>(unsent),
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
       'sharedAt': serializer.toJson<DateTime?>(sharedAt),
       'myRole': serializer.toJson<String?>(myRole),
+      'lastSeen': serializer.toJson<int>(lastSeen),
       'usesLunarCalendar': serializer.toJson<bool>(usesLunarCalendar),
     };
   }
@@ -354,26 +436,31 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
   FamilyRow copyWith({
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
+    bool? unsent,
     String? id,
     String? name,
     Value<String?> description = const Value.absent(),
     Value<DateTime?> sharedAt = const Value.absent(),
     Value<String?> myRole = const Value.absent(),
+    int? lastSeen,
     bool? usesLunarCalendar,
   }) => FamilyRow(
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    unsent: unsent ?? this.unsent,
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     sharedAt: sharedAt.present ? sharedAt.value : this.sharedAt,
     myRole: myRole.present ? myRole.value : this.myRole,
+    lastSeen: lastSeen ?? this.lastSeen,
     usesLunarCalendar: usesLunarCalendar ?? this.usesLunarCalendar,
   );
   FamilyRow copyWithCompanion(FamiliesCompanion data) {
     return FamilyRow(
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      unsent: data.unsent.present ? data.unsent.value : this.unsent,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       description: data.description.present
@@ -381,6 +468,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
           : this.description,
       sharedAt: data.sharedAt.present ? data.sharedAt.value : this.sharedAt,
       myRole: data.myRole.present ? data.myRole.value : this.myRole,
+      lastSeen: data.lastSeen.present ? data.lastSeen.value : this.lastSeen,
       usesLunarCalendar: data.usesLunarCalendar.present
           ? data.usesLunarCalendar.value
           : this.usesLunarCalendar,
@@ -392,11 +480,13 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     return (StringBuffer('FamilyRow(')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('unsent: $unsent, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('sharedAt: $sharedAt, ')
           ..write('myRole: $myRole, ')
+          ..write('lastSeen: $lastSeen, ')
           ..write('usesLunarCalendar: $usesLunarCalendar')
           ..write(')'))
         .toString();
@@ -406,11 +496,13 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
   int get hashCode => Object.hash(
     updatedAt,
     deletedAt,
+    unsent,
     id,
     name,
     description,
     sharedAt,
     myRole,
+    lastSeen,
     usesLunarCalendar,
   );
   @override
@@ -419,43 +511,51 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       (other is FamilyRow &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
+          other.unsent == this.unsent &&
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
           other.sharedAt == this.sharedAt &&
           other.myRole == this.myRole &&
+          other.lastSeen == this.lastSeen &&
           other.usesLunarCalendar == this.usesLunarCalendar);
 }
 
 class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
+  final Value<bool> unsent;
   final Value<String> id;
   final Value<String> name;
   final Value<String?> description;
   final Value<DateTime?> sharedAt;
   final Value<String?> myRole;
+  final Value<int> lastSeen;
   final Value<bool> usesLunarCalendar;
   final Value<int> rowid;
   const FamiliesCompanion({
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.unsent = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.sharedAt = const Value.absent(),
     this.myRole = const Value.absent(),
+    this.lastSeen = const Value.absent(),
     this.usesLunarCalendar = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FamiliesCompanion.insert({
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
+    this.unsent = const Value.absent(),
     required String id,
     required String name,
     this.description = const Value.absent(),
     this.sharedAt = const Value.absent(),
     this.myRole = const Value.absent(),
+    this.lastSeen = const Value.absent(),
     this.usesLunarCalendar = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : updatedAt = Value(updatedAt),
@@ -464,22 +564,26 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
   static Insertable<FamilyRow> custom({
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
+    Expression<bool>? unsent,
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? description,
     Expression<DateTime>? sharedAt,
     Expression<String>? myRole,
+    Expression<int>? lastSeen,
     Expression<bool>? usesLunarCalendar,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (unsent != null) 'unsent': unsent,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (sharedAt != null) 'shared_at': sharedAt,
       if (myRole != null) 'my_role': myRole,
+      if (lastSeen != null) 'last_seen': lastSeen,
       if (usesLunarCalendar != null) 'uses_lunar_calendar': usesLunarCalendar,
       if (rowid != null) 'rowid': rowid,
     });
@@ -488,22 +592,26 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
   FamiliesCompanion copyWith({
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
+    Value<bool>? unsent,
     Value<String>? id,
     Value<String>? name,
     Value<String?>? description,
     Value<DateTime?>? sharedAt,
     Value<String?>? myRole,
+    Value<int>? lastSeen,
     Value<bool>? usesLunarCalendar,
     Value<int>? rowid,
   }) {
     return FamiliesCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      unsent: unsent ?? this.unsent,
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
       sharedAt: sharedAt ?? this.sharedAt,
       myRole: myRole ?? this.myRole,
+      lastSeen: lastSeen ?? this.lastSeen,
       usesLunarCalendar: usesLunarCalendar ?? this.usesLunarCalendar,
       rowid: rowid ?? this.rowid,
     );
@@ -517,6 +625,9 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (unsent.present) {
+      map['unsent'] = Variable<bool>(unsent.value);
     }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
@@ -533,6 +644,9 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     if (myRole.present) {
       map['my_role'] = Variable<String>(myRole.value);
     }
+    if (lastSeen.present) {
+      map['last_seen'] = Variable<int>(lastSeen.value);
+    }
     if (usesLunarCalendar.present) {
       map['uses_lunar_calendar'] = Variable<bool>(usesLunarCalendar.value);
     }
@@ -547,11 +661,13 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     return (StringBuffer('FamiliesCompanion(')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('unsent: $unsent, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('sharedAt: $sharedAt, ')
           ..write('myRole: $myRole, ')
+          ..write('lastSeen: $lastSeen, ')
           ..write('usesLunarCalendar: $usesLunarCalendar, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -585,6 +701,19 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
     true,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unsentMeta = const VerificationMeta('unsent');
+  @override
+  late final GeneratedColumn<bool> unsent = GeneratedColumn<bool>(
+    'unsent',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("unsent" IN (0, 1))',
+    ),
+    defaultValue: const Constant<bool>(false),
   );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
@@ -867,6 +996,7 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
   List<GeneratedColumn> get $columns => [
     updatedAt,
     deletedAt,
+    unsent,
     id,
     familyId,
     displayName,
@@ -916,6 +1046,12 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
       context.handle(
         _deletedAtMeta,
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('unsent')) {
+      context.handle(
+        _unsentMeta,
+        unsent.isAcceptableOrUnknown(data['unsent']!, _unsentMeta),
       );
     }
     if (data.containsKey('id')) {
@@ -1124,6 +1260,10 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      unsent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}unsent'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -1237,6 +1377,18 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
 class PersonRow extends DataClass implements Insertable<PersonRow> {
   final DateTime updatedAt;
   final DateTime? deletedAt;
+
+  /// Whether this row holds a change this device has not sent (ROADMAP M9).
+  ///
+  /// Set by every write the application makes and cleared by every write
+  /// synchronisation makes, so the two can be told apart — which is the whole
+  /// of what a pull needs in order not to land on top of somebody's work.
+  ///
+  /// A flag rather than a comparison against `updatedAt`. That would be asking
+  /// the device's own clock whether an edit came after the last sync, and a
+  /// clock that steps backwards — a timezone change, a manual correction, an
+  /// NTP jump — would drop the edit silently. This is exact.
+  final bool unsent;
   final String id;
   final String familyId;
   final String displayName;
@@ -1273,6 +1425,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
   const PersonRow({
     required this.updatedAt,
     this.deletedAt,
+    required this.unsent,
     required this.id,
     required this.familyId,
     required this.displayName,
@@ -1305,6 +1458,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['unsent'] = Variable<bool>(unsent);
     map['id'] = Variable<String>(id);
     map['family_id'] = Variable<String>(familyId);
     map['display_name'] = Variable<String>(displayName);
@@ -1372,6 +1526,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      unsent: Value(unsent),
       id: Value(id),
       familyId: Value(familyId),
       displayName: Value(displayName),
@@ -1439,6 +1594,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return PersonRow(
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      unsent: serializer.fromJson<bool>(json['unsent']),
       id: serializer.fromJson<String>(json['id']),
       familyId: serializer.fromJson<String>(json['familyId']),
       displayName: serializer.fromJson<String>(json['displayName']),
@@ -1481,6 +1637,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return <String, dynamic>{
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'unsent': serializer.toJson<bool>(unsent),
       'id': serializer.toJson<String>(id),
       'familyId': serializer.toJson<String>(familyId),
       'displayName': serializer.toJson<String>(displayName),
@@ -1511,6 +1668,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
   PersonRow copyWith({
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
+    bool? unsent,
     String? id,
     String? familyId,
     String? displayName,
@@ -1538,6 +1696,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
   }) => PersonRow(
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    unsent: unsent ?? this.unsent,
     id: id ?? this.id,
     familyId: familyId ?? this.familyId,
     displayName: displayName ?? this.displayName,
@@ -1585,6 +1744,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return PersonRow(
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      unsent: data.unsent.present ? data.unsent.value : this.unsent,
       id: data.id.present ? data.id.value : this.id,
       familyId: data.familyId.present ? data.familyId.value : this.familyId,
       displayName: data.displayName.present
@@ -1655,6 +1815,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return (StringBuffer('PersonRow(')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('unsent: $unsent, ')
           ..write('id: $id, ')
           ..write('familyId: $familyId, ')
           ..write('displayName: $displayName, ')
@@ -1687,6 +1848,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
   int get hashCode => Object.hashAll([
     updatedAt,
     deletedAt,
+    unsent,
     id,
     familyId,
     displayName,
@@ -1718,6 +1880,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
       (other is PersonRow &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
+          other.unsent == this.unsent &&
           other.id == this.id &&
           other.familyId == this.familyId &&
           other.displayName == this.displayName &&
@@ -1747,6 +1910,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
 class PersonsCompanion extends UpdateCompanion<PersonRow> {
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
+  final Value<bool> unsent;
   final Value<String> id;
   final Value<String> familyId;
   final Value<String> displayName;
@@ -1775,6 +1939,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
   const PersonsCompanion({
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.unsent = const Value.absent(),
     this.id = const Value.absent(),
     this.familyId = const Value.absent(),
     this.displayName = const Value.absent(),
@@ -1804,6 +1969,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
   PersonsCompanion.insert({
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
+    this.unsent = const Value.absent(),
     required String id,
     required String familyId,
     required String displayName,
@@ -1837,6 +2003,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
   static Insertable<PersonRow> custom({
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
+    Expression<bool>? unsent,
     Expression<String>? id,
     Expression<String>? familyId,
     Expression<String>? displayName,
@@ -1866,6 +2033,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     return RawValuesInsertable({
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (unsent != null) 'unsent': unsent,
       if (id != null) 'id': id,
       if (familyId != null) 'family_id': familyId,
       if (displayName != null) 'display_name': displayName,
@@ -1901,6 +2069,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
   PersonsCompanion copyWith({
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
+    Value<bool>? unsent,
     Value<String>? id,
     Value<String>? familyId,
     Value<String>? displayName,
@@ -1930,6 +2099,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     return PersonsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      unsent: unsent ?? this.unsent,
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
       displayName: displayName ?? this.displayName,
@@ -1968,6 +2138,9 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (unsent.present) {
+      map['unsent'] = Variable<bool>(unsent.value);
     }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
@@ -2062,6 +2235,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     return (StringBuffer('PersonsCompanion(')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('unsent: $unsent, ')
           ..write('id: $id, ')
           ..write('familyId: $familyId, ')
           ..write('displayName: $displayName, ')
@@ -2119,6 +2293,19 @@ class $RelationshipsTable extends Relationships
     true,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unsentMeta = const VerificationMeta('unsent');
+  @override
+  late final GeneratedColumn<bool> unsent = GeneratedColumn<bool>(
+    'unsent',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("unsent" IN (0, 1))',
+    ),
+    defaultValue: const Constant<bool>(false),
   );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
@@ -2184,6 +2371,7 @@ class $RelationshipsTable extends Relationships
   List<GeneratedColumn> get $columns => [
     updatedAt,
     deletedAt,
+    unsent,
     id,
     familyId,
     type,
@@ -2214,6 +2402,12 @@ class $RelationshipsTable extends Relationships
       context.handle(
         _deletedAtMeta,
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('unsent')) {
+      context.handle(
+        _unsentMeta,
+        unsent.isAcceptableOrUnknown(data['unsent']!, _unsentMeta),
       );
     }
     if (data.containsKey('id')) {
@@ -2266,6 +2460,10 @@ class $RelationshipsTable extends Relationships
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      unsent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}unsent'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -2303,6 +2501,18 @@ class $RelationshipsTable extends Relationships
 class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
   final DateTime updatedAt;
   final DateTime? deletedAt;
+
+  /// Whether this row holds a change this device has not sent (ROADMAP M9).
+  ///
+  /// Set by every write the application makes and cleared by every write
+  /// synchronisation makes, so the two can be told apart — which is the whole
+  /// of what a pull needs in order not to land on top of somebody's work.
+  ///
+  /// A flag rather than a comparison against `updatedAt`. That would be asking
+  /// the device's own clock whether an edit came after the last sync, and a
+  /// clock that steps backwards — a timezone change, a manual correction, an
+  /// NTP jump — would drop the edit silently. This is exact.
+  final bool unsent;
   final String id;
   final String familyId;
   final RelationshipType type;
@@ -2311,6 +2521,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
   const RelationshipRow({
     required this.updatedAt,
     this.deletedAt,
+    required this.unsent,
     required this.id,
     required this.familyId,
     required this.type,
@@ -2324,6 +2535,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['unsent'] = Variable<bool>(unsent);
     map['id'] = Variable<String>(id);
     map['family_id'] = Variable<String>(familyId);
     {
@@ -2342,6 +2554,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      unsent: Value(unsent),
       id: Value(id),
       familyId: Value(familyId),
       type: Value(type),
@@ -2358,6 +2571,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
     return RelationshipRow(
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      unsent: serializer.fromJson<bool>(json['unsent']),
       id: serializer.fromJson<String>(json['id']),
       familyId: serializer.fromJson<String>(json['familyId']),
       type: $RelationshipsTable.$convertertype.fromJson(
@@ -2373,6 +2587,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
     return <String, dynamic>{
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'unsent': serializer.toJson<bool>(unsent),
       'id': serializer.toJson<String>(id),
       'familyId': serializer.toJson<String>(familyId),
       'type': serializer.toJson<String>(
@@ -2386,6 +2601,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
   RelationshipRow copyWith({
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
+    bool? unsent,
     String? id,
     String? familyId,
     RelationshipType? type,
@@ -2394,6 +2610,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
   }) => RelationshipRow(
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    unsent: unsent ?? this.unsent,
     id: id ?? this.id,
     familyId: familyId ?? this.familyId,
     type: type ?? this.type,
@@ -2404,6 +2621,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
     return RelationshipRow(
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      unsent: data.unsent.present ? data.unsent.value : this.unsent,
       id: data.id.present ? data.id.value : this.id,
       familyId: data.familyId.present ? data.familyId.value : this.familyId,
       type: data.type.present ? data.type.value : this.type,
@@ -2417,6 +2635,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
     return (StringBuffer('RelationshipRow(')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('unsent: $unsent, ')
           ..write('id: $id, ')
           ..write('familyId: $familyId, ')
           ..write('type: $type, ')
@@ -2430,6 +2649,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
   int get hashCode => Object.hash(
     updatedAt,
     deletedAt,
+    unsent,
     id,
     familyId,
     type,
@@ -2442,6 +2662,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
       (other is RelationshipRow &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
+          other.unsent == this.unsent &&
           other.id == this.id &&
           other.familyId == this.familyId &&
           other.type == this.type &&
@@ -2452,6 +2673,7 @@ class RelationshipRow extends DataClass implements Insertable<RelationshipRow> {
 class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
+  final Value<bool> unsent;
   final Value<String> id;
   final Value<String> familyId;
   final Value<RelationshipType> type;
@@ -2461,6 +2683,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
   const RelationshipsCompanion({
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.unsent = const Value.absent(),
     this.id = const Value.absent(),
     this.familyId = const Value.absent(),
     this.type = const Value.absent(),
@@ -2471,6 +2694,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
   RelationshipsCompanion.insert({
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
+    this.unsent = const Value.absent(),
     required String id,
     required String familyId,
     required RelationshipType type,
@@ -2486,6 +2710,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
   static Insertable<RelationshipRow> custom({
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
+    Expression<bool>? unsent,
     Expression<String>? id,
     Expression<String>? familyId,
     Expression<String>? type,
@@ -2496,6 +2721,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
     return RawValuesInsertable({
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (unsent != null) 'unsent': unsent,
       if (id != null) 'id': id,
       if (familyId != null) 'family_id': familyId,
       if (type != null) 'type': type,
@@ -2508,6 +2734,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
   RelationshipsCompanion copyWith({
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
+    Value<bool>? unsent,
     Value<String>? id,
     Value<String>? familyId,
     Value<RelationshipType>? type,
@@ -2518,6 +2745,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
     return RelationshipsCompanion(
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      unsent: unsent ?? this.unsent,
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
       type: type ?? this.type,
@@ -2535,6 +2763,9 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
     }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (unsent.present) {
+      map['unsent'] = Variable<bool>(unsent.value);
     }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
@@ -2564,6 +2795,7 @@ class RelationshipsCompanion extends UpdateCompanion<RelationshipRow> {
     return (StringBuffer('RelationshipsCompanion(')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('unsent: $unsent, ')
           ..write('id: $id, ')
           ..write('familyId: $familyId, ')
           ..write('type: $type, ')
@@ -2966,11 +3198,13 @@ typedef $$FamiliesTableCreateCompanionBuilder =
     FamiliesCompanion Function({
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
+      Value<bool> unsent,
       required String id,
       required String name,
       Value<String?> description,
       Value<DateTime?> sharedAt,
       Value<String?> myRole,
+      Value<int> lastSeen,
       Value<bool> usesLunarCalendar,
       Value<int> rowid,
     });
@@ -2978,11 +3212,13 @@ typedef $$FamiliesTableUpdateCompanionBuilder =
     FamiliesCompanion Function({
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
+      Value<bool> unsent,
       Value<String> id,
       Value<String> name,
       Value<String?> description,
       Value<DateTime?> sharedAt,
       Value<String?> myRole,
+      Value<int> lastSeen,
       Value<bool> usesLunarCalendar,
       Value<int> rowid,
     });
@@ -3048,6 +3284,11 @@ class $$FamiliesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get unsent => $composableBuilder(
+    column: $table.unsent,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -3070,6 +3311,11 @@ class $$FamiliesTableFilterComposer
 
   ColumnFilters<String> get myRole => $composableBuilder(
     column: $table.myRole,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastSeen => $composableBuilder(
+    column: $table.lastSeen,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3148,6 +3394,11 @@ class $$FamiliesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get unsent => $composableBuilder(
+    column: $table.unsent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -3173,6 +3424,11 @@ class $$FamiliesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get lastSeen => $composableBuilder(
+    column: $table.lastSeen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get usesLunarCalendar => $composableBuilder(
     column: $table.usesLunarCalendar,
     builder: (column) => ColumnOrderings(column),
@@ -3194,6 +3450,9 @@ class $$FamiliesTableAnnotationComposer
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
+  GeneratedColumn<bool> get unsent =>
+      $composableBuilder(column: $table.unsent, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -3210,6 +3469,9 @@ class $$FamiliesTableAnnotationComposer
 
   GeneratedColumn<String> get myRole =>
       $composableBuilder(column: $table.myRole, builder: (column) => column);
+
+  GeneratedColumn<int> get lastSeen =>
+      $composableBuilder(column: $table.lastSeen, builder: (column) => column);
 
   GeneratedColumn<bool> get usesLunarCalendar => $composableBuilder(
     column: $table.usesLunarCalendar,
@@ -3297,21 +3559,25 @@ class $$FamiliesTableTableManager
               ({
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> unsent = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<DateTime?> sharedAt = const Value.absent(),
                 Value<String?> myRole = const Value.absent(),
+                Value<int> lastSeen = const Value.absent(),
                 Value<bool> usesLunarCalendar = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FamiliesCompanion(
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                unsent: unsent,
                 id: id,
                 name: name,
                 description: description,
                 sharedAt: sharedAt,
                 myRole: myRole,
+                lastSeen: lastSeen,
                 usesLunarCalendar: usesLunarCalendar,
                 rowid: rowid,
               ),
@@ -3319,21 +3585,25 @@ class $$FamiliesTableTableManager
               ({
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> unsent = const Value.absent(),
                 required String id,
                 required String name,
                 Value<String?> description = const Value.absent(),
                 Value<DateTime?> sharedAt = const Value.absent(),
                 Value<String?> myRole = const Value.absent(),
+                Value<int> lastSeen = const Value.absent(),
                 Value<bool> usesLunarCalendar = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FamiliesCompanion.insert(
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                unsent: unsent,
                 id: id,
                 name: name,
                 description: description,
                 sharedAt: sharedAt,
                 myRole: myRole,
+                lastSeen: lastSeen,
                 usesLunarCalendar: usesLunarCalendar,
                 rowid: rowid,
               ),
@@ -3424,6 +3694,7 @@ typedef $$PersonsTableCreateCompanionBuilder =
     PersonsCompanion Function({
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
+      Value<bool> unsent,
       required String id,
       required String familyId,
       required String displayName,
@@ -3454,6 +3725,7 @@ typedef $$PersonsTableUpdateCompanionBuilder =
     PersonsCompanion Function({
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
+      Value<bool> unsent,
       Value<String> id,
       Value<String> familyId,
       Value<String> displayName,
@@ -3561,6 +3833,11 @@ class $$PersonsTableFilterComposer
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get unsent => $composableBuilder(
+    column: $table.unsent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3773,6 +4050,11 @@ class $$PersonsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get unsent => $composableBuilder(
+    column: $table.unsent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -3926,6 +4208,9 @@ class $$PersonsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get unsent =>
+      $composableBuilder(column: $table.unsent, builder: (column) => column);
 
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
@@ -4142,6 +4427,7 @@ class $$PersonsTableTableManager
               ({
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> unsent = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> familyId = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
@@ -4170,6 +4456,7 @@ class $$PersonsTableTableManager
               }) => PersonsCompanion(
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                unsent: unsent,
                 id: id,
                 familyId: familyId,
                 displayName: displayName,
@@ -4200,6 +4487,7 @@ class $$PersonsTableTableManager
               ({
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> unsent = const Value.absent(),
                 required String id,
                 required String familyId,
                 required String displayName,
@@ -4228,6 +4516,7 @@ class $$PersonsTableTableManager
               }) => PersonsCompanion.insert(
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                unsent: unsent,
                 id: id,
                 familyId: familyId,
                 displayName: displayName,
@@ -4380,6 +4669,7 @@ typedef $$RelationshipsTableCreateCompanionBuilder =
     RelationshipsCompanion Function({
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
+      Value<bool> unsent,
       required String id,
       required String familyId,
       required RelationshipType type,
@@ -4391,6 +4681,7 @@ typedef $$RelationshipsTableUpdateCompanionBuilder =
     RelationshipsCompanion Function({
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
+      Value<bool> unsent,
       Value<String> id,
       Value<String> familyId,
       Value<RelationshipType> type,
@@ -4476,6 +4767,11 @@ class $$RelationshipsTableFilterComposer
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get unsent => $composableBuilder(
+    column: $table.unsent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4579,6 +4875,11 @@ class $$RelationshipsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get unsent => $composableBuilder(
+    column: $table.unsent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -4673,6 +4974,9 @@ class $$RelationshipsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get unsent =>
+      $composableBuilder(column: $table.unsent, builder: (column) => column);
 
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
@@ -4784,6 +5088,7 @@ class $$RelationshipsTableTableManager
               ({
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> unsent = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> familyId = const Value.absent(),
                 Value<RelationshipType> type = const Value.absent(),
@@ -4793,6 +5098,7 @@ class $$RelationshipsTableTableManager
               }) => RelationshipsCompanion(
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                unsent: unsent,
                 id: id,
                 familyId: familyId,
                 type: type,
@@ -4804,6 +5110,7 @@ class $$RelationshipsTableTableManager
               ({
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<bool> unsent = const Value.absent(),
                 required String id,
                 required String familyId,
                 required RelationshipType type,
@@ -4813,6 +5120,7 @@ class $$RelationshipsTableTableManager
               }) => RelationshipsCompanion.insert(
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                unsent: unsent,
                 id: id,
                 familyId: familyId,
                 type: type,

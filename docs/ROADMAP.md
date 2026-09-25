@@ -1009,14 +1009,38 @@ out there. The short of it: reusable and approval need each other, and the
 argument against a queue does not reach a code whose owner never chose a
 recipient.
 
-Design and implement:
+Built in steps, because each one stands on its own and the first delivers most
+of what is currently missing.
 
-* local/cloud synchronization
-* change detection
-* offline modifications
-* synchronization status
-* initial conflict handling
-* deletion behavior via the tombstones introduced at M3
+**Step 1 — pulling. Done.** `WHERE change_seq > lastSeen`, one number per
+family, asked when somebody opens that family. `0` means nothing has been
+taken, so the first download and every later pull are the same request and
+there is no second path to keep in step with the first.
+
+Two things had to exist for it. `families.lastSeen` records where a device got
+to, written inside the same transaction as the rows and *last* — written first,
+a pull interrupted halfway would leave the remainder below a number already
+recorded, and nothing would ever ask for those rows again. And `unsent` on
+every synchronising row says which changes are this device's and have not been
+sent: a flag rather than a comparison against `updatedAt`, because that would
+be asking the device's own clock whether an edit came after the last sync, and
+a clock that steps backwards drops the edit silently.
+
+A row marked unsent is **held**, not merged. Landing the server's version on
+top of somebody's work is the one failure a pull must not have, and until
+pushing exists there is nothing to reconcile against — the work has nowhere to
+have gone. Held ids come back so a screen can say so; choosing between two
+versions is step 3's, and it needs both to exist.
+
+Still to do:
+
+* **Step 2 — pushing.** What `unsent` was put there for. This is what makes an
+  editor's changes reach anybody else, and until it lands "editor" is close to
+  a label: they may edit, but only their own copy, which nobody will ever see.
+* **Step 3 — conflict.** Ordered by `change_seq`, never by device clocks.
+* **Step 4 — deletion travelling both ways**, on the tombstones from M3.
+* **Step 5 — synchronisation status**, so it is not a black box: last brought
+  down, and what is still waiting to go up.
 
 Constraints already fixed (ARCHITECTURE §12):
 

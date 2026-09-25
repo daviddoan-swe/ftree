@@ -9,6 +9,13 @@
 /// recovered once lost. Every function here is written so that what goes in
 /// comes back identical, and the tests assert exactly that.
 ///
+/// Every `toRow` marks the row **unsent**. These three functions are the only
+/// way the application writes to this database, so this is the one place that
+/// has to say "a person did this" — and synchronisation, which writes through
+/// its own path, is the only thing that says otherwise. A pull reads the flag
+/// to know which rows are somebody's unsent work and must not be landed on
+/// (ROADMAP M9).
+///
 /// Every `toRow` clears `deletedAt`. Writing a row asserts that it exists, and
 /// a tombstone asserts that it does not; both cannot hold. Without it a row
 /// written over a tombstone lands in the table and stays invisible, because
@@ -47,6 +54,7 @@ FamiliesCompanion familyToRow(Family family, {required DateTime updatedAt}) =>
       description: Value<String?>(family.description),
       usesLunarCalendar: Value<bool>(family.usesLunarCalendar),
       deletedAt: const Value<DateTime?>(null),
+      unsent: const Value<bool>(true),
       updatedAt: updatedAt,
     );
 
@@ -115,6 +123,7 @@ PersonsCompanion personToRow(Person person, {required DateTime updatedAt}) {
     biography: Value<String?>(person.biography),
     profileMediaRef: Value<String?>(person.profileMediaRef),
     deletedAt: const Value<DateTime?>(null),
+    unsent: const Value<bool>(true),
     updatedAt: updatedAt,
   );
 }
@@ -153,6 +162,7 @@ RelationshipsCompanion relationshipToRow(
   personAId: relationship.personAId,
   personBId: relationship.personBId,
   deletedAt: const Value<DateTime?>(null),
+  unsent: const Value<bool>(true),
   updatedAt: updatedAt,
 );
 

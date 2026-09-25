@@ -1,6 +1,8 @@
 /// One family: the people in it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
@@ -58,6 +60,21 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
       final keep = wasAt.clamp(0.0, _scroll.position.maxScrollExtent);
       if ((_scroll.offset - keep).abs() > 0.5) _scroll.jumpTo(keep);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Opening a family is when somebody wants to be looking at it, which makes
+    // it the moment worth spending a request on. Not at start-up: pulling six
+    // families to draw a list of names would be paying for five of them.
+    //
+    // After the first frame, because this reads providers and writes to the
+    // database, and neither belongs in the middle of building a widget.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(pullFamily(ref, widget.familyId));
     });
   }
 

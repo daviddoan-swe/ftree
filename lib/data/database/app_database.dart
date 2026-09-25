@@ -38,6 +38,19 @@ part 'app_database.g.dart';
 mixin _SyncColumns on Table {
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  /// Whether this row holds a change this device has not sent (ROADMAP M9).
+  ///
+  /// Set by every write the application makes and cleared by every write
+  /// synchronisation makes, so the two can be told apart — which is the whole
+  /// of what a pull needs in order not to land on top of somebody's work.
+  ///
+  /// A flag rather than a comparison against `updatedAt`. That would be asking
+  /// the device's own clock whether an edit came after the last sync, and a
+  /// clock that steps backwards — a timezone change, a manual correction, an
+  /// NTP jump — would drop the edit silently. This is exact.
+  BoolColumn get unsent =>
+      boolean().withDefault(const Constant<bool>(false))();
 }
 
 /// A managed family-tree dataset — a boundary, not a kinship group.
@@ -86,6 +99,19 @@ class Families extends Table with _SyncColumns {
   /// provenance, and clearing it would hand full rights to anybody who signed
   /// out of an editor's copy.
   TextColumn get myRole => text().nullable()();
+
+  /// The highest `change_seq` this device has taken from the server for this
+  /// family, or 0 for one it has never pulled (ROADMAP M9).
+  ///
+  /// One number for the whole family rather than one per row: the device does
+  /// not order anything, it only says where it is, and the server answers with
+  /// what came after. `0` therefore means "everything", which makes the first
+  /// download and every later pull the same request.
+  ///
+  /// Written in the same transaction as the rows it accounts for. Written
+  /// first, a pull interrupted halfway would leave the rest below a number
+  /// already recorded, and nothing would ever ask for them again.
+  IntColumn get lastSeen => integer().withDefault(const Constant<int>(0))();
 
   BoolColumn get usesLunarCalendar =>
       boolean().withDefault(const Constant(false))();
@@ -260,8 +286,11 @@ class AppDatabase extends _$AppDatabase {
   ///     message carrying it was closed.
   /// 5 — `families.myRole`, so the interface offers only what this copy is
   ///     allowed to do, with no network to ask.
+  /// 6 — `unsent` on everything that synchronises, and `families.lastSeen`:
+  ///     the two facts a pull needs, which of these rows are mine and where I
+  ///     had got to.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -319,6 +348,18 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "UPDATE families SET my_role = 'owner' WHERE shared_at IS NOT NULL",
         );
+      }
+      if (from < 6) {
+        await m.addColumn(families, families.unsent);
+        await m.addColumn(persons, persons.unsent);
+        await m.addColumn(relationships, relationships.unsent);
+        await m.addColumn(families, families.lastSeen);
+
+        // False and zero for everything already here, and both are the safe
+        // reading. Unsent would make a pull skip every row it ever met; a
+        // lastSeen above zero would make it skip everything below that number.
+        // Starting at "nothing is mine, I have seen nothing" costs one full
+        // pull and cannot lose anything.
       }
     },
     beforeOpen: (OpeningDetails details) async {

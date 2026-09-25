@@ -20,6 +20,8 @@ import '../data/cloud/cloud_session.dart';
 import '../data/cloud/family_invitations.dart';
 import '../data/database/family_roles.dart';
 import '../data/database/invitation_codes.dart';
+import '../data/sync/cloud_changes.dart';
+import '../data/sync/family_pull.dart';
 import '../data/database/sharing_marks.dart';
 import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
@@ -155,6 +157,50 @@ Future<bool> _refreshRoles(FamilyRoles roles) async {
 final sharedFamiliesProvider = FutureProvider<Set<String>>(
   (ref) => ref.watch(sharingMarksProvider).shared(),
 );
+
+/// Writes what the server sent into the local database (ROADMAP M9).
+final familyPullProvider = Provider<FamilyPull>(
+  (ref) => FamilyPull(ref.watch(databaseProvider)),
+);
+
+/// Where those changes come from. Overridden in tests; nothing else overrides
+/// it. Built on use rather than held, because it may not touch
+/// `Supabase.instance` before `main` has opened the cloud.
+final changeSourceProvider = Provider<ChangeSource>(
+  (ref) => CloudChanges(Supabase.instance.client),
+);
+
+/// Brings [familyId] up to date with the server, if that is possible at all.
+///
+/// Best effort, and silent when it is not: no session, no network, a family
+/// this device never put on a server. None of those is a failure — the
+/// application has always worked with none of them.
+///
+/// Rows this device has changed and not sent are held rather than overwritten,
+/// which [FamilyPull] decides and this only passes on.
+Future<void> pullFamily(WidgetRef ref, String familyId) async {
+  try {
+    if (!isSignedIn) return;
+
+    // A family this device never sent up has nothing on the server to ask
+    // about, and asking would spend a request to be told so.
+    final shared = ref.read(sharedFamiliesProvider).valueOrNull;
+    if (shared == null || !shared.contains(familyId)) return;
+
+    final pull = ref.read(familyPullProvider);
+    final changes = await ref
+        .read(changeSourceProvider)
+        .since(familyId, await pull.lastSeen(familyId));
+
+    final result = await pull.apply(familyId, changes);
+    if (result.applied > 0) {
+      ref.invalidate(familySnapshotProvider(familyId));
+    }
+  } catch (_) {
+    // Offline, signed out, or a cloud never opened. The copy on the device is
+    // what it was, which is the whole point of holding one.
+  }
+}
 
 /// Every family that has not been deleted.
 ///

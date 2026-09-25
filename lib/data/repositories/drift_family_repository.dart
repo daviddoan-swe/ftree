@@ -39,22 +39,19 @@ final class DriftFamilyRepository implements FamilyRepository {
   @override
   Future<FamilySnapshot?> loadFamily(String familyId) async {
     final familyRow =
-        await (_db.select(_db.families)..where(
-              (f) => f.id.equals(familyId) & f.deletedAt.isNull(),
-            ))
+        await (_db.select(_db.families)
+              ..where((f) => f.id.equals(familyId) & f.deletedAt.isNull()))
             .getSingleOrNull();
 
     if (familyRow == null) return null;
 
-    final personRows = await (_db.select(_db.persons)..where(
-          (p) => p.familyId.equals(familyId) & p.deletedAt.isNull(),
-        ))
-        .get();
+    final personRows = await (_db.select(
+      _db.persons,
+    )..where((p) => p.familyId.equals(familyId) & p.deletedAt.isNull())).get();
 
-    final relationshipRows = await (_db.select(_db.relationships)..where(
-          (r) => r.familyId.equals(familyId) & r.deletedAt.isNull(),
-        ))
-        .get();
+    final relationshipRows = await (_db.select(
+      _db.relationships,
+    )..where((r) => r.familyId.equals(familyId) & r.deletedAt.isNull())).get();
 
     return FamilySnapshot(
       family: familyFromRow(familyRow),
@@ -130,8 +127,15 @@ final class DriftFamilyRepository implements FamilyRepository {
     final at = _timestamp;
 
     await _db.transaction(() async {
-      await (_db.update(_db.persons)..where((p) => p.id.equals(personId)))
-          .write(PersonsCompanion(deletedAt: Value(at), updatedAt: Value(at)));
+      await (_db.update(
+        _db.persons,
+      )..where((p) => p.id.equals(personId))).write(
+        PersonsCompanion(
+          deletedAt: Value(at),
+          updatedAt: Value(at),
+          unsent: const Value<bool>(true),
+        ),
+      );
 
       // Edges naming a tombstoned person must be tombstoned too. Left live they
       // would still synchronise as real relationships pointing at somebody the
@@ -140,10 +144,7 @@ final class DriftFamilyRepository implements FamilyRepository {
             (r) => r.personAId.equals(personId) | r.personBId.equals(personId),
           ))
           .write(
-            RelationshipsCompanion(
-              deletedAt: Value(at),
-              updatedAt: Value(at),
-            ),
+            RelationshipsCompanion(deletedAt: Value(at), updatedAt: Value(at)),
           );
     });
   }
@@ -152,11 +153,15 @@ final class DriftFamilyRepository implements FamilyRepository {
   Future<void> deleteRelationship(String relationshipId) async {
     final at = _timestamp;
 
-    await (_db.update(_db.relationships)
-          ..where((r) => r.id.equals(relationshipId)))
-        .write(
-          RelationshipsCompanion(deletedAt: Value(at), updatedAt: Value(at)),
-        );
+    await (_db.update(
+      _db.relationships,
+    )..where((r) => r.id.equals(relationshipId))).write(
+      RelationshipsCompanion(
+        deletedAt: Value(at),
+        updatedAt: Value(at),
+        unsent: const Value<bool>(true),
+      ),
+    );
   }
 
   @override
@@ -164,17 +169,35 @@ final class DriftFamilyRepository implements FamilyRepository {
     final at = _timestamp;
 
     await _db.transaction(() async {
-      await (_db.update(_db.relationships)
-            ..where((r) => r.familyId.equals(familyId)))
-          .write(
-            RelationshipsCompanion(deletedAt: Value(at), updatedAt: Value(at)),
-          );
+      await (_db.update(
+        _db.relationships,
+      )..where((r) => r.familyId.equals(familyId))).write(
+        RelationshipsCompanion(
+          deletedAt: Value(at),
+          updatedAt: Value(at),
+          unsent: const Value<bool>(true),
+        ),
+      );
 
-      await (_db.update(_db.persons)..where((p) => p.familyId.equals(familyId)))
-          .write(PersonsCompanion(deletedAt: Value(at), updatedAt: Value(at)));
+      await (_db.update(
+        _db.persons,
+      )..where((p) => p.familyId.equals(familyId))).write(
+        PersonsCompanion(
+          deletedAt: Value(at),
+          updatedAt: Value(at),
+          unsent: const Value<bool>(true),
+        ),
+      );
 
-      await (_db.update(_db.families)..where((f) => f.id.equals(familyId)))
-          .write(FamiliesCompanion(deletedAt: Value(at), updatedAt: Value(at)));
+      await (_db.update(
+        _db.families,
+      )..where((f) => f.id.equals(familyId))).write(
+        FamiliesCompanion(
+          deletedAt: Value(at),
+          updatedAt: Value(at),
+          unsent: const Value<bool>(true),
+        ),
+      );
     });
   }
 }
