@@ -21,7 +21,9 @@ import '../data/cloud/family_invitations.dart';
 import '../data/database/family_roles.dart';
 import '../data/database/invitation_codes.dart';
 import '../data/sync/cloud_changes.dart';
+import '../data/sync/cloud_push.dart';
 import '../data/sync/family_pull.dart';
+import '../data/sync/family_push.dart';
 import '../data/database/sharing_marks.dart';
 import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
@@ -169,6 +171,53 @@ final familyPullProvider = Provider<FamilyPull>(
 final changeSourceProvider = Provider<ChangeSource>(
   (ref) => CloudChanges(Supabase.instance.client),
 );
+
+/// Reads what is waiting to go up, and records what has gone (ROADMAP M9).
+final familyPushProvider = Provider<FamilyPush>(
+  (ref) => FamilyPush(ref.watch(databaseProvider)),
+);
+
+/// Where those changes go. Overridden in tests; nothing else overrides it.
+final changeSinkProvider = Provider<ChangeSink>(
+  (ref) => CloudPush(Supabase.instance.client),
+);
+
+/// Sends this device's changes for [familyId], and pulls afterwards.
+///
+/// Push first, then pull, and in that order for a reason: a pull holds every
+/// row this device has not sent rather than landing on it, so pushing first is
+/// what lets those rows stop being held and start being merged.
+///
+/// Best effort and silent, like the pull. Rows the server did not take stay
+/// flagged and go again next time.
+Future<void> syncFamily(WidgetRef ref, String familyId) async {
+  try {
+    if (!isSignedIn) return;
+
+    final shared = ref.read(sharedFamiliesProvider).valueOrNull;
+    if (shared == null || !shared.contains(familyId)) return;
+
+    // Only where this copy is allowed to write at all. A viewer's push would
+    // be refused row by row and silently, and the read-back would come back
+    // empty — correct, but a request spent to learn what the device already
+    // knew (PRODUCT §5.0).
+    final role = ref.read(familyRoleMapProvider).valueOrNull?[familyId];
+    if (role.mayEditPeople) {
+      final push = ref.read(familyPushProvider);
+      final outgoing = await push.pending(familyId);
+      if (!outgoing.isEmpty) {
+        await push.markSent(
+          await ref.read(changeSinkProvider).send(familyId, outgoing),
+        );
+      }
+    }
+  } catch (_) {
+    // Offline, signed out, or a cloud never opened. What was waiting is still
+    // waiting, which is what the flag is for.
+  }
+
+  await pullFamily(ref, familyId);
+}
 
 /// Brings [familyId] up to date with the server, if that is possible at all.
 ///

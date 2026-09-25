@@ -1032,11 +1032,35 @@ pushing exists there is nothing to reconcile against — the work has nowhere to
 have gone. Held ids come back so a screen can say so; choosing between two
 versions is step 3's, and it needs both to exist.
 
+**Step 2 — pushing. Done.** What `unsent` was put there for, and what makes an
+editor's changes reach anybody else — until this landed, "editor" was close to
+a label: they could edit, but only their own copy, which nobody would ever see.
+
+Push then pull, in that order, because a pull holds every unsent row rather
+than landing on it. Pushing first is what lets those rows stop being held and
+start being merged.
+
+Two things the server insisted on.
+
+Removals cannot ride with the rest. `save_family_all` clears `deleted_at` on
+everything it writes, because writing a row asserts that it exists — so a
+tombstone sent through it brings the person back to life. They go by the
+functions built for them.
+
+And a push cannot trust silence. A policy that refuses an UPDATE makes the
+statement match nothing, change nothing and raise nothing; clearing `unsent` on
+the absence of an error would drop somebody's work and never retry it. So every
+row leaves carrying one timestamp, and afterwards the server is asked which
+rows it holds with exactly that timestamp. Those are the ones that landed.
+
+The two refusals do not look alike, which is worth knowing: a viewer pushing a
+*person* is refused loudly, because `save_family_all` reaches that table
+through an INSERT and `persons_insert` raises 42501. A viewer removing a
+*relationship* is refused in silence, because that is a plain UPDATE. Both are
+checked, and the second is the one the confirmation exists for.
+
 Still to do:
 
-* **Step 2 — pushing.** What `unsent` was put there for. This is what makes an
-  editor's changes reach anybody else, and until it lands "editor" is close to
-  a label: they may edit, but only their own copy, which nobody will ever see.
 * **Step 3 — conflict.** Ordered by `change_seq`, never by device clocks.
 * **Step 4 — deletion travelling both ways**, on the tombstones from M3.
 * **Step 5 — synchronisation status**, so it is not a black box: last brought

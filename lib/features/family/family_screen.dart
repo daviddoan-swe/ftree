@@ -74,7 +74,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     // After the first frame, because this reads providers and writes to the
     // database, and neither belongs in the middle of building a widget.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(pullFamily(ref, widget.familyId));
+      if (mounted) unawaited(syncFamily(ref, widget.familyId));
     });
   }
 
