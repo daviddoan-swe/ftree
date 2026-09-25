@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import '../../app/issue_text.dart';
 import '../../app/providers.dart';
 import '../../app/validation_prompts.dart';
+import '../../domain/family_name.dart';
 import '../../domain/genealogical_date.dart';
 import '../../domain/ids.dart';
 import '../../domain/person.dart';
@@ -18,12 +19,14 @@ import 'partial_date_field.dart';
 Future<void> showPersonForm(
   BuildContext context, {
   required String familyId,
+  required String familyName,
   required bool usesLunarCalendar,
   Person? editing,
 }) => Navigator.of(context).push(
   MaterialPageRoute<void>(
     builder: (_) => PersonFormScreen(
       familyId: familyId,
+      familyName: familyName,
       usesLunarCalendar: usesLunarCalendar,
       editing: editing,
     ),
@@ -33,12 +36,20 @@ Future<void> showPersonForm(
 class PersonFormScreen extends ConsumerStatefulWidget {
   const PersonFormScreen({
     required this.familyId,
+    required this.familyName,
     required this.usesLunarCalendar,
     this.editing,
     super.key,
   });
 
   final String familyId;
+
+  /// What the family is called, for the surname a new person starts with.
+  ///
+  /// Passed in rather than looked up, the same as [usesLunarCalendar] and for
+  /// the same reason: it is a property of the family, and both callers are
+  /// already holding it.
+  final String familyName;
 
   /// Whether to offer lunar date entry. A property of the family, not of the
   /// reader (DOMAIN.md §4.4).
@@ -91,6 +102,18 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
       ])
         name: TextEditingController(),
     };
+
+    if (person == null) {
+      // A new person in Họ Nguyễn is a Nguyễn far more often than not, and
+      // typing it again for the thirtieth relative is the kind of work a
+      // family record should not ask for. It is a starting value, not a rule:
+      // somebody who married in changes it, and `birthFamilyName` is there for
+      // what they changed it from.
+      //
+      // Only when adding. On an edit the field must show what is stored, even
+      // where what is stored is nothing.
+      _fields['familyName']!.text = familySurname(widget.familyName);
+    }
 
     if (person != null) {
       _fields['displayName']!.text = person.displayName;
@@ -185,9 +208,7 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.editing == null ? text.personAdd : text.personEdit,
-        ),
+        title: Text(widget.editing == null ? text.personAdd : text.personEdit),
         actions: <Widget>[
           TextButton(onPressed: _save, child: Text(text.actionSave)),
         ],
@@ -201,8 +222,12 @@ class _PersonFormScreenState extends ConsumerState<PersonFormScreen> {
             _IssueBanner(result: _result),
             const SizedBox(height: 16),
           ],
-          _text('displayName', text.personDisplayName,
-              hint: text.personDisplayNameHint, autofocus: true),
+          _text(
+            'displayName',
+            text.personDisplayName,
+            hint: text.personDisplayNameHint,
+            autofocus: true,
+          ),
           const SizedBox(height: 20),
 
           _heading(text.personNameParts),

@@ -24,10 +24,7 @@ void main() {
   ///
   /// Everything below the widget is real, so what these tests check is that a
   /// domain rule survives the journey through the interface.
-  Future<void> openPersonForm(
-    WidgetTester tester, {
-    bool lunar = false,
-  }) async {
+  Future<void> openPersonForm(WidgetTester tester, {bool lunar = false}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[databaseProvider.overrideWithValue(db)],
@@ -134,6 +131,61 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The surname box. Found by its label, which is exactly `Family name` —
+  /// `Family name at birth` is a different label, not this one with a suffix.
+  TextField surnameField(WidgetTester tester) =>
+      tester.widget<TextField>(find.widgetWithText(TextField, 'Family name'));
+
+  group('the surname a new person starts with', () {
+    testWidgets('is the family’s own, without the word Họ', (tester) async {
+      // Thirty relatives in Họ Nguyễn are thirty Nguyễns. Typing it each time
+      // is work a family record should not ask for.
+      await openPersonForm(tester);
+
+      expect(surnameField(tester).controller!.text, 'Nguyễn');
+    });
+
+    testWidgets('and it is stored, not merely shown', (tester) async {
+      // A value that looks filled in and saves as null would be worse than no
+      // default at all.
+      await openPersonForm(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Display name'),
+        'Cụ Tổ',
+      );
+      await save(tester);
+
+      final rows = await db.select(db.persons).get();
+      expect(rows.single.familyName, 'Nguyễn');
+    });
+
+    testWidgets('editing shows what is stored, even when that is nothing', (
+      tester,
+    ) async {
+      // The one that would corrupt data. A default applied on an edit would
+      // give a surname to somebody whose surname was deliberately left blank —
+      // a wife who married in, recorded under her own — and the save would
+      // write it.
+      await openPersonForm(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Display name'),
+        'Bà B',
+      );
+      await tester.enterText(find.widgetWithText(TextField, 'Family name'), '');
+      await save(tester);
+
+      await tester.tap(find.text('Bà B'));
+      await tester.pumpAndSettle();
+      // The button sits below everything recorded about the person.
+      await tester.ensureVisible(find.text('Edit person'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit person'));
+      await tester.pumpAndSettle();
+
+      expect(surnameField(tester).controller!.text, isEmpty);
+    });
+  });
+
   group('adding a person', () {
     testWidgets('a display name alone is enough', (tester) async {
       await openPersonForm(tester);
@@ -192,8 +244,9 @@ void main() {
       expect(rows.single.birthDateIso, '1887-03-15');
     });
 
-    testWidgets('an impossible date is refused and nothing is written',
-        (tester) async {
+    testWidgets('an impossible date is refused and nothing is written', (
+      tester,
+    ) async {
       await openPersonForm(tester);
       await tester.enterText(
         find.widgetWithText(TextField, 'Display name'),
@@ -239,8 +292,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-          isFalse);
+      expect(
+        tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isFalse,
+      );
       // Right beside the switch, so if the section were open this would be
       // built and on screen.
       expect(find.widgetWithText(TextField, 'Place of death'), findsNothing);
@@ -251,10 +306,7 @@ void main() {
       await markAsDied(tester);
 
       expect(find.byType(PartialDateField), findsNWidgets(2));
-      expect(
-        find.widgetWithText(TextField, 'Place of death'),
-        findsOneWidget,
-      );
+      expect(find.widgetWithText(TextField, 'Place of death'), findsOneWidget);
     });
 
     testWidgets('on with nothing recorded is refused', (tester) async {
@@ -332,12 +384,11 @@ void main() {
         120,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-          isTrue);
       expect(
-        find.widgetWithText(TextField, 'Place of death'),
-        findsOneWidget,
+        tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isTrue,
       );
+      expect(find.widgetWithText(TextField, 'Place of death'), findsOneWidget);
     });
   });
 
@@ -364,8 +415,9 @@ void main() {
       );
     }
 
-    testWidgets('a death before a birth asks rather than refuses',
-        (tester) async {
+    testWidgets('a death before a birth asks rather than refuses', (
+      tester,
+    ) async {
       await openPersonForm(tester);
       await enterContradictoryDates(tester);
       await save(tester);
@@ -401,8 +453,9 @@ void main() {
   });
 
   group('the lunar calendar', () {
-    testWidgets('is not offered to a family that does not use it',
-        (tester) async {
+    testWidgets('is not offered to a family that does not use it', (
+      tester,
+    ) async {
       await openPersonForm(tester);
       expect(find.text('Lunar'), findsNothing);
     });
@@ -433,8 +486,9 @@ void main() {
       expect(find.text('Lunar'), findsNWidgets(2));
     });
 
-    testWidgets('a lunar date is converted and both readings are stored',
-        (tester) async {
+    testWidgets('a lunar date is converted and both readings are stored', (
+      tester,
+    ) async {
       await openPersonForm(tester, lunar: true);
       await tester.enterText(
         find.widgetWithText(TextField, 'Display name'),
@@ -488,8 +542,9 @@ void main() {
   });
 
   group('editing', () {
-    testWidgets('changes the person rather than adding another',
-        (tester) async {
+    testWidgets('changes the person rather than adding another', (
+      tester,
+    ) async {
       await openPersonForm(tester);
       await tester.enterText(
         find.widgetWithText(TextField, 'Display name'),

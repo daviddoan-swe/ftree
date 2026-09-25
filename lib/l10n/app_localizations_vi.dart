@@ -27,7 +27,7 @@ class AppTextVi extends AppText {
   String get familyName => 'Tên gia đình';
 
   @override
-  String get familyNameHint => 'Ví dụ: Họ Nguyễn';
+  String get familyNameHint => 'Ví dụ: Nguyễn';
 
   @override
   String get familyDescription => 'Ghi chú';

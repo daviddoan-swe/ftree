@@ -27,7 +27,7 @@ class AppTextEn extends AppText {
   String get familyName => 'Family name';
 
   @override
-  String get familyNameHint => 'For example: the Nguyễn family';
+  String get familyNameHint => 'For example: Nguyễn';
 
   @override
   String get familyDescription => 'Notes';

@@ -99,11 +99,8 @@ class PersonProfileScreen extends ConsumerWidget {
               heroTag: null,
               shape: const CircleBorder(),
               tooltip: AppText.of(context).treeTitle,
-              onPressed: () => showTreeScreen(
-                context,
-                familyId,
-                rootPersonId: person.id,
-              ),
+              onPressed: () =>
+                  showTreeScreen(context, familyId, rootPersonId: person.id),
               child: const Icon(Icons.account_tree_rounded),
             ),
       appBar: AppBar(
@@ -144,12 +141,8 @@ class PersonProfileScreen extends ConsumerWidget {
               child: IconButton.filledTonal(
                 icon: const Icon(Icons.add_link),
                 tooltip: AppText.of(context).relationshipAdd,
-                onPressed: () => addRelative(
-                  context,
-                  ref,
-                  snapshot: data,
-                  subject: person,
-                ),
+                onPressed: () =>
+                    addRelative(context, ref, snapshot: data, subject: person),
               ),
             ),
         ],
@@ -259,8 +252,7 @@ class _Profile extends StatelessWidget {
         ),
         GroupedSection(children: names),
         GroupedSection(children: life),
-        if (person.biography case final notes?
-            when notes.trim().isNotEmpty)
+        if (person.biography case final notes? when notes.trim().isNotEmpty)
           GroupedSection(
             header: text.personBiography,
             children: <Widget>[
@@ -452,6 +444,7 @@ class _DeletePerson extends ConsumerWidget {
             onPressed: () => showPersonForm(
               context,
               familyId: person.familyId,
+              familyName: snapshot.family.name,
               usesLunarCalendar: snapshot.family.usesLunarCalendar,
               editing: person,
             ),

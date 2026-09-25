@@ -89,6 +89,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 onPressed: () => showPersonForm(
                   context,
                   familyId: familyId,
+                  familyName: data.family.name,
                   usesLunarCalendar: data.family.usesLunarCalendar,
                 ),
               ),
@@ -268,7 +269,6 @@ class _PersonTile extends StatelessWidget {
       personId: person.id,
     ),
   );
-
 }
 
 class _NoPeopleYet extends StatelessWidget {

@@ -14,7 +14,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
-import '../domain/name_search.dart';
+import '../domain/family_name.dart';
 
 /// Every colour the application chooses, in one place.
 ///
@@ -254,10 +254,7 @@ class GroupedSliverSection extends StatelessWidget {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    if (index > 0) const _Separator(),
-                    child,
-                  ],
+                  children: <Widget>[if (index > 0) const _Separator(), child],
                 ),
               );
             },
@@ -332,7 +329,8 @@ class GroupedRow extends StatelessWidget {
     final muted = GroupedColors.secondaryLabel(context);
 
     return ListTile(
-      leading: leading ?? (icon == null ? null : RowIcon(icon!, color: iconColor)),
+      leading:
+          leading ?? (icon == null ? null : RowIcon(icon!, color: iconColor)),
       horizontalTitleGap: 12,
       minLeadingWidth: 0,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -494,9 +492,7 @@ class AvatarHeader extends StatelessWidget {
                   // Shrunk to fit rather than clipped, so a word can stand in
                   // for a picture until there is one.
                   Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: diameter * 0.18,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: diameter * 0.18),
                     child: FittedBox(
                       child: Text(
                         initials,
@@ -553,7 +549,10 @@ class CountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: EdgeInsets.symmetric(horizontal: label == null ? 5 : 9, vertical: 3),
+    padding: EdgeInsets.symmetric(
+      horizontal: label == null ? 5 : 9,
+      vertical: 3,
+    ),
     decoration: BoxDecoration(
       // Lifted off the circle behind it rather than given its own colour, so
       // it stays part of the avatar instead of becoming a second object.
@@ -675,31 +674,13 @@ Widget? circleBackButton(BuildContext context) {
 /// The one letter shown for a family with no picture.
 ///
 /// *Họ Nguyễn* is N, not H: the leading word says "the family of" and carries
-/// no identity. Dropping it is a display choice, not a rule about names — the
-/// stored name is untouched.
+/// no identity. Which word that is belongs to [familySurname], so the letter
+/// here and the surname the person form offers can never disagree.
 String familyInitial(String name) {
-  // Folded forms: the comparison below folds too, so an entry carrying its
-  // tone marks would never match anything.
-  const generic = <String>{
-    'ho',
-    'gia',
-    'dinh',
-    'chi',
-    'nhanh',
-    'family',
-    'the',
-    'clan',
-  };
+  final surname = familySurname(name);
+  if (surname.isEmpty) return '';
 
-  final words = name.trim().split(RegExp(r'\s+'))
-    ..removeWhere((w) => w.isEmpty);
-  if (words.isEmpty) return '';
-
-  final named = words.firstWhere(
-    (w) => !generic.contains(foldForSearch(w)),
-    orElse: () => words.first,
-  );
-  return named.characters.first.toUpperCase();
+  return surname.characters.first.toUpperCase();
 }
 
 /// The one or two letters shown when there is no picture.

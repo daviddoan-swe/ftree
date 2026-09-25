@@ -136,7 +136,7 @@ abstract class AppText {
   /// No description provided for @familyNameHint.
   ///
   /// In vi, this message translates to:
-  /// **'Ví dụ: Họ Nguyễn'**
+  /// **'Ví dụ: Nguyễn'**
   String get familyNameHint;
 
   /// No description provided for @familyDescription.
