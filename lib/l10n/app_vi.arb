@@ -286,5 +286,49 @@
   "issueParentBornAfterChild": "Cha mẹ sinh sau con",
   "issueChildBornLongAfterParentDeath": "Con sinh khá lâu sau khi cha mẹ mất",
   "issueImplausibleParentAge": "Tuổi làm cha mẹ bất thường",
-  "issueSpouseIsAncestorOrDescendant": "Hai vợ chồng là tổ tiên và hậu duệ của nhau"
+  "issueSpouseIsAncestorOrDescendant": "Hai vợ chồng là tổ tiên và hậu duệ của nhau",
+
+  "accountTitle": "Tài khoản",
+  "accountWhy": "Tài khoản chỉ dùng để chia sẻ dòng họ. Gia phả trên máy vẫn dùng được bình thường mà không cần đăng nhập.",
+  "accountCreate": "Đăng ký",
+  "accountSignIn": "Đăng nhập",
+  "accountEmail": "Email",
+  "accountPassword": "Mật khẩu",
+  "accountPasswordHint": "Ít nhất {count} ký tự",
+  "@accountPasswordHint": {
+    "description": "Ghi dưới ô mật khẩu, nói luật trước khi người dùng phải đoán",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "accountEmailMissing": "Hãy nhập email",
+  "accountEmailInvalid": "Email không đúng dạng",
+  "accountPasswordShort": "Mật khẩu cần ít nhất {count} ký tự",
+  "@accountPasswordShort": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "accountPasswordMissing": "Hãy nhập mật khẩu",
+  "accountWrongCredentials": "Email hoặc mật khẩu không đúng",
+  "accountEmailTaken": "Email này đã có tài khoản. Hãy chọn Đăng nhập.",
+  "accountConfirmEmail": "Đã tạo tài khoản. Hãy mở email, bấm liên kết xác nhận, rồi quay lại đăng nhập.",
+  "accountRefused": "Không xong được: {reason}",
+  "@accountRefused": {
+    "description": "Lời của chính server, khi không có thông báo riêng cho trường hợp đó",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+
+  "shareAction": "Chia sẻ",
+  "shareConfirmTitle": "Chia sẻ dòng họ này?",
+  "shareConfirmBody": "Dòng họ này sẽ được gửi lên máy chủ và bác trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.",
+  "shareDone": "Đã chia sẻ {name}",
+  "@shareDone": {
+    "description": "Tên dòng họ nằm trong câu: chia sẻ vài dòng họ liền nhau thì bốn câu giống hệt nhau không phân biệt được",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "shareAlreadyShared": "{name} đã được chia sẻ rồi",
+  "@shareAlreadyShared": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "shareClaimedByOther": "Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời bác vào để cùng sửa.",
+  "shareFailed": "Không chia sẻ được"
 }

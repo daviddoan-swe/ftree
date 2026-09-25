@@ -7,6 +7,7 @@ import 'package:ftree/app/app.dart';
 import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
+import 'package:ftree/data/database/sharing_marks.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart' as domain;
 import 'package:ftree/domain/genealogical_date.dart';
@@ -57,8 +58,9 @@ void main() {
   });
 
   group('creating a family', () {
-    testWidgets('a named family appears in the list and is stored',
-        (tester) async {
+    testWidgets('a named family appears in the list and is stored', (
+      tester,
+    ) async {
       await pumpApp(tester);
       await openCreateSheet(tester);
 
@@ -77,8 +79,9 @@ void main() {
       expect(rows.single.name, 'Họ Nguyễn');
     });
 
-    testWidgets('a blank name is refused and nothing is written',
-        (tester) async {
+    testWidgets('a blank name is refused and nothing is written', (
+      tester,
+    ) async {
       // The domain rule surfacing in the interface: an error blocks the save
       // rather than being silently corrected (DOMAIN.md §9).
       await pumpApp(tester);
@@ -158,8 +161,9 @@ void main() {
       expect(await db.select(db.families).get(), isEmpty);
     });
 
-    testWidgets('an empty description is stored as absent, not blank',
-        (tester) async {
+    testWidgets('an empty description is stored as absent, not blank', (
+      tester,
+    ) async {
       await pumpApp(tester);
       await openCreateSheet(tester);
 
@@ -297,6 +301,60 @@ void main() {
     });
   });
 
+  group('offering to share a family', () {
+    const familyId = 'f0000000-0000-7000-8000-000000000000';
+
+    Future<void> seedAndOpen(WidgetTester tester) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await pumpApp(tester);
+      await tester.drag(
+        find.ancestor(
+          of: find.text('Họ Nguyễn'),
+          matching: find.byType(ListTile),
+        ),
+        const Offset(-400, 0),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a family nobody has shared offers it', (tester) async {
+      await seedAndOpen(tester);
+
+      expect(find.text('Share'), findsOneWidget);
+    });
+
+    testWidgets('a family already shared is not offered it again', (
+      tester,
+    ) async {
+      // The one case that must not be reachable. A member pressing Chia sẻ a
+      // second time takes the update branch, which upserts the people and the
+      // edges — putting this device's copy on top of the shared one, which is
+      // the conflict resolution nobody can do yet (PRODUCT §4.2, §15.3).
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await SharingMarks(db).markShared(familyId);
+      await pumpApp(tester);
+      await tester.drag(
+        find.ancestor(
+          of: find.text('Họ Nguyễn'),
+          matching: find.byType(ListTile),
+        ),
+        const Offset(-400, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Share'), findsNothing);
+      expect(
+        find.text('Export'),
+        findsOneWidget,
+        reason: 'a file can still be sent to somebody; only sharing is once',
+      );
+    });
+  });
+
   group('editing a family', () {
     testWidgets('the sheet opens on what is already recorded', (tester) async {
       await repository.saveFamily(
@@ -328,8 +386,10 @@ void main() {
         'Họ Nguyễn',
       );
       expect(find.text('Gia phả tám đời'), findsWidgets);
-      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-          isTrue);
+      expect(
+        tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isTrue,
+      );
     });
 
     testWidgets('renaming updates rather than adding another', (tester) async {
@@ -372,8 +432,11 @@ void main() {
       // would be destroying what the source actually said.
       const familyId = 'f0000000-0000-7000-8000-000000000000';
       await repository.saveFamily(
-        const domain.Family(id: familyId, name: 'Họ Nguyễn',
-            usesLunarCalendar: true),
+        const domain.Family(
+          id: familyId,
+          name: 'Họ Nguyễn',
+          usesLunarCalendar: true,
+        ),
       );
       await repository.savePerson(
         Person(
@@ -456,7 +519,10 @@ void main() {
       await openDelete(tester, 'Họ Nguyễn');
 
       expect(find.text('Delete Họ Nguyễn?'), findsOneWidget);
-      expect(find.textContaining('2 people and 1 relationship'), findsOneWidget);
+      expect(
+        find.textContaining('2 people and 1 relationship'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the name has to be typed back exactly', (tester) async {
@@ -507,8 +573,10 @@ void main() {
       final people = await db.select(db.persons).get();
       expect(people, hasLength(2));
       expect(people.every((p) => p.deletedAt != null), isTrue);
-      expect((await db.select(db.relationships).get()).single.deletedAt,
-          isNotNull);
+      expect(
+        (await db.select(db.relationships).get()).single.deletedAt,
+        isNotNull,
+      );
     });
 
     testWidgets('an empty family is deleted without typing anything', (

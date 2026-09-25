@@ -870,6 +870,138 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Hai vợ chồng là tổ tiên và hậu duệ của nhau'**
   String get issueSpouseIsAncestorOrDescendant;
+
+  /// No description provided for @accountTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tài khoản'**
+  String get accountTitle;
+
+  /// No description provided for @accountWhy.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tài khoản chỉ dùng để chia sẻ dòng họ. Gia phả trên máy vẫn dùng được bình thường mà không cần đăng nhập.'**
+  String get accountWhy;
+
+  /// No description provided for @accountCreate.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đăng ký'**
+  String get accountCreate;
+
+  /// No description provided for @accountSignIn.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đăng nhập'**
+  String get accountSignIn;
+
+  /// No description provided for @accountEmail.
+  ///
+  /// In vi, this message translates to:
+  /// **'Email'**
+  String get accountEmail;
+
+  /// No description provided for @accountPassword.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mật khẩu'**
+  String get accountPassword;
+
+  /// Ghi dưới ô mật khẩu, nói luật trước khi người dùng phải đoán
+  ///
+  /// In vi, this message translates to:
+  /// **'Ít nhất {count} ký tự'**
+  String accountPasswordHint(int count);
+
+  /// No description provided for @accountEmailMissing.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hãy nhập email'**
+  String get accountEmailMissing;
+
+  /// No description provided for @accountEmailInvalid.
+  ///
+  /// In vi, this message translates to:
+  /// **'Email không đúng dạng'**
+  String get accountEmailInvalid;
+
+  /// No description provided for @accountPasswordShort.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mật khẩu cần ít nhất {count} ký tự'**
+  String accountPasswordShort(int count);
+
+  /// No description provided for @accountPasswordMissing.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hãy nhập mật khẩu'**
+  String get accountPasswordMissing;
+
+  /// No description provided for @accountWrongCredentials.
+  ///
+  /// In vi, this message translates to:
+  /// **'Email hoặc mật khẩu không đúng'**
+  String get accountWrongCredentials;
+
+  /// No description provided for @accountEmailTaken.
+  ///
+  /// In vi, this message translates to:
+  /// **'Email này đã có tài khoản. Hãy chọn Đăng nhập.'**
+  String get accountEmailTaken;
+
+  /// No description provided for @accountConfirmEmail.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã tạo tài khoản. Hãy mở email, bấm liên kết xác nhận, rồi quay lại đăng nhập.'**
+  String get accountConfirmEmail;
+
+  /// Lời của chính server, khi không có thông báo riêng cho trường hợp đó
+  ///
+  /// In vi, this message translates to:
+  /// **'Không xong được: {reason}'**
+  String accountRefused(String reason);
+
+  /// No description provided for @shareAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chia sẻ'**
+  String get shareAction;
+
+  /// No description provided for @shareConfirmTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chia sẻ dòng họ này?'**
+  String get shareConfirmTitle;
+
+  /// No description provided for @shareConfirmBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng họ này sẽ được gửi lên máy chủ và bác trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.'**
+  String get shareConfirmBody;
+
+  /// Tên dòng họ nằm trong câu: chia sẻ vài dòng họ liền nhau thì bốn câu giống hệt nhau không phân biệt được
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã chia sẻ {name}'**
+  String shareDone(String name);
+
+  /// No description provided for @shareAlreadyShared.
+  ///
+  /// In vi, this message translates to:
+  /// **'{name} đã được chia sẻ rồi'**
+  String shareAlreadyShared(String name);
+
+  /// No description provided for @shareClaimedByOther.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời bác vào để cùng sửa.'**
+  String get shareClaimedByOther;
+
+  /// No description provided for @shareFailed.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không chia sẻ được'**
+  String get shareFailed;
 }
 
 class _AppTextDelegate extends LocalizationsDelegate<AppText> {

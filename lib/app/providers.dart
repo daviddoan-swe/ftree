@@ -13,6 +13,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
 import '../data/database/app_database.dart';
+import '../data/database/sharing_marks.dart';
 import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
 import '../domain/family_repository.dart';
@@ -33,6 +34,25 @@ final databaseProvider = Provider<AppDatabase>(
 /// Reads and writes families, people, and relationships.
 final familyRepositoryProvider = Provider<FamilyRepository>(
   (ref) => DriftFamilyRepository(ref.watch(databaseProvider)),
+);
+
+/// Reads and writes the mark of which families this device has shared.
+///
+/// Not part of [familyRepositoryProvider]. `FamilyRepository` has two
+/// implementations and only one of them could answer this — a Postgres
+/// repository is not a device and holds no marks — so it is its own small
+/// thing (ARCHITECTURE §7).
+final sharingMarksProvider = Provider<SharingMarks>(
+  (ref) => SharingMarks(ref.watch(databaseProvider)),
+);
+
+/// The ids this device has sent to the cloud.
+///
+/// Watched by the family list to decide whether Chia sẻ is worth offering, so
+/// it has to be a provider rather than a read: marking one family has to make
+/// its button disappear without the screen being rebuilt by hand.
+final sharedFamiliesProvider = FutureProvider<Set<String>>(
+  (ref) => ref.watch(sharingMarksProvider).shared(),
 );
 
 /// Every family that has not been deleted.

@@ -767,7 +767,8 @@ status.
 Implement:
 
 * **signing in, reached from Chia sẻ** — the first screen in the application
-  that knows an account exists (PRODUCT §4.1)
+  that knows an account exists (PRODUCT §4.1). Done
+* **Chia sẻ** — one family up, on one action in one row, beside Xuất. Done
 * **marking a family as shared** — one column in the local schema, because the
   device cannot ask the server while offline (PRODUCT §4.2)
 * **asking whether a family is already claimed** — the one question the device
@@ -868,11 +869,65 @@ action on that family is *invite somebody*, not share it again. The column that
 remembers which families are shared is what makes the distinction visible
 without asking the server.
 
+### What the button does, and the third state nobody had named
+
+`shareFamily` asks before anything, including before signing in: creating an
+account somebody did not want cannot be undone either. Then one of three things
+is true, and which one is decided by asking the server rather than by trusting
+the local mark — the mark records what *this device* did, and a file puts the
+same family, keeping its id, onto another device.
+
+1. **Nobody holds it.** Up it goes; whoever pressed becomes the owner.
+2. **We hold it and this device forgot.** A reinstall, or a restore from one's
+   own exported file. The mark is **recovered** and nothing is sent. This state
+   had not been named before building the button, and naming it retired a rule
+   that had looked reasonable — *a device that imported a file may not share* —
+   which would have caught the person restoring their own backup. The two acts
+   are identical to the device and opposite to the person; only the server can
+   tell them apart.
+3. **Somebody else holds it.** Said plainly, with the way in: an invitation.
+
+Cases 2 and 3 are separated by whether this account can *read* the family. A
+family somebody else owns is absent rather than forbidden, so "can I see it" and
+"am I a member" are the same question — which is why the policies being written
+as absence rather than as refusal keeps paying off.
+
+The mark is written **after** the send, never before. Written first it would
+survive a failure and hide the button that would have tried again.
+
+### Three things the screen was told by the server, not by documentation
+
+**A wrong password and an unknown address come back identically**, both
+`invalid_credentials`. That is the server declining to say who is registered, so
+the wording has to keep the secret: "that email and password do not match",
+never "wrong password". Had the codes been guessed rather than read off the
+running stack, the interface would have leaked what the server withheld.
+
+**Signing up can succeed with no session.** Where addresses are confirmed, the
+account exists and there is no token until a link is followed. So "did it work"
+and "are we signed in" are different questions, and the screen has to answer the
+second. The local stack runs with `enable_confirmations = false` and therefore
+cannot produce this at all — the first case production meets is the one no
+available server can exercise, which is why the attempt is a parameter.
+
+**The minimum password length belongs to creating, not to signing in.** An
+account made when the minimum was lower still has the password it has. A screen
+that applied the rule on the way in would lock its owner out over a rule that
+was never theirs.
+
 ### Left open, on purpose
 
-**Email or phone number.** A phone number is the identity Vietnamese users
-remember; an SMS code costs money per message. Decided when the cost is worth
-weighing rather than now.
+**Email or phone number — decided: email and a password** (PRODUCT §4.3 is the
+ownership question; this is §4.4). Not on price. Twilio charges about $0.29 per
+message to a Vietnamese number, which is affordable; Decree 91/2020 is not.
+Sending an OTP to a Vietnamese number needs a brandname registered with Viettel,
+Vinaphone or MobiFone, weeks of approval, and since August 2024 the registered
+name in every message. A private family application has none to register.
+
+Email and a password is the only remaining option that depends on nobody — no
+carrier, no Google, no Facebook, no Zalo — and `auth.uid()` is the same value
+whatever somebody signed in with, so a provider can be added later without
+touching a policy, a membership or a trigger.
 
 **Handing a family over.** The first to press Chia sẻ owns it, and there is no
 fairer rule the data supports (PRODUCT §4.3). Transferring ownership afterwards

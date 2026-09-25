@@ -71,6 +71,14 @@ String? get signedInUserId => Supabase.instance.client.auth.currentUser?.id;
 /// Whether there is a session at all.
 bool get isSignedIn => signedInUserId != null;
 
+/// The shortest password the server will take.
+///
+/// Mirrors `minimum_password_length` in `supabase/config.toml`, and the server
+/// stays the authority. This copy exists so a field can state the rule before
+/// somebody guesses at it — not to enforce it. Should the two ever disagree,
+/// what a person sees is the server's refusal, not this number.
+const int minimumPasswordLength = 6;
+
 /// Creates an account and signs into it.
 ///
 /// Throws [AuthException] with the server's own wording — a password too

@@ -523,4 +523,85 @@ class AppTextVi extends AppText {
   @override
   String get issueSpouseIsAncestorOrDescendant =>
       'Hai vợ chồng là tổ tiên và hậu duệ của nhau';
+
+  @override
+  String get accountTitle => 'Tài khoản';
+
+  @override
+  String get accountWhy =>
+      'Tài khoản chỉ dùng để chia sẻ dòng họ. Gia phả trên máy vẫn dùng được bình thường mà không cần đăng nhập.';
+
+  @override
+  String get accountCreate => 'Đăng ký';
+
+  @override
+  String get accountSignIn => 'Đăng nhập';
+
+  @override
+  String get accountEmail => 'Email';
+
+  @override
+  String get accountPassword => 'Mật khẩu';
+
+  @override
+  String accountPasswordHint(int count) {
+    return 'Ít nhất $count ký tự';
+  }
+
+  @override
+  String get accountEmailMissing => 'Hãy nhập email';
+
+  @override
+  String get accountEmailInvalid => 'Email không đúng dạng';
+
+  @override
+  String accountPasswordShort(int count) {
+    return 'Mật khẩu cần ít nhất $count ký tự';
+  }
+
+  @override
+  String get accountPasswordMissing => 'Hãy nhập mật khẩu';
+
+  @override
+  String get accountWrongCredentials => 'Email hoặc mật khẩu không đúng';
+
+  @override
+  String get accountEmailTaken =>
+      'Email này đã có tài khoản. Hãy chọn Đăng nhập.';
+
+  @override
+  String get accountConfirmEmail =>
+      'Đã tạo tài khoản. Hãy mở email, bấm liên kết xác nhận, rồi quay lại đăng nhập.';
+
+  @override
+  String accountRefused(String reason) {
+    return 'Không xong được: $reason';
+  }
+
+  @override
+  String get shareAction => 'Chia sẻ';
+
+  @override
+  String get shareConfirmTitle => 'Chia sẻ dòng họ này?';
+
+  @override
+  String get shareConfirmBody =>
+      'Dòng họ này sẽ được gửi lên máy chủ và bác trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.';
+
+  @override
+  String shareDone(String name) {
+    return 'Đã chia sẻ $name';
+  }
+
+  @override
+  String shareAlreadyShared(String name) {
+    return '$name đã được chia sẻ rồi';
+  }
+
+  @override
+  String get shareClaimedByOther =>
+      'Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời bác vào để cùng sửa.';
+
+  @override
+  String get shareFailed => 'Không chia sẻ được';
 }

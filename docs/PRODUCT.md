@@ -191,12 +191,68 @@ willing to do it, which makes it a conversation between people with a button
 at the end rather than a rule. Until it exists, the answer to "the wrong person
 owns it" is that they invite the right one as an editor.
 
-Two things the interface owes a person here:
+Three things the interface owes a person here:
 
-* Chia sẻ is not offered for a family already claimed, so the refusal is
-  usually never reached.
+* Chia sẻ is not offered for a family this device has marked as shared, so the
+  refusal is usually never reached.
+* When the mark is missing but the family is ours, **the mark is recovered
+  rather than the family re-sent.** This is the reinstall, and the restore from
+  one's own exported file: the device has forgotten, the server has not. Sending
+  again would put the restored copy on top of the shared one, which is the
+  conflict resolution nobody can do yet (DOMAIN §15.3). So nothing is sent, the
+  mark is rebuilt from what the server already knows, and the button stops being
+  offered.
 * When it is reached anyway — two people pressing at once — the refusal says
   what happened. A primary-key violation is not an explanation.
+
+The second of those is why "a device that imported a file may not share" was
+rejected as a rule: it would have caught the person restoring their own backup,
+which is the same act from the device's point of view and the opposite act from
+the person's. Asking the server tells them apart; a local flag cannot.
+
+### 4.4 Registering is an email address and a password
+
+**Decided**, after weighing phone numbers, emailed codes, the nineteen OAuth
+providers Supabase offers, and no account at all.
+
+**Phone numbers lost on regulation, not on price.** Supabase does not send SMS
+itself; the message leaves through Twilio or a competitor, at roughly $0.29 per
+message to a Vietnamese number. That is affordable. What is not is Decree
+91/2020: sending an OTP to a Vietnamese number requires a brandname registered
+with Viettel, Vinaphone or MobiFone, approval takes weeks, and since August 2024
+every message must carry that registered name. A private family application has
+no company brandname to register. This is closed, not expensive.
+
+**Email and a password won on independence.** Of what remained it is the only
+option that depends on nobody — no carrier, no Google, no Facebook, no Zalo. It
+is also already written and already tested against a real auth server.
+
+**No account at all was considered and rejected.** A long secret key carried in
+the file, so that whoever holds the file may write, needs no accounts. It cannot
+be taken back: withdrawing access from one person means re-keying for everybody.
+It cannot say who made an edit, which the field-level merge will need. And RLS
+is written against `auth.uid()`, so it would require issuing tokens ourselves —
+a custom authentication server, which CLAUDE §9 rules out without a
+demonstrated need.
+
+**Anonymous sign-in was the closest to "just a unique account", and is the
+trap.** It yields a real `auth.uid()` with nothing asked. But the session lives
+in the device's storage, so a lost or wiped phone loses that identity for good,
+and with it ownership of the family — with nothing to prove who you were. A
+username is not there to identify somebody; `auth.uid()` already does that. It
+is there so an account can be **recovered**. For an application whose purpose is
+keeping a hundred years of records, that is not a secondary feature; it is what
+an account is for.
+
+What it costs: somebody has to remember a password, and production needs real
+SMTP to confirm addresses. Both are acceptable, and the first is small because
+very few people ever need an account — an owner and a handful of editors, while
+everybody who only wants to read receives a file (§4.1).
+
+**Adding a provider later breaks nothing.** `auth.uid()` is the same value
+whatever the person signed in with, so every policy, membership and trigger sits
+underneath the choice rather than on top of it. Facebook is the strongest second
+option for this audience, and it can be added when somebody is actually stuck.
 
 ---
 

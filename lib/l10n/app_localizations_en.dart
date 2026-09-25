@@ -530,4 +530,85 @@ class AppTextEn extends AppText {
   @override
   String get issueSpouseIsAncestorOrDescendant =>
       'These spouses are ancestor and descendant';
+
+  @override
+  String get accountTitle => 'Account';
+
+  @override
+  String get accountWhy =>
+      'An account is only for sharing a family. The gia phả on this device works as it always did, with nobody signed in.';
+
+  @override
+  String get accountCreate => 'Sign up';
+
+  @override
+  String get accountSignIn => 'Sign in';
+
+  @override
+  String get accountEmail => 'Email';
+
+  @override
+  String get accountPassword => 'Password';
+
+  @override
+  String accountPasswordHint(int count) {
+    return 'At least $count characters';
+  }
+
+  @override
+  String get accountEmailMissing => 'Enter an email address';
+
+  @override
+  String get accountEmailInvalid => 'That is not an email address';
+
+  @override
+  String accountPasswordShort(int count) {
+    return 'A password needs at least $count characters';
+  }
+
+  @override
+  String get accountPasswordMissing => 'Enter your password';
+
+  @override
+  String get accountWrongCredentials => 'That email and password do not match';
+
+  @override
+  String get accountEmailTaken =>
+      'That email already has an account. Choose Sign in.';
+
+  @override
+  String get accountConfirmEmail =>
+      'The account was created. Open your email, follow the confirmation link, then come back and sign in.';
+
+  @override
+  String accountRefused(String reason) {
+    return 'It did not go through: $reason';
+  }
+
+  @override
+  String get shareAction => 'Share';
+
+  @override
+  String get shareConfirmTitle => 'Share this family?';
+
+  @override
+  String get shareConfirmBody =>
+      'This family will be sent to the server and you become its owner. Every other family on this device stays on it. Once sent, it cannot be taken back.';
+
+  @override
+  String shareDone(String name) {
+    return '$name has been shared';
+  }
+
+  @override
+  String shareAlreadyShared(String name) {
+    return '$name is already shared';
+  }
+
+  @override
+  String get shareClaimedByOther =>
+      'Somebody else has already shared this family. Ask them to invite you so you can both work on it.';
+
+  @override
+  String get shareFailed => 'It could not be shared';
 }

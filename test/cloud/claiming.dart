@@ -33,6 +33,11 @@ import 'package:ftree/data/cloud/cloud_session.dart';
 import 'package:ftree/data/cloud/family_claims.dart';
 import 'package:ftree/data/cloud/supabase_family_repository.dart';
 import 'package:ftree/domain/family.dart';
+import 'package:ftree/domain/family_graph.dart';
+import 'package:ftree/domain/family_repository.dart';
+import 'package:ftree/domain/person.dart';
+import 'package:ftree/domain/relationship.dart';
+import 'package:ftree/features/family/share_family.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -188,6 +193,56 @@ void main() {
       expect(owners, hasLength(1));
       expect(owners.single['user_id'], aUser);
       expect(owners.single['role'], 'owner');
+    });
+  });
+
+  group('the composition the button actually runs', () {
+    // `LiveSharingCloud` is four lines of delegation, and until now nothing had
+    // executed any of them. The parts are checked above and in the repository
+    // contract; this checks that they are wired to each other the right way
+    // round — that `canSee` really answers membership and not existence, which
+    // is the distinction the whole flow turns on.
+    const cloud = LiveSharingCloud();
+
+    Future<void> sendOne(String id, String name) => cloud.send(
+      FamilySnapshot(
+        family: Family(id: id, name: name),
+        graph: FamilyGraph(
+          persons: <Person>[
+            Person(
+              id: id.replaceFirst('cccccccc', 'dddddddd'),
+              familyId: id,
+              displayName: 'Cụ Tổ',
+            ),
+          ],
+          relationships: const <Relationship>[],
+        ),
+      ),
+    );
+
+    test('sends a family, then finds it claimed and visible', () async {
+      await anAccount();
+      final id = aFamilyId();
+
+      await sendOne(id, 'Họ Nguyễn');
+
+      expect(await cloud.isClaimed(id), isTrue);
+      expect(await cloud.canSee(id), isTrue);
+    });
+
+    test('another account finds it claimed and not visible', () async {
+      // The two states the flow tells apart: this is case 3 — somebody else
+      // pressed first — and it must not read as case 2, which would recover a
+      // mark for a family this device does not hold.
+      await anAccount();
+      final id = aFamilyId();
+      await sendOne(id, 'Họ Nguyễn');
+      await signOut();
+
+      await anAccount();
+
+      expect(await cloud.isClaimed(id), isTrue);
+      expect(await cloud.canSee(id), isFalse);
     });
   });
 }

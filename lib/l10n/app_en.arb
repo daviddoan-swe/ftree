@@ -212,5 +212,49 @@
   "issueParentBornAfterChild": "The parent was born after the child",
   "issueChildBornLongAfterParentDeath": "Born well after the parent died",
   "issueImplausibleParentAge": "An unusual age to become a parent",
-  "issueSpouseIsAncestorOrDescendant": "These spouses are ancestor and descendant"
+  "issueSpouseIsAncestorOrDescendant": "These spouses are ancestor and descendant",
+
+  "accountTitle": "Account",
+  "accountWhy": "An account is only for sharing a family. The gia phả on this device works as it always did, with nobody signed in.",
+  "accountCreate": "Sign up",
+  "accountSignIn": "Sign in",
+  "accountEmail": "Email",
+  "accountPassword": "Password",
+  "accountPasswordHint": "At least {count} characters",
+  "@accountPasswordHint": {
+    "description": "Under the password field, stating the rule before somebody has to guess it",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "accountEmailMissing": "Enter an email address",
+  "accountEmailInvalid": "That is not an email address",
+  "accountPasswordShort": "A password needs at least {count} characters",
+  "@accountPasswordShort": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "accountPasswordMissing": "Enter your password",
+  "accountWrongCredentials": "That email and password do not match",
+  "accountEmailTaken": "That email already has an account. Choose Sign in.",
+  "accountConfirmEmail": "The account was created. Open your email, follow the confirmation link, then come back and sign in.",
+  "accountRefused": "It did not go through: {reason}",
+  "@accountRefused": {
+    "description": "The server's own words, where no message of our own fits the case",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+
+  "shareAction": "Share",
+  "shareConfirmTitle": "Share this family?",
+  "shareConfirmBody": "This family will be sent to the server and you become its owner. Every other family on this device stays on it. Once sent, it cannot be taken back.",
+  "shareDone": "{name} has been shared",
+  "@shareDone": {
+    "description": "The family is named in the message: sharing several in a row gives four identical sentences otherwise",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "shareAlreadyShared": "{name} is already shared",
+  "@shareAlreadyShared": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "shareClaimedByOther": "Somebody else has already shared this family. Ask them to invite you so you can both work on it.",
+  "shareFailed": "It could not be shared"
 }

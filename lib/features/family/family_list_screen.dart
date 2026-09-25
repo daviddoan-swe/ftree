@@ -15,6 +15,7 @@ import '../../l10n/app_localizations.dart';
 import 'export_family.dart';
 import 'family_form_sheet.dart';
 import 'import_family.dart';
+import 'share_family.dart';
 import 'family_screen.dart';
 
 class FamilyListScreen extends ConsumerWidget {
@@ -51,9 +52,8 @@ class FamilyListScreen extends ConsumerWidget {
       body: families.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => _LoadFailed(error: error),
-        data: (list) => list.isEmpty
-            ? const _NoFamiliesYet()
-            : _FamilyList(families: list),
+        data: (list) =>
+            list.isEmpty ? const _NoFamiliesYet() : _FamilyList(families: list),
       ),
     );
   }
@@ -97,13 +97,22 @@ class _FamilyList extends ConsumerWidget {
     final text = AppText.of(context);
     final colors = Theme.of(context).colorScheme;
 
+    // Offered only for a family with no mark, and only once the marks are
+    // known. While they are loading the answer is "do not offer": a Chia sẻ
+    // shown on a family that turns out to be shared would put this device's
+    // copy on top of the shared one (PRODUCT §4.2).
+    final shared = ref.watch(sharedFamiliesProvider).valueOrNull;
+    final offerSharing = shared != null && !shared.contains(family.id);
+
     return Slidable(
       // Keyed by id so an open pane follows its family when the list is
       // reordered or one above it is removed.
       key: ValueKey<String>(family.id),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: 0.5,
+        // Grown by one button's worth rather than squeezing four into three
+        // buttons' room, which would leave "Chia sẻ" too narrow to read.
+        extentRatio: offerSharing ? 0.66 : 0.5,
         children: <Widget>[
           // What is exported is one family, so the action belongs to its own
           // row. Before Edit, so that Delete keeps the outermost place a
@@ -115,6 +124,18 @@ class _FamilyList extends ConsumerWidget {
             backgroundColor: colors.surfaceContainerHighest,
             foregroundColor: colors.onSurfaceVariant,
           ),
+          // Beside Xuất, because the two are the same thought: a family
+          // leaving the device. A file goes to one person and can only ever
+          // grow a record; this goes to a server and lets two people keep the
+          // same one (PRODUCT §9.1, §4.2).
+          if (offerSharing)
+            SlidableAction(
+              onPressed: (_) => shareFamily(context, ref, family),
+              icon: Icons.cloud_upload_outlined,
+              label: text.shareAction,
+              backgroundColor: colors.primaryContainer,
+              foregroundColor: colors.onPrimaryContainer,
+            ),
           SlidableAction(
             onPressed: (_) => showFamilyFormSheet(context, editing: family),
             icon: Icons.edit_outlined,
@@ -191,17 +212,13 @@ Future<void> _pickAndImport(BuildContext context, WidgetRef ref) async {
 }
 
 /// Writes a family out and hands it to the share sheet.
-Future<void> _export(
-  BuildContext context,
-  WidgetRef ref,
-  Family family,
-) async {
+Future<void> _export(BuildContext context, WidgetRef ref, Family family) async {
   final hadSomething = await exportFamily(context, ref, family.id);
   if (hadSomething || !context.mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(exportEmptyMessage(context))),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(exportEmptyMessage(context))));
 }
 
 /// Asks before tombstoning a family, its people, and their relationships.
