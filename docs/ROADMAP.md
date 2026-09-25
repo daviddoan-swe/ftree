@@ -770,6 +770,9 @@ Implement:
   that knows an account exists (PRODUCT §4.1)
 * **marking a family as shared** — one column in the local schema, because the
   device cannot ask the server while offline (PRODUCT §4.2)
+* **asking whether a family is already claimed** — the one question the device
+  cannot answer, because the mark records what *this* device did and a file
+  puts the same family on two of them (PRODUCT §4.3)
 * Owner
 * Editor
 * Viewer
@@ -820,17 +823,39 @@ only one of them was obvious.
 update branch, and `owner_on_create` fires only on insert, so there is still
 exactly one membership row. Nothing is duplicated.
 
-**Sharing a family somebody else already shared is refused**, with
-`23505 duplicate key value violates unique constraint "families_pkey"`. The
-effect is right — nobody takes over a family that is not theirs — but that
-sentence tells a person nothing, and the case is not rare. It is the ordinary
-consequence of the file export: one person sends a copy, the other imports it,
-and both devices now hold a family with the same id. Whichever presses second
-meets this.
+**Sharing a family somebody else already shared is refused** — and used to be
+refused with `23505 duplicate key value violates unique constraint
+"families_pkey"`. The effect was right, in that nobody took over a family that
+was not theirs, but that sentence tells a person nothing and the case is not
+rare: it is the ordinary consequence of the file export. One person sends a
+copy, the other imports it, and both devices now hold a family with the same
+id. Whichever presses second meets this.
 
-What it should say is that the family is already kept by somebody else, and
-that an invitation from them is the way in. Saying so leaks nothing: whoever
-meets it already holds the whole family, which is how they came to have its id.
+**Done, in two halves** (PRODUCT §4.3). The device cannot answer the question
+by itself — a family belonging to somebody else reads as absent, not as
+forbidden, so an `EXISTS` from the client says "no" and the insert that follows
+meets the primary key. So `family_is_claimed` answers it, SECURITY DEFINER
+because seeing past the read policy is the whole job, returning a boolean and
+nothing else. And `save_family_all` names the refusal — `family_already_claimed`
+— rather than letting a constraint surface, because asking and inserting are
+two requests and two devices can fall between them.
+
+Saying so leaks nothing: whoever meets it already holds the whole family, which
+is how they came to have its id. Ids are UUID v7, so nothing can be found by
+guessing.
+
+**The measured surprise: revoking PUBLIC does not revoke `anon`.** The function
+was written with `REVOKE EXECUTE ... FROM PUBLIC`, which looks sufficient and
+is not. Supabase sets default privileges granting EXECUTE on new functions in
+`public` to anon, authenticated and service_role, so each role holds a grant of
+its own made at creation time. The first version therefore answered anonymous
+callers, and — being SECURITY DEFINER — answered them truthfully. A test that
+signed nobody in caught it; reasoning about it had not.
+
+**Who owns it when two people can both press: the first.** A file carries no
+proof of authorship, and cannot, because at export time there may be no account
+on the device to sign it. Handing a family over afterwards is deferred
+(PRODUCT §4.3).
 
 **A member pressing Chia sẻ on a family already shared is the one to prevent.**
 It takes the update branch and is allowed — and `saveAll` upserts the people
@@ -848,6 +873,12 @@ without asking the server.
 **Email or phone number.** A phone number is the identity Vietnamese users
 remember; an SMS code costs money per message. Decided when the cost is worth
 weighing rather than now.
+
+**Handing a family over.** The first to press Chia sẻ owns it, and there is no
+fairer rule the data supports (PRODUCT §4.3). Transferring ownership afterwards
+is wanted and deferred: it needs an owner willing to do it, so it is a
+conversation between people with a button at the end. Until then the way out is
+that the owner invites the right person as an editor.
 
 **Listing families from two places.** A family may be local, both, or — for
 somebody just invited — on the server alone. That third state is new, and it is

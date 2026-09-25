@@ -162,6 +162,42 @@ both, or — for somebody who has just been invited — on the server only. List
 families then has to answer from two places, which is the point at which the
 repository boundary is worth splitting rather than before (ARCHITECTURE §7).
 
+### 4.3 Two devices holding one family: the first to press owns it
+
+**Decided.** Whoever presses Chia sẻ first becomes the owner. The second person
+is told that the family is already kept by somebody else, and that an
+invitation from them is the way in.
+
+The case is ordinary, not exotic. A sends B a file; the file carries the family
+keeping its id (DOMAIN §14.1), which is what lets a later file be merged in
+rather than arriving as a second gia phả. So after one export both devices hold
+the same family, and each device's record of what it has shared is right about
+itself and silent about the other. Both see the button.
+
+**There is no fairer rule available.** A file carries no proof of who made it,
+and cannot: at the moment of export there may be no account anywhere on the
+device, so there is nobody to sign it. The server is asked to decide between
+two identical claims and has nothing to weigh. First press wins is not a
+compromise between better options; it is the only rule the data supports.
+
+What this deliberately does not prevent: B, who received a file, can press
+first and own A's gia phả. A is then locked out of it — not shown an error but
+shown nothing, because a family A is not a member of is absent rather than
+forbidden. The protection is social. In the ordinary flow A shares first,
+because A is the one who wants the record kept.
+
+**Handing a family over is a separate feature**, deferred. It needs an owner
+willing to do it, which makes it a conversation between people with a button
+at the end rather than a rule. Until it exists, the answer to "the wrong person
+owns it" is that they invite the right one as an editor.
+
+Two things the interface owes a person here:
+
+* Chia sẻ is not offered for a family already claimed, so the refusal is
+  usually never reached.
+* When it is reached anyway — two people pressing at once — the refusal says
+  what happened. A primary-key violation is not an explanation.
+
 ---
 
 ## 5. Family Permissions

@@ -21,10 +21,11 @@
 -- calling `save_family_all` writes nothing, for the same reason a viewer
 -- PATCHing a row writes nothing.
 --
--- This is the opposite of `my_role` and `owner_on_create`, which must step
--- outside RLS to do their jobs. The difference is deliberate and worth keeping
--- straight: a SECURITY DEFINER function is a hole in the wall, and there are
--- two of them, both narrow, both explained where they are written.
+-- This is the opposite of `my_role`, `owner_on_create` and `family_is_claimed`,
+-- which must step outside RLS to do their jobs. The difference is deliberate
+-- and worth keeping straight: a SECURITY DEFINER function is a hole in the
+-- wall, and there are three of them, all narrow, each explained where it is
+-- written.
 
 -- ---------------------------------------------------------------- saveAll --
 
@@ -37,8 +38,9 @@
 --
 -- One limit worth stating: the existence check below reads through the same
 -- policies as everything else, so a family belonging to somebody else looks
--- absent, and the insert that follows fails on the primary key rather than on
--- the policy. Both refuse; only the wording differs.
+-- absent, and the insert that follows meets the primary key rather than the
+-- policy. Both refuse — but a constraint name is no use to anybody, so that
+-- insert names the case instead (PRODUCT.md §4.2).
 CREATE OR REPLACE FUNCTION save_family_all(
   family        jsonb DEFAULT NULL,
   people        jsonb DEFAULT '[]'::jsonb,
@@ -72,8 +74,20 @@ BEGIN
       FROM jsonb_populate_record(NULL::families, family) AS incoming
       WHERE families.id = incoming.id;
     ELSE
-      INSERT INTO families
-        SELECT * FROM jsonb_populate_record(NULL::families, family);
+      -- A family this caller cannot see may still be there. To a non-member
+      -- the row is absent rather than forbidden, so the check above says no
+      -- and this insert meets `families_pkey` — the two-devices-one-file case
+      -- (PRODUCT.md §4.2). `family_is_claimed` lets the client ask first, but
+      -- asking and inserting are two requests and two devices can fall
+      -- between them, so the refusal is named here as well. Named, not
+      -- swallowed: nothing is written either way.
+      BEGIN
+        INSERT INTO families
+          SELECT * FROM jsonb_populate_record(NULL::families, family);
+      EXCEPTION WHEN unique_violation THEN
+        RAISE EXCEPTION 'family_already_claimed'
+          USING HINT = 'Somebody else shared this family first.';
+      END;
     END IF;
   END IF;
 
