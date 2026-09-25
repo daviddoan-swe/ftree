@@ -39,8 +39,6 @@ Future<ImportPlan?> importFamilyFromText(
   WidgetRef ref,
   String text,
 ) async {
-  final repository = ref.read(familyRepositoryProvider);
-
   final FamilyFile file;
   try {
     file = decodeFamilyFile(text);
@@ -49,8 +47,31 @@ Future<ImportPlan?> importFamilyFromText(
     return null;
   }
 
-  // The family in the file may be one this device has never seen, so it is
-  // looked for rather than assumed. Null means it arrives whole.
+  // Decoding is synchronous, so nothing has moved — but the failure branch
+  // above awaits, and the guard is cheaper than reasoning about which branch
+  // a reader is in.
+  if (!context.mounted) return null;
+
+  return bringInFamily(context, ref, file);
+}
+
+/// Writes an incoming family in, whatever brought it.
+///
+/// A file and an invitation arrive by different routes and are the same thing
+/// once decoded: a family, its people, their edges, and an id that may or may
+/// not already be on this device. So the preview, the add-only merge, the
+/// write and the sentence afterwards live here rather than twice.
+///
+/// Returns the plan that was applied, or null when nothing was.
+Future<ImportPlan?> bringInFamily(
+  BuildContext context,
+  WidgetRef ref,
+  FamilyFile file,
+) async {
+  final repository = ref.read(familyRepositoryProvider);
+
+  // The family may be one this device has never seen, so it is looked for
+  // rather than assumed. Null means it arrives whole.
   final here = await repository.loadFamily(file.family.id);
   final plan = planImport(
     file,
@@ -176,9 +197,7 @@ class ImportPreview extends StatelessWidget {
             _Line(
               icon: Icons.add_circle_outline,
               tint: GroupedColors.green,
-              label: text.importAddsRelationships(
-                plan.newRelationships.length,
-              ),
+              label: text.importAddsRelationships(plan.newRelationships.length),
             ),
           if (plan.personsAlreadyHere > 0)
             _Line(
@@ -232,10 +251,7 @@ class ImportPreview extends StatelessWidget {
               color: GroupedColors.card(context),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(
-              text.importAddOnly,
-              style: theme.textTheme.bodySmall,
-            ),
+            child: Text(text.importAddOnly, style: theme.textTheme.bodySmall),
           ),
         ],
       ),

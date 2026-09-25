@@ -292,6 +292,9 @@
   "accountWhy": "Tài khoản chỉ dùng để chia sẻ dòng họ. Gia phả trên máy vẫn dùng được bình thường mà không cần đăng nhập.",
   "accountCreate": "Đăng ký",
   "accountSignIn": "Đăng nhập",
+  "accountName": "Tên",
+  "accountNameHint": "Tên bác muốn người trong dòng họ nhìn thấy",
+  "accountNameMissing": "Hãy nhập tên",
   "accountEmail": "Email",
   "accountPassword": "Mật khẩu",
   "accountPasswordHint": "Ít nhất {count} ký tự",
@@ -330,5 +333,53 @@
     "placeholders": { "name": { "type": "String" } }
   },
   "shareClaimedByOther": "Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời bác vào để cùng sửa.",
-  "shareFailed": "Không chia sẻ được"
+  "shareFailed": "Không chia sẻ được",
+
+  "roleOwner": "Chủ",
+  "roleEditor": "Người sửa",
+  "roleViewer": "Người xem",
+
+  "inviteAction": "Mời",
+  "inviteTitle": "Lời mời",
+  "inviteNone": "Chưa mời ai vào dòng họ này",
+  "inviteNew": "Mời thêm",
+  "inviteSend": "Gửi",
+  "inviteRevoke": "Huỷ",
+  "inviteNoCode": "Máy này không còn giữ mã",
+  "inviteExpiresIn": "{count, plural, =0{Hết hạn hôm nay} =1{Còn 1 ngày} other{Còn {count} ngày}}",
+  "@inviteExpiresIn": { "placeholders": { "count": { "type": "int" } } },
+
+  "inviteUsed": "Đã dùng",
+  "inviteRevoked": "Đã huỷ",
+  "inviteExpired": "Hết hạn",
+
+  "inviteOwnerWarningTitle": "Mời làm chủ dòng họ?",
+  "inviteOwnerWarningBody": "Người này sẽ làm được mọi thứ bác làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.",
+  "inviteRevokeTitle": "Huỷ mã mời?",
+  "inviteRevokeBody": "Mã này sẽ không dùng được nữa. Người bác đã gửi cho sẽ không vào được. Bác tạo mã mới bất cứ lúc nào.",
+  "inviteMessage": "Mã mời vào gia phả {family}: {code}\n\nMã dùng một lần và hết hạn sau 7 ngày.",
+  "@inviteMessage": {
+    "description": "Nội dung tin nhắn chủ gửi đi, qua bảng chia sẻ của máy",
+    "placeholders": { "family": { "type": "String" }, "code": { "type": "String" } }
+  },
+
+  "inviteEnterTitle": "Nhập mã mời",
+  "inviteEnterWhy": "Mã do chủ dòng họ gửi cho bác. Nhập xong, gia phả sẽ được tải về máy này.",
+  "inviteEnterLabel": "Mã mời",
+  "inviteEnterAction": "Vào dòng họ",
+  "inviteCodeMissing": "Hãy nhập mã mời",
+  "inviteNotFound": "Không có mã này. Hãy kiểm tra lại từng ký tự.",
+  "inviteAlreadyUsed": "Mã này đã được dùng rồi. Hãy hỏi lại người đã mời bác.",
+  "inviteWasRevoked": "Mã này đã bị huỷ. Hãy hỏi lại người đã mời bác.",
+  "inviteHasExpired": "Mã này đã hết hạn. Hãy xin một mã mới.",
+
+  "membersOwnerOnly": "Chỉ chủ dòng họ mới quản lý được thành viên và lời mời.",
+  "memberChangeRole": "Đổi vai",
+  "memberNoName": "Chưa đặt tên",
+  "membersTitle": "Thành viên",
+  "membersYou": "bác",
+  "memberRemove": "Gỡ khỏi dòng họ",
+  "memberRemoveTitle": "Gỡ người này?",
+  "memberRemoveBody": "Họ sẽ không đọc hay sửa dòng họ này trên máy chủ được nữa. Bản đã tải về máy họ thì vẫn còn.",
+  "memberRemoveLastOwner": "Dòng họ phải luôn có ít nhất một chủ"
 }

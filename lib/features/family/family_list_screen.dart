@@ -15,6 +15,8 @@ import '../../l10n/app_localizations.dart';
 import 'export_family.dart';
 import 'family_form_sheet.dart';
 import 'import_family.dart';
+import 'invite_family.dart';
+import 'join_family.dart';
 import 'share_family.dart';
 import 'family_screen.dart';
 
@@ -28,6 +30,27 @@ class FamilyListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        // Opposite the import button, and on the bar for the same reason it
+        // is: a code belongs to no family on this device, because the family
+        // it opens is not here yet.
+        // An envelope, padded to mirror the import button opposite it.
+        //
+        // Weight decided this rather than meaning. A key is drawn as a solid
+        // silhouette and sits far heavier than anything else on the bar. An
+        // arrow reads well but is horizontal, so it spans half again the width
+        // of the vertical import arrow — checked by putting the two side by
+        // side, where no `size` brings them into line, because the mismatch is
+        // in the glyphs rather than in the slot. An envelope is the same
+        // compact mass, and is already what an invitation is drawn as on the
+        // Lời mời screen.
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            icon: const Icon(Icons.mail_outline),
+            tooltip: text.inviteEnterTitle,
+            onPressed: () => joinFamilyWithCode(context, ref),
+          ),
+        ),
         title: Text(text.familiesTitle),
         actions: <Widget>[
           // On the bar rather than on a row: an import belongs to no family
@@ -97,12 +120,17 @@ class _FamilyList extends ConsumerWidget {
     final text = AppText.of(context);
     final colors = Theme.of(context).colorScheme;
 
-    // Offered only for a family with no mark, and only once the marks are
-    // known. While they are loading the answer is "do not offer": a Chia sẻ
-    // shown on a family that turns out to be shared would put this device's
-    // copy on top of the shared one (PRODUCT §4.2).
+    // One slot, two jobs, and which one depends on whether this family is
+    // already up there. Before it is shared the action is Chia sẻ; afterwards
+    // it is Mời, because a family already on the server cannot be sent again —
+    // a second press would put this device's copy on top of the shared one
+    // (PRODUCT §4.2) — and what is left to do to it is let somebody in.
+    //
+    // While the marks are still loading neither is offered. Guessing wrong in
+    // the Chia sẻ direction is the expensive mistake.
     final shared = ref.watch(sharedFamiliesProvider).valueOrNull;
     final offerSharing = shared != null && !shared.contains(family.id);
+    final offerInviting = shared != null && shared.contains(family.id);
 
     return Slidable(
       // Keyed by id so an open pane follows its family when the list is
@@ -112,7 +140,7 @@ class _FamilyList extends ConsumerWidget {
         motion: const DrawerMotion(),
         // Grown by one button's worth rather than squeezing four into three
         // buttons' room, which would leave "Chia sẻ" too narrow to read.
-        extentRatio: offerSharing ? 0.66 : 0.5,
+        extentRatio: shared == null ? 0.5 : 0.66,
         children: <Widget>[
           // What is exported is one family, so the action belongs to its own
           // row. Before Edit, so that Delete keeps the outermost place a
@@ -133,6 +161,14 @@ class _FamilyList extends ConsumerWidget {
               onPressed: (_) => shareFamily(context, ref, family),
               icon: Icons.cloud_upload_outlined,
               label: text.shareAction,
+              backgroundColor: colors.primaryContainer,
+              foregroundColor: colors.onPrimaryContainer,
+            ),
+          if (offerInviting)
+            SlidableAction(
+              onPressed: (_) => showFamilyCircle(context, ref, family),
+              icon: Icons.person_add_alt,
+              label: text.inviteAction,
               backgroundColor: colors.primaryContainer,
               foregroundColor: colors.onPrimaryContainer,
             ),

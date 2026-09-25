@@ -323,6 +323,11 @@ void main() {
       await seedAndOpen(tester);
 
       expect(find.text('Share'), findsOneWidget);
+      expect(
+        find.text('Invite'),
+        findsNothing,
+        reason: 'there is nobody to invite into a family nobody else can see',
+      );
     });
 
     testWidgets('a family already shared is not offered it again', (
@@ -347,6 +352,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Share'), findsNothing);
+      expect(
+        find.text('Invite'),
+        findsOneWidget,
+        reason: 'one slot, and what is left to do to a shared family is this',
+      );
       expect(
         find.text('Export'),
         findsOneWidget,

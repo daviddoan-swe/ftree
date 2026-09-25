@@ -85,10 +85,20 @@ const int minimumPasswordLength = 6;
 /// short, an address already taken. Left to reach the caller rather than
 /// flattened into a boolean, because which of those happened is the only
 /// useful thing to tell somebody.
-Future<void> signUp({required String email, required String password}) async {
+/// [name] is what other people in a family will see instead of an address.
+///
+/// Carried in the account's own metadata rather than in a table of ours: it
+/// belongs to the person, not to any one family, and somebody in three
+/// families should not have three names.
+Future<void> signUp({
+  required String email,
+  required String password,
+  String name = '',
+}) async {
   await Supabase.instance.client.auth.signUp(
     email: email,
     password: password,
+    data: <String, Object?>{if (name.trim().isNotEmpty) 'name': name.trim()},
   );
 }
 

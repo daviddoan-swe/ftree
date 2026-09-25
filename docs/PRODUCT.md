@@ -146,11 +146,11 @@ more than one person.
 Two earlier decisions make it work rather than merely describe it:
 
 * Identifiers are globally unique (DOMAIN §14.1), so a family moves to the
-  server keeping the id it already had. There is no renumbering and no table
-  of translations.
+   server keeping the id it already had. There is no renumbering and no table
+   of translations.
 * The server decides who owns a family from the token of whoever created it,
-  so the person who presses Chia sẻ becomes its owner without anything being
-  asserted by the client.
+   so the person who presses Chia sẻ becomes its owner without anything being
+   asserted by the client.
 
 What it needs that does not exist yet: the device has to remember which of its
 families are shared, since it cannot ask the server while offline. That is one
@@ -194,16 +194,16 @@ owns it" is that they invite the right one as an editor.
 Three things the interface owes a person here:
 
 * Chia sẻ is not offered for a family this device has marked as shared, so the
-  refusal is usually never reached.
+   refusal is usually never reached.
 * When the mark is missing but the family is ours, **the mark is recovered
-  rather than the family re-sent.** This is the reinstall, and the restore from
-  one's own exported file: the device has forgotten, the server has not. Sending
-  again would put the restored copy on top of the shared one, which is the
-  conflict resolution nobody can do yet (DOMAIN §15.3). So nothing is sent, the
-  mark is rebuilt from what the server already knows, and the button stops being
-  offered.
+   rather than the family re-sent.** This is the reinstall, and the restore from
+   one's own exported file: the device has forgotten, the server has not. Sending
+   again would put the restored copy on top of the shared one, which is the
+   conflict resolution nobody can do yet (DOMAIN §15.3). So nothing is sent, the
+   mark is rebuilt from what the server already knows, and the button stops being
+   offered.
 * When it is reached anyway — two people pressing at once — the refusal says
-  what happened. A primary-key violation is not an explanation.
+   what happened. A primary-key violation is not an explanation.
 
 The second of those is why "a device that imported a file may not share" was
 rejected as a rule: it would have caught the person restoring their own backup,
@@ -260,6 +260,119 @@ option for this audience, and it can be added when somebody is actually stuck.
 
 Initial roles:
 
+### 5.1 Who may invite, and to what
+
+**Decided.** Only an owner may invite. **Any** of the three roles may be
+invited, owner included, and inviting an owner asks first.
+
+Editors cannot invite. An editor who could invite editors would widen the
+circle without the owner ever seeing it happen, and a circle is far easier to
+widen than to narrow. Loosening this later costs nothing; tightening it would
+mean taking something away from people who already had it.
+
+__Owner is invitable because a gia phả is meant to outlive one person.__ A
+family kept by a single account dies with that account — a lost phone, a
+forgotten password, a person who dies. A second owner is how the record
+survives that, and nothing in the schema ever forbade it: `keep_an_owner`
+requires _at least_ one owner, not exactly one.
+
+It also softens §4.3. Where the wrong person pressed Chia sẻ first, they can
+now hand the family back by inviting the right person as owner. That is not a
+transfer — the first owner stays — but it unblocks somebody locked out of a
+gia phả they themselves built, which was the sharpest cost of first-press-wins.
+
+**What it costs, plainly.** An owner can delete the whole family, and can make
+further owners. There is no super-owner, and until removing a member exists
+there is no way to walk any of it back. So the warning is not decoration: it
+has to say what the new owner will be able to do, not merely that the role is
+important.
+
+Friction proportional to harm, as everywhere else here (§10): a confirmation,
+not a typed name. Deleting a family destroys a hundred years of transcription
+and asks for the name to be typed; inviting a second owner is a decision that
+can be regretted but not an act that loses anything.
+
+### 5.2 An invitation is a code, passed on by hand
+
+**Decided.** The owner's device makes a ten-character code, sends the server
+only its hash, and hands the code to whatever the family already uses — Zalo, a
+message, email. It works **once** and expires after **seven days**.
+
+The alphabet leaves out `O`, `0`, `I` and `1`: a code is read off one screen
+and typed into another, and one nobody can transcribe is one nobody uses. What
+is compared is a canonical form — upper case, punctuation dropped — so `k7p2
+9xmr4t` opens what was issued as `K7P2-9XMR-4T`.
+
+**Only the hash is stored**, so a database that escapes carries nothing that
+opens a family. Ten characters from thirty-two is about fifty bits, which would
+be thin for a bearer secret standing alone and is not standing alone: it dies
+after one use and after a week.
+
+**Single use earns its place twice.** The obvious job is limiting damage. The
+one found by thinking it through is that it makes theft *visible* — somebody
+who intercepts a code and uses it first leaves the intended reader looking at
+"this code has already been used", which is how the owner learns anything is
+wrong. A code that worked twice would be stolen in silence.
+
+A link that opens the application directly was considered and deferred: it
+needs a domain and a file hosted on it for the phone to verify, which is
+infrastructure rather than code.
+
+### 5.3 No approval, and what stands in its place
+
+**Decided.** A valid code lets somebody in immediately. There is no queue for
+the owner to work through.
+
+The owner has already decided twice — when they made the code, and when they
+chose who to send it to. A third decision, taken later against an email address
+they may never have seen, would be approved without looking. It would also
+leave the invited person waiting on somebody else opening an application, which
+for a relative who was sent a code and expected it to work is the difference
+between joining and giving up.
+
+**What replaces it is seeing and removing.** The owner can see every member by
+the address they signed up with, and remove any of them. A door that opens and
+cannot close would be worse than a slow lock, so removing a member is not a
+later refinement; it is the other half of this decision.
+
+The last owner cannot be removed. A family nobody can manage is a family nobody
+can ever be invited into.
+
+### 5.4 The owner's device keeps the codes it issued
+
+**Decided.** Codes for invitations that are still standing are held on the
+device that made them, so the Lời mời screen can show one again and send it
+again. Used or revoked, it is forgotten.
+
+This does not weaken §5.2. Hashing defends against the *server* being read; the
+owner's phone already holds the whole gia phả, and anybody who can unlock it
+can issue a fresh invitation in three taps. What it buys is the ordinary
+accident: the message was closed before it was sent.
+
+A device that has forgotten — a reinstall, a different phone — still lists the
+invitation and can still revoke it. It simply has nothing left to send, and
+says so rather than pretending.
+
+### 5.5 Accepting downloads the family, once
+
+**Decided.** Entering a valid code writes the gia phả onto that device
+immediately. Without it the invitation would be a permission nobody can see:
+the application reads its own database, so the invited person would open it and
+find nothing at all.
+
+It is **not** synchronisation. Afterwards the two copies drift — the owner adds
+somebody and the guest does not see it, the guest edits and nothing goes up —
+until M9. What an invitation buys today is the gia phả and a membership waiting
+for the day two copies can talk.
+
+It arrives through the **same add-only merge a file does**, and that is not
+tidiness. Somebody may have been sent the exported file first, imported it, and
+added their own branch before the invitation came. The file and the server
+carry the same family id (§4.3), so an overwrite would land on that branch and
+take it.
+
+---
+
 ### Owner
 
 Can:
@@ -285,7 +398,70 @@ Can:
 
 * view permitted family information
 
-Exact permission details may evolve before cloud sharing is implemented.
+An owner changes a role and removes somebody from the member list (§5.6).
+Both are the owner's alone: an editor who could promote themselves would make
+the distinction between the two meaningless.
+
+### 5.6 The member list, and who may open it
+
+**Decided.** Reached from **Mời** on a family that has been shared. Two
+sections: the people who already have access, then the invitations standing
+against the family.
+
+A member's row is **a name, an address and a role, and nothing to press.**
+Managing somebody is behind a left swipe, as it is on the family list, giving
+**Sửa** and **Xoá**. A row is for reading; demoting a relative or putting them
+out are not things to leave under a thumb while scrolling.
+
+* **Sửa** offers the three roles — the same sheet an invitation uses, so
+  promoting somebody already here and inviting somebody at that role read as
+  one idea. Promoting to owner asks first, for the reason §5.1 gives.
+* **Xoá** takes away everything. See below.
+
+**Your own row has nothing behind it.** Leaving a family is a different act
+from running one, and this screen is reached by whoever runs it.
+
+**Only an owner sees any of this.** An editor or a viewer who opens it is told
+whose job it is. This reverses what §5 first said — that members see each
+other, because knowing who can read a gia phả is part of knowing whether it is
+private. The decision went the other way: the list is where somebody is demoted
+or put out, and that is not done in front of an audience. What an editor loses
+is the ability to see who else has access; what they keep is that the owner
+they trusted chose everybody in it.
+
+**A name is asked for when an account is created**, and shown here instead of
+an address. It belongs to the person rather than to any one family — somebody
+in three families should not have three names — so it is carried in the account
+itself. An account made before names were asked for has none, and the row says
+so rather than wearing its address as one: an address with its domain cut off
+is not a name.
+
+### 5.7 An administrator is not necessarily in the gia phả
+
+Worth stating, because the two are easy to confuse and nothing in the schema
+connects them.
+
+A **person in the gia phả** is a record — a great-grandfather, a great-aunt,
+somebody long dead. They have no account, and `Person` holds no user id. An
+**administrator** is an account with access to a family on the server. An owner
+is not required to appear in their own gia phả, and the people in it are not
+required to have accounts.
+
+So **removing somebody takes away every right they had** — editor, viewer and
+owner alike. The family goes back to being invisible to them. Three things are
+deliberately left alone:
+
+* **Their account.** It may belong to other families. Deleting it is theirs to
+  do, not their former owner's.
+* **The gia phả.** If that same person also appears in the tree, that record
+  stays: it is a note about the family, not about an account.
+* **Whatever they already downloaded.** It sits on their phone and **cannot be
+  recalled.** The confirmation says so plainly rather than implying otherwise.
+
+The membership row is tombstoned rather than erased, as everything else here
+is (DOMAIN §15.1). That keeps the record of who was let in, and it means
+inviting them again later simply works: accepting revives the membership they
+had.
 
 ---
 
@@ -379,10 +555,10 @@ errors that the user wants to save and investigate later.
 The application therefore distinguishes two kinds of problem:
 
 * **Errors** — structurally impossible data, such as a person being their own
-  ancestor. These are refused.
+   ancestor. These are refused.
 * **Warnings** — implausible but possible data, such as a parent aged fifteen or
-  a child born shortly after the father's death. These are shown to the user,
-  who can confirm and save anyway.
+   a child born shortly after the father's death. These are shown to the user,
+   who can confirm and save anyway.
 
 An application that refuses everything unusual cannot record real genealogy.
 
@@ -455,13 +631,13 @@ than the same data about ancestors.
 This is not built for V1, but two things follow from it now:
 
 * **Death is derived, and one-way.** A person has died when a death date *or* a
-  place of death is recorded (DOMAIN.md §3.5). Either is somebody writing down
-  that this person died; neither is a record that says nothing on the subject.
-  Nothing may read the absence of both as "living" — it means *nothing was
-  recorded*, which for most of a gia phả is the truth. Where the difference
-  matters, the words are "no death recorded".
+   place of death is recorded (DOMAIN.md §3.5). Either is somebody writing down
+   that this person died; neither is a record that says nothing on the subject.
+   Nothing may read the absence of both as "living" — it means *nothing was
+   recorded*, which for most of a gia phả is the truth. Where the difference
+   matters, the words are "no death recorded".
 * The eventual sharing mechanism must be able to give a user part of a family
-  rather than all of it.
+   rather than all of it.
 
 **What this cannot yet express.** A person the family knows perfectly well has
 died, but whose date and place nobody remembers, cannot be recorded as dead:
@@ -500,9 +676,9 @@ Do NOT initially implement:
 * advanced analytics
 * public APIs
 * GEDCOM import/export — the international interchange format, and worth
-  adding later so a family is never locked into this application. The
-  application's **own** file format is in scope now, and is a different job
-  (§9.1)
+   adding later so a family is never locked into this application. The
+   application's **own** file format is in scope now, and is a different job
+   (§9.1)
 
 These features may be reconsidered later.
 

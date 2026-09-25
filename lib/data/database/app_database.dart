@@ -190,20 +190,57 @@ class Relationships extends Table with _SyncColumns {
   ];
 }
 
+/// The plaintext of invitations this device issued (PRODUCT.md §5.1).
+///
+/// **Deliberately local, and deliberately not on the server.** The server keeps
+/// only a hash, so that a database which escapes carries nothing that opens a
+/// family. The code itself lives in the message the owner sent — and here,
+/// because a message is easy to close by accident and a code that cannot be
+/// shown again is a code that has to be thrown away and made afresh.
+///
+/// Keeping it here costs nothing an attacker did not already have: this device
+/// holds the entire gia phả, and whoever can unlock it can simply issue a new
+/// invitation. Hashing defends against the *server* being read, which is a
+/// different room entirely.
+///
+/// No `updatedAt`, no `deletedAt`. §15 asks for both on tables that
+/// synchronise; this one is the opposite of synchronisable. A row is written
+/// when an invitation is made and removed when it is used or revoked, at which
+/// point there is nothing left worth showing anybody.
+class InvitationCodes extends Table {
+  /// The id the server gave the invitation. The two sides are joined on it.
+  TextColumn get id => text()();
+
+  /// Kept so the list for one family can be read without asking the server —
+  /// and so that deleting a family locally can take its codes with it.
+  TextColumn get familyId => text()();
+
+  TextColumn get code => text()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
 /// The application's local database.
 ///
 /// Takes its executor rather than choosing one, so tests can run against an
 /// in-memory database while the application uses a file. There is no hidden
 /// default: the caller always says which.
-@DriftDatabase(tables: <Type>[Families, Persons, Relationships])
+@DriftDatabase(
+  tables: <Type>[Families, Persons, Relationships, InvitationCodes],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   /// 2 — indexes on the columns every read filters by.
   /// 3 — `families.sharedAt`, so a device knows which families it has shared
   ///     without asking a server it may not be able to reach.
+  /// 4 — `invitationCodes`, so an invitation can be sent again after the
+  ///     message carrying it was closed.
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -238,6 +275,11 @@ class AppDatabase extends _$AppDatabase {
         // Null for every family already here, which is the truth: nothing has
         // been shared, because until now there was nowhere to share it to.
         await m.addColumn(families, families.sharedAt);
+      }
+      if (from < 4) {
+        // Empty on every device that upgrades, which is the truth: no
+        // invitation has ever been issued from here.
+        await m.createTable(invitationCodes);
       }
     },
     beforeOpen: (OpeningDetails details) async {

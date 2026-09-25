@@ -21,13 +21,14 @@ import 'package:ftree/l10n/app_localizations.dart';
 
 void main() {
   /// Every call the screen made, in order.
-  late List<({bool creating, String email, String password})> asked;
+  late List<({bool creating, String email, String password, String name})>
+  asked;
 
   /// What the route popped: true, false, or null for backing out.
   bool? popped;
 
   setUp(() {
-    asked = <({bool creating, String email, String password})>[];
+    asked = <({bool creating, String email, String password, String name})>[];
     popped = null;
   });
 
@@ -37,8 +38,14 @@ void main() {
         required bool creating,
         required String email,
         required String password,
+        required String name,
       }) async {
-        asked.add((creating: creating, email: email, password: password));
+        asked.add((
+          creating: creating,
+          email: email,
+          password: password,
+          name: name,
+        ));
         return signedIn;
       };
 
@@ -48,8 +55,14 @@ void main() {
         required bool creating,
         required String email,
         required String password,
+        required String name,
       }) async {
-        asked.add((creating: creating, email: email, password: password));
+        asked.add((
+          creating: creating,
+          email: email,
+          password: password,
+          name: name,
+        ));
         throw error;
       };
 
@@ -89,13 +102,23 @@ void main() {
       )
       .data!;
 
+  /// Fills the boxes that are showing. The name box is there only while
+  /// creating, so the fields are found by their labels rather than by order.
   Future<void> fill(
     WidgetTester tester, {
     required String email,
     required String password,
+    String name = 'Bác Minh',
   }) async {
-    await tester.enterText(find.byType(TextField).first, email);
-    await tester.enterText(find.byType(TextField).last, password);
+    final nameBox = find.widgetWithText(TextField, 'Name');
+    if (nameBox.evaluate().isNotEmpty) {
+      await tester.enterText(nameBox, name);
+    }
+    await tester.enterText(find.widgetWithText(TextField, 'Email'), email);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      password,
+    );
     await tester.pump();
   }
 
@@ -118,13 +141,55 @@ void main() {
       );
     });
 
+    testWidgets('no name, nobody asked', (WidgetTester tester) async {
+      // Asked for only when creating, and required: the member list is how an
+      // owner decides who may change a gia phả, and a list of addresses is a
+      // poor thing to decide from (§5.6).
+      await open(tester, answering(true));
+
+      await press(tester);
+
+      expect(find.text('Enter your name'), findsOneWidget);
+      expect(asked, isEmpty);
+    });
+
     testWidgets('no email, nobody asked', (WidgetTester tester) async {
       await open(tester, answering(true));
+      await fill(tester, email: '', password: 'correct horse');
 
       await press(tester);
 
       expect(find.text('Enter an email address'), findsOneWidget);
       expect(asked, isEmpty);
+    });
+
+    testWidgets('signing in is not asked for a name at all', (
+      WidgetTester tester,
+    ) async {
+      // Somebody who already has an account named themselves when they made
+      // it. Asking again would be asking them to rename themselves to get in.
+      await open(tester, answering(true));
+
+      await tester.tap(find.text('Sign in'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextField, 'Name'), findsNothing);
+    });
+
+    testWidgets('the name is carried up with the account', (
+      WidgetTester tester,
+    ) async {
+      await open(tester, answering(true));
+      await fill(
+        tester,
+        email: 'a@example.test',
+        password: 'correct horse',
+        name: 'Bác Minh',
+      );
+
+      await press(tester);
+
+      expect(asked.single.name, 'Bác Minh');
     });
 
     testWidgets('an email that is not one, nobody asked', (
@@ -249,8 +314,14 @@ void main() {
         required bool creating,
         required String email,
         required String password,
+        required String name,
       }) {
-        asked.add((creating: creating, email: email, password: password));
+        asked.add((
+          creating: creating,
+          email: email,
+          password: password,
+          name: name,
+        ));
         return gate.future;
       });
       await fill(tester, email: 'a@example.test', password: 'correct horse');

@@ -13,6 +13,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
 import '../data/database/app_database.dart';
+import '../data/database/invitation_codes.dart';
 import '../data/database/sharing_marks.dart';
 import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
@@ -44,6 +45,15 @@ final familyRepositoryProvider = Provider<FamilyRepository>(
 /// thing (ARCHITECTURE §7).
 final sharingMarksProvider = Provider<SharingMarks>(
   (ref) => SharingMarks(ref.watch(databaseProvider)),
+);
+
+/// Reads and writes the codes of invitations this device issued.
+///
+/// Local by nature, like [sharingMarksProvider]: the server keeps only a hash,
+/// and this is the copy that lets an invitation be sent a second time after
+/// the message carrying it was closed (PRODUCT §5.1).
+final invitationCodeStoreProvider = Provider<InvitationCodeStore>(
+  (ref) => InvitationCodeStore(ref.watch(databaseProvider)),
 );
 
 /// The ids this device has sent to the cloud.

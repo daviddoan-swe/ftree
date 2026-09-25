@@ -75,6 +75,7 @@ typedef AccountAttempt =
       required bool creating,
       required String email,
       required String password,
+      required String name,
     });
 
 /// The real one: the cloud session, and its own idea of whether we are in.
@@ -82,9 +83,10 @@ Future<bool> attemptWithCloud({
   required bool creating,
   required String email,
   required String password,
+  required String name,
 }) async {
   if (creating) {
-    await signUp(email: email, password: password);
+    await signUp(email: email, password: password, name: name);
   } else {
     await signIn(email: email, password: password);
   }
@@ -103,6 +105,7 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
+  final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
 
@@ -119,6 +122,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
+    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -131,6 +135,11 @@ class _SignInScreenState extends State<SignInScreen> {
   /// password it has, and refusing to send it would lock its owner out over a
   /// rule that was never theirs.
   String? _localProblem(AppText text) {
+    // Asked for only when creating, and required rather than optional: the
+    // member list is how an owner decides who may change a gia phả, and a list
+    // of addresses is a poor thing to decide from (PRODUCT §5.6).
+    if (_creating && _name.text.trim().isEmpty) return text.accountNameMissing;
+
     final email = _email.text.trim();
     if (email.isEmpty) return text.accountEmailMissing;
     if (!_looksLikeEmail(email)) return text.accountEmailInvalid;
@@ -162,6 +171,7 @@ class _SignInScreenState extends State<SignInScreen> {
         creating: _creating,
         email: _email.text.trim(),
         password: _password.text,
+        name: _name.text.trim(),
       );
       if (!mounted) return;
 
@@ -260,6 +270,22 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
 
           const SizedBox(height: 24),
+
+          if (_creating) ...<Widget>[
+            TextField(
+              controller: _name,
+              enabled: !_busy,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              autofillHints: const <String>[AutofillHints.name],
+              decoration: InputDecoration(
+                labelText: text.accountName,
+                helperText: text.accountNameHint,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           TextField(
             controller: _email,

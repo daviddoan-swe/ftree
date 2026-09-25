@@ -895,6 +895,24 @@ abstract class AppText {
   /// **'Đăng nhập'**
   String get accountSignIn;
 
+  /// No description provided for @accountName.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tên'**
+  String get accountName;
+
+  /// No description provided for @accountNameHint.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tên bác muốn người trong dòng họ nhìn thấy'**
+  String get accountNameHint;
+
+  /// No description provided for @accountNameMissing.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hãy nhập tên'**
+  String get accountNameMissing;
+
   /// No description provided for @accountEmail.
   ///
   /// In vi, this message translates to:
@@ -1002,6 +1020,228 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Không chia sẻ được'**
   String get shareFailed;
+
+  /// No description provided for @roleOwner.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chủ'**
+  String get roleOwner;
+
+  /// No description provided for @roleEditor.
+  ///
+  /// In vi, this message translates to:
+  /// **'Người sửa'**
+  String get roleEditor;
+
+  /// No description provided for @roleViewer.
+  ///
+  /// In vi, this message translates to:
+  /// **'Người xem'**
+  String get roleViewer;
+
+  /// No description provided for @inviteAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mời'**
+  String get inviteAction;
+
+  /// No description provided for @inviteTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Lời mời'**
+  String get inviteTitle;
+
+  /// No description provided for @inviteNone.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa mời ai vào dòng họ này'**
+  String get inviteNone;
+
+  /// No description provided for @inviteNew.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mời thêm'**
+  String get inviteNew;
+
+  /// No description provided for @inviteSend.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gửi'**
+  String get inviteSend;
+
+  /// No description provided for @inviteRevoke.
+  ///
+  /// In vi, this message translates to:
+  /// **'Huỷ'**
+  String get inviteRevoke;
+
+  /// No description provided for @inviteNoCode.
+  ///
+  /// In vi, this message translates to:
+  /// **'Máy này không còn giữ mã'**
+  String get inviteNoCode;
+
+  /// No description provided for @inviteExpiresIn.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =0{Hết hạn hôm nay} =1{Còn 1 ngày} other{Còn {count} ngày}}'**
+  String inviteExpiresIn(int count);
+
+  /// No description provided for @inviteUsed.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã dùng'**
+  String get inviteUsed;
+
+  /// No description provided for @inviteRevoked.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã huỷ'**
+  String get inviteRevoked;
+
+  /// No description provided for @inviteExpired.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hết hạn'**
+  String get inviteExpired;
+
+  /// No description provided for @inviteOwnerWarningTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mời làm chủ dòng họ?'**
+  String get inviteOwnerWarningTitle;
+
+  /// No description provided for @inviteOwnerWarningBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Người này sẽ làm được mọi thứ bác làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.'**
+  String get inviteOwnerWarningBody;
+
+  /// No description provided for @inviteRevokeTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Huỷ mã mời?'**
+  String get inviteRevokeTitle;
+
+  /// No description provided for @inviteRevokeBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã này sẽ không dùng được nữa. Người bác đã gửi cho sẽ không vào được. Bác tạo mã mới bất cứ lúc nào.'**
+  String get inviteRevokeBody;
+
+  /// Nội dung tin nhắn chủ gửi đi, qua bảng chia sẻ của máy
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã mời vào gia phả {family}: {code}\n\nMã dùng một lần và hết hạn sau 7 ngày.'**
+  String inviteMessage(String family, String code);
+
+  /// No description provided for @inviteEnterTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nhập mã mời'**
+  String get inviteEnterTitle;
+
+  /// No description provided for @inviteEnterWhy.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã do chủ dòng họ gửi cho bác. Nhập xong, gia phả sẽ được tải về máy này.'**
+  String get inviteEnterWhy;
+
+  /// No description provided for @inviteEnterLabel.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã mời'**
+  String get inviteEnterLabel;
+
+  /// No description provided for @inviteEnterAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Vào dòng họ'**
+  String get inviteEnterAction;
+
+  /// No description provided for @inviteCodeMissing.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hãy nhập mã mời'**
+  String get inviteCodeMissing;
+
+  /// No description provided for @inviteNotFound.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không có mã này. Hãy kiểm tra lại từng ký tự.'**
+  String get inviteNotFound;
+
+  /// No description provided for @inviteAlreadyUsed.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã này đã được dùng rồi. Hãy hỏi lại người đã mời bác.'**
+  String get inviteAlreadyUsed;
+
+  /// No description provided for @inviteWasRevoked.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã này đã bị huỷ. Hãy hỏi lại người đã mời bác.'**
+  String get inviteWasRevoked;
+
+  /// No description provided for @inviteHasExpired.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mã này đã hết hạn. Hãy xin một mã mới.'**
+  String get inviteHasExpired;
+
+  /// No description provided for @membersOwnerOnly.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chỉ chủ dòng họ mới quản lý được thành viên và lời mời.'**
+  String get membersOwnerOnly;
+
+  /// No description provided for @memberChangeRole.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đổi vai'**
+  String get memberChangeRole;
+
+  /// No description provided for @memberNoName.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa đặt tên'**
+  String get memberNoName;
+
+  /// No description provided for @membersTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thành viên'**
+  String get membersTitle;
+
+  /// No description provided for @membersYou.
+  ///
+  /// In vi, this message translates to:
+  /// **'bác'**
+  String get membersYou;
+
+  /// No description provided for @memberRemove.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gỡ khỏi dòng họ'**
+  String get memberRemove;
+
+  /// No description provided for @memberRemoveTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gỡ người này?'**
+  String get memberRemoveTitle;
+
+  /// No description provided for @memberRemoveBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Họ sẽ không đọc hay sửa dòng họ này trên máy chủ được nữa. Bản đã tải về máy họ thì vẫn còn.'**
+  String get memberRemoveBody;
+
+  /// No description provided for @memberRemoveLastOwner.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng họ phải luôn có ít nhất một chủ'**
+  String get memberRemoveLastOwner;
 }
 
 class _AppTextDelegate extends LocalizationsDelegate<AppText> {

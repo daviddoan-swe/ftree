@@ -218,6 +218,9 @@
   "accountWhy": "An account is only for sharing a family. The gia phả on this device works as it always did, with nobody signed in.",
   "accountCreate": "Sign up",
   "accountSignIn": "Sign in",
+  "accountName": "Name",
+  "accountNameHint": "The name people in the family will see",
+  "accountNameMissing": "Enter your name",
   "accountEmail": "Email",
   "accountPassword": "Password",
   "accountPasswordHint": "At least {count} characters",
@@ -256,5 +259,53 @@
     "placeholders": { "name": { "type": "String" } }
   },
   "shareClaimedByOther": "Somebody else has already shared this family. Ask them to invite you so you can both work on it.",
-  "shareFailed": "It could not be shared"
+  "shareFailed": "It could not be shared",
+
+  "roleOwner": "Owner",
+  "roleEditor": "Editor",
+  "roleViewer": "Viewer",
+
+  "inviteAction": "Invite",
+  "inviteTitle": "Invitations",
+  "inviteNone": "Nobody has been invited to this family yet",
+  "inviteNew": "New invitation",
+  "inviteSend": "Send",
+  "inviteRevoke": "Revoke",
+  "inviteNoCode": "This device no longer holds the code",
+  "inviteExpiresIn": "{count, plural, =0{Expires today} =1{1 day left} other{{count} days left}}",
+  "@inviteExpiresIn": { "placeholders": { "count": { "type": "int" } } },
+
+  "inviteUsed": "Used",
+  "inviteRevoked": "Revoked",
+  "inviteExpired": "Expired",
+
+  "inviteOwnerWarningTitle": "Invite them as an owner?",
+  "inviteOwnerWarningBody": "They will be able to do everything you can: invite others, make further owners, and delete the whole family. There is no way to take it back.",
+  "inviteRevokeTitle": "Revoke this code?",
+  "inviteRevokeBody": "The code stops working. Whoever you sent it to will not be able to join with it. You can make a new one at any time.",
+  "inviteMessage": "Your code for the {family} family tree: {code}\n\nIt works once, and expires in seven days.",
+  "@inviteMessage": {
+    "description": "The message the owner sends, through the device's share sheet",
+    "placeholders": { "family": { "type": "String" }, "code": { "type": "String" } }
+  },
+
+  "inviteEnterTitle": "Enter an invitation code",
+  "inviteEnterWhy": "The owner of a family sent you this code. Once it is entered, the gia phả is downloaded onto this device.",
+  "inviteEnterLabel": "Invitation code",
+  "inviteEnterAction": "Join the family",
+  "inviteCodeMissing": "Enter the code",
+  "inviteNotFound": "There is no such code. Check it character by character.",
+  "inviteAlreadyUsed": "This code has already been used. Ask whoever invited you.",
+  "inviteWasRevoked": "This code was revoked. Ask whoever invited you.",
+  "inviteHasExpired": "This code has expired. Ask for a new one.",
+
+  "membersOwnerOnly": "Only the owner of a family manages its members and invitations.",
+  "memberChangeRole": "Change role",
+  "memberNoName": "No name given",
+  "membersTitle": "Members",
+  "membersYou": "you",
+  "memberRemove": "Remove from the family",
+  "memberRemoveTitle": "Remove this person?",
+  "memberRemoveBody": "They will no longer be able to read or change this family on the server. Whatever they already downloaded stays on their device.",
+  "memberRemoveLastOwner": "A family must always have at least one owner"
 }

@@ -777,7 +777,12 @@ Implement:
 * Owner
 * Editor
 * Viewer
-* invitations
+* **invitations** — only an owner may send one; any role may be received,
+  owner included, behind a confirmation (PRODUCT §5.1). A secret code the owner
+  passes on by hand, stored only as a hash. Done
+* **members, changing a role and removing one** — the other half of there
+  being no approval step (PRODUCT §5.3, §5.6). Owner-only, behind a swipe.
+  Done
 * Row Level Security
 
 ### Where signing in lives, and why it is here rather than at M7
@@ -914,6 +919,38 @@ available server can exercise, which is why the attempt is a parameter.
 account made when the minimum was lower still has the password it has. A screen
 that applied the rule on the way in would lock its owner out over a rule that
 was never theirs.
+
+### What building invitations turned up
+
+**Three of the four checks inside the hole are the whole feature.**
+`accept_invitation` is SECURITY DEFINER, so nothing inside it is protected by a
+policy and every guard is one somebody wrote by hand. Removing the revoked
+check makes the owner's Huỷ button decoration; removing the accepted check
+turns one code into a crowd; removing the expiry check revives last year's
+codes. Each was broken deliberately and each turns a check red.
+
+**Two pieces of the feature needed no server code at all.** Listing members and
+removing one were already possible: `memberships_read` lets members see each
+other, `memberships_update` lets an owner change a row, and `keep_an_owner`
+already refuses to let the last owner go. Only the screen was missing. Worth
+noticing before writing a migration — the policies had been sized for this
+without anybody planning it.
+
+**But listing members needed one thing nobody had thought of.** A membership
+row holds a `user_id`, and no client may read `auth.users` — rightly, since
+that is every account on the server. So the member list would have shown
+uuids, which answers none of what §5 says the list is for. Hence
+`family_members`, the fifth SECURITY DEFINER function: it returns addresses to
+somebody already in that family, nothing else from `auth.users`, and nothing at
+all to anybody else.
+
+**The join path reuses the import path, and had to.** Accepting an invitation
+and importing a file end in the same act — a family, its people, their edges,
+and an id that may already be on this device. Sharing the code was not for
+tidiness: somebody sent the exported file first, who imported it and added
+their own branch, would have had that branch overwritten by a download. The
+add-only merge was already written and already tested; the only work was not
+writing a second one.
 
 ### Left open, on purpose
 

@@ -66,6 +66,7 @@ dependencies:
   # job, when synchronisation gives the two sides something to say to each
   # other.
   supabase_flutter: ^2.17.2
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

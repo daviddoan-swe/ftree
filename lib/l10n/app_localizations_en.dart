@@ -545,6 +545,15 @@ class AppTextEn extends AppText {
   String get accountSignIn => 'Sign in';
 
   @override
+  String get accountName => 'Name';
+
+  @override
+  String get accountNameHint => 'The name people in the family will see';
+
+  @override
+  String get accountNameMissing => 'Enter your name';
+
+  @override
   String get accountEmail => 'Email';
 
   @override
@@ -611,4 +620,135 @@ class AppTextEn extends AppText {
 
   @override
   String get shareFailed => 'It could not be shared';
+
+  @override
+  String get roleOwner => 'Owner';
+
+  @override
+  String get roleEditor => 'Editor';
+
+  @override
+  String get roleViewer => 'Viewer';
+
+  @override
+  String get inviteAction => 'Invite';
+
+  @override
+  String get inviteTitle => 'Invitations';
+
+  @override
+  String get inviteNone => 'Nobody has been invited to this family yet';
+
+  @override
+  String get inviteNew => 'New invitation';
+
+  @override
+  String get inviteSend => 'Send';
+
+  @override
+  String get inviteRevoke => 'Revoke';
+
+  @override
+  String get inviteNoCode => 'This device no longer holds the code';
+
+  @override
+  String inviteExpiresIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days left',
+      one: '1 day left',
+      zero: 'Expires today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inviteUsed => 'Used';
+
+  @override
+  String get inviteRevoked => 'Revoked';
+
+  @override
+  String get inviteExpired => 'Expired';
+
+  @override
+  String get inviteOwnerWarningTitle => 'Invite them as an owner?';
+
+  @override
+  String get inviteOwnerWarningBody =>
+      'They will be able to do everything you can: invite others, make further owners, and delete the whole family. There is no way to take it back.';
+
+  @override
+  String get inviteRevokeTitle => 'Revoke this code?';
+
+  @override
+  String get inviteRevokeBody =>
+      'The code stops working. Whoever you sent it to will not be able to join with it. You can make a new one at any time.';
+
+  @override
+  String inviteMessage(String family, String code) {
+    return 'Your code for the $family family tree: $code\n\nIt works once, and expires in seven days.';
+  }
+
+  @override
+  String get inviteEnterTitle => 'Enter an invitation code';
+
+  @override
+  String get inviteEnterWhy =>
+      'The owner of a family sent you this code. Once it is entered, the gia phả is downloaded onto this device.';
+
+  @override
+  String get inviteEnterLabel => 'Invitation code';
+
+  @override
+  String get inviteEnterAction => 'Join the family';
+
+  @override
+  String get inviteCodeMissing => 'Enter the code';
+
+  @override
+  String get inviteNotFound =>
+      'There is no such code. Check it character by character.';
+
+  @override
+  String get inviteAlreadyUsed =>
+      'This code has already been used. Ask whoever invited you.';
+
+  @override
+  String get inviteWasRevoked =>
+      'This code was revoked. Ask whoever invited you.';
+
+  @override
+  String get inviteHasExpired => 'This code has expired. Ask for a new one.';
+
+  @override
+  String get membersOwnerOnly =>
+      'Only the owner of a family manages its members and invitations.';
+
+  @override
+  String get memberChangeRole => 'Change role';
+
+  @override
+  String get memberNoName => 'No name given';
+
+  @override
+  String get membersTitle => 'Members';
+
+  @override
+  String get membersYou => 'you';
+
+  @override
+  String get memberRemove => 'Remove from the family';
+
+  @override
+  String get memberRemoveTitle => 'Remove this person?';
+
+  @override
+  String get memberRemoveBody =>
+      'They will no longer be able to read or change this family on the server. Whatever they already downloaded stays on their device.';
+
+  @override
+  String get memberRemoveLastOwner =>
+      'A family must always have at least one owner';
 }

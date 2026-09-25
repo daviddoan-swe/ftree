@@ -538,6 +538,15 @@ class AppTextVi extends AppText {
   String get accountSignIn => 'Đăng nhập';
 
   @override
+  String get accountName => 'Tên';
+
+  @override
+  String get accountNameHint => 'Tên bác muốn người trong dòng họ nhìn thấy';
+
+  @override
+  String get accountNameMissing => 'Hãy nhập tên';
+
+  @override
   String get accountEmail => 'Email';
 
   @override
@@ -604,4 +613,133 @@ class AppTextVi extends AppText {
 
   @override
   String get shareFailed => 'Không chia sẻ được';
+
+  @override
+  String get roleOwner => 'Chủ';
+
+  @override
+  String get roleEditor => 'Người sửa';
+
+  @override
+  String get roleViewer => 'Người xem';
+
+  @override
+  String get inviteAction => 'Mời';
+
+  @override
+  String get inviteTitle => 'Lời mời';
+
+  @override
+  String get inviteNone => 'Chưa mời ai vào dòng họ này';
+
+  @override
+  String get inviteNew => 'Mời thêm';
+
+  @override
+  String get inviteSend => 'Gửi';
+
+  @override
+  String get inviteRevoke => 'Huỷ';
+
+  @override
+  String get inviteNoCode => 'Máy này không còn giữ mã';
+
+  @override
+  String inviteExpiresIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Còn $count ngày',
+      one: 'Còn 1 ngày',
+      zero: 'Hết hạn hôm nay',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inviteUsed => 'Đã dùng';
+
+  @override
+  String get inviteRevoked => 'Đã huỷ';
+
+  @override
+  String get inviteExpired => 'Hết hạn';
+
+  @override
+  String get inviteOwnerWarningTitle => 'Mời làm chủ dòng họ?';
+
+  @override
+  String get inviteOwnerWarningBody =>
+      'Người này sẽ làm được mọi thứ bác làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.';
+
+  @override
+  String get inviteRevokeTitle => 'Huỷ mã mời?';
+
+  @override
+  String get inviteRevokeBody =>
+      'Mã này sẽ không dùng được nữa. Người bác đã gửi cho sẽ không vào được. Bác tạo mã mới bất cứ lúc nào.';
+
+  @override
+  String inviteMessage(String family, String code) {
+    return 'Mã mời vào gia phả $family: $code\n\nMã dùng một lần và hết hạn sau 7 ngày.';
+  }
+
+  @override
+  String get inviteEnterTitle => 'Nhập mã mời';
+
+  @override
+  String get inviteEnterWhy =>
+      'Mã do chủ dòng họ gửi cho bác. Nhập xong, gia phả sẽ được tải về máy này.';
+
+  @override
+  String get inviteEnterLabel => 'Mã mời';
+
+  @override
+  String get inviteEnterAction => 'Vào dòng họ';
+
+  @override
+  String get inviteCodeMissing => 'Hãy nhập mã mời';
+
+  @override
+  String get inviteNotFound => 'Không có mã này. Hãy kiểm tra lại từng ký tự.';
+
+  @override
+  String get inviteAlreadyUsed =>
+      'Mã này đã được dùng rồi. Hãy hỏi lại người đã mời bác.';
+
+  @override
+  String get inviteWasRevoked =>
+      'Mã này đã bị huỷ. Hãy hỏi lại người đã mời bác.';
+
+  @override
+  String get inviteHasExpired => 'Mã này đã hết hạn. Hãy xin một mã mới.';
+
+  @override
+  String get membersOwnerOnly =>
+      'Chỉ chủ dòng họ mới quản lý được thành viên và lời mời.';
+
+  @override
+  String get memberChangeRole => 'Đổi vai';
+
+  @override
+  String get memberNoName => 'Chưa đặt tên';
+
+  @override
+  String get membersTitle => 'Thành viên';
+
+  @override
+  String get membersYou => 'bác';
+
+  @override
+  String get memberRemove => 'Gỡ khỏi dòng họ';
+
+  @override
+  String get memberRemoveTitle => 'Gỡ người này?';
+
+  @override
+  String get memberRemoveBody =>
+      'Họ sẽ không đọc hay sửa dòng họ này trên máy chủ được nữa. Bản đã tải về máy họ thì vẫn còn.';
+
+  @override
+  String get memberRemoveLastOwner => 'Dòng họ phải luôn có ít nhất một chủ';
 }
