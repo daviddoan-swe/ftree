@@ -73,6 +73,18 @@ final class InvitationCodeStore {
     await (_db.delete(_db.invitationCodes)..where((t) => t.id.equals(id))).go();
   }
 
+  /// Drops every code this device holds, for signing out.
+  ///
+  /// These belong to the account that issued them. Left behind they would hand
+  /// whoever signs in next somebody else's live codes.
+  ///
+  /// This one does not heal: an invitation still standing cannot be sent from
+  /// here again. Revoking it and making another is the way back, and the
+  /// confirmation before signing out says so.
+  Future<void> forgetEverything() async {
+    await _db.delete(_db.invitationCodes).go();
+  }
+
   /// Drops every code for a family, for when the family itself goes.
   Future<void> forgetFamily(String familyId) async {
     await (_db.delete(

@@ -26,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import '../../app/grouped_list.dart';
 import '../../app/issue_text.dart';
 import '../../app/providers.dart';
+import '../../data/database/family_roles.dart';
 import '../../data/transfer/family_file.dart';
 import '../../data/transfer/family_import.dart';
 import '../../l10n/app_localizations.dart';
@@ -73,6 +74,17 @@ Future<ImportPlan?> bringInFamily(
   // The family may be one this device has never seen, so it is looked for
   // rather than assumed. Null means it arrives whole.
   final here = await repository.loadFamily(file.family.id);
+
+  // A viewer's copy is one to read. Merging into it would add people that can
+  // never travel anywhere and would quietly put their copy out of step with
+  // the one everybody else is reading (PRODUCT §5.0).
+  final role = ref.read(familyRoleMapProvider).valueOrNull?[file.family.id];
+  if (!role.mayImportInto) {
+    if (context.mounted) {
+      await showImportFailure(context, AppText.of(context).importNotAllowed);
+    }
+    return null;
+  }
   final plan = planImport(
     file,
     existing: here == null

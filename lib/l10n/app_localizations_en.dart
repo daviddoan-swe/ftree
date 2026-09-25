@@ -18,6 +18,10 @@ class AppTextEn extends AppText {
   String get familiesEmpty => 'No families yet';
 
   @override
+  String get familyRemovedNotice =>
+      'You no longer have any rights on this family. What follows is the copy already downloaded, and it can only be read.';
+
+  @override
   String get familiesEmptyHint => 'Create a family to start recording it';
 
   @override
@@ -307,6 +311,10 @@ class AppTextEn extends AppText {
   String get importAction => 'Import';
 
   @override
+  String get importNotAllowed =>
+      'You may only read this family, so nothing can be merged into it.';
+
+  @override
   String get importFailed => 'The file could not be read';
 
   @override
@@ -543,6 +551,19 @@ class AppTextEn extends AppText {
 
   @override
   String get accountSignIn => 'Sign in';
+
+  @override
+  String get membersAction => 'Members';
+
+  @override
+  String get accountSignOut => 'Sign out';
+
+  @override
+  String get accountSignOutTitle => 'Sign out of this account?';
+
+  @override
+  String get accountSignOutBody =>
+      'The gia phả on this device stays exactly as it is, and still works with nobody signed in.\n\nBut invitation codes still standing cannot be sent from this device again. Revoke them and make new ones once you have signed back in.';
 
   @override
   String get accountName => 'Name';

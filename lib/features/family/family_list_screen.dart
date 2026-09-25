@@ -7,6 +7,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../app/confirm.dart';
 import '../../app/grouped_list.dart';
+import '../../data/database/family_roles.dart';
 import '../../app/providers.dart';
 import '../../domain/family.dart';
 import 'package:file_selector/file_selector.dart';
@@ -15,6 +16,7 @@ import '../../l10n/app_localizations.dart';
 import 'export_family.dart';
 import 'family_form_sheet.dart';
 import 'import_family.dart';
+import '../account/account_screen.dart';
 import 'invite_family.dart';
 import 'join_family.dart';
 import 'share_family.dart';
@@ -53,6 +55,15 @@ class FamilyListScreen extends ConsumerWidget {
         ),
         title: Text(text.familiesTitle),
         actions: <Widget>[
+          // Only while signed in. Most people never do (§4.1), and a permanent
+          // account button would be advertising an account to somebody with no
+          // use for one — and offering to manage something that is not there.
+          if (ref.watch(signedInProvider).valueOrNull ?? false)
+            IconButton(
+              icon: const Icon(Icons.person_outline),
+              tooltip: text.accountTitle,
+              onPressed: () => showAccount(context),
+            ),
           // On the bar rather than on a row: an import belongs to no family
           // in particular, and the file may bring one this device has never
           // seen.
@@ -122,9 +133,9 @@ class _FamilyList extends ConsumerWidget {
 
     // One slot, two jobs, and which one depends on whether this family is
     // already up there. Before it is shared the action is Chia sẻ; afterwards
-    // it is Mời, because a family already on the server cannot be sent again —
-    // a second press would put this device's copy on top of the shared one
-    // (PRODUCT §4.2) — and what is left to do to it is let somebody in.
+    // it is Thành viên, because a family already on the server cannot be sent
+    // again — a second press would put this device's copy on top of the shared
+    // one (PRODUCT §4.2) — and what is left to do to it is manage who is in.
     //
     // While the marks are still loading neither is offered. Guessing wrong in
     // the Chia sẻ direction is the expensive mistake.
@@ -132,61 +143,85 @@ class _FamilyList extends ConsumerWidget {
     final offerSharing = shared != null && !shared.contains(family.id);
     final offerInviting = shared != null && shared.contains(family.id);
 
+    // What this copy arrived as. Absent means nobody else has a claim on it —
+    // made here, or brought in as a file — and every right follows (§5.0).
+    final role = ref.watch(familyRoleMapProvider).valueOrNull?[family.id];
+
+    final actions = <Widget>[
+      // What is exported is one family, so the action belongs to its own row.
+      // Before Edit, so that Delete keeps the outermost place a practised
+      // swipe already reaches for.
+      //
+      // The one control here with no policy behind it: an export never reaches
+      // the server, so hiding it is the whole of the enforcement (§5.0).
+      if (role.mayExport)
+        SlidableAction(
+          onPressed: (_) => _export(context, ref, family),
+          icon: Icons.ios_share,
+          label: text.exportAction,
+          backgroundColor: colors.surfaceContainerHighest,
+          foregroundColor: colors.onSurfaceVariant,
+        ),
+
+      // Beside Xuất, because the two are the same thought: a family leaving
+      // the device. A file goes to one person and can only ever grow a record;
+      // this goes to a server and lets two people keep the same one
+      // (PRODUCT §9.1, §4.2).
+      if (offerSharing && role.mayShare)
+        SlidableAction(
+          onPressed: (_) => shareFamily(context, ref, family),
+          icon: Icons.cloud_upload_outlined,
+          label: text.shareAction,
+          backgroundColor: colors.primaryContainer,
+          foregroundColor: colors.onPrimaryContainer,
+        ),
+
+      if (offerInviting && role.mayManageMembers)
+        SlidableAction(
+          onPressed: (_) => showFamilyCircle(context, ref, family),
+          icon: Icons.people_outline,
+          // "Thành viên", not "Mời". Pressing it opens the room where members
+          // are listed, roles changed and people removed — and inviting is a
+          // button inside. A label promising an invitation would be describing
+          // one thing the screen also happens to do.
+          label: text.membersAction,
+          backgroundColor: colors.primaryContainer,
+          foregroundColor: colors.onPrimaryContainer,
+        ),
+
+      if (role.mayRenameFamily)
+        SlidableAction(
+          onPressed: (_) => showFamilyFormSheet(context, editing: family),
+          icon: Icons.edit_outlined,
+          label: text.actionEdit,
+          backgroundColor: colors.secondaryContainer,
+          foregroundColor: colors.onSecondaryContainer,
+        ),
+
+      if (role.mayDeleteFamily)
+        SlidableAction(
+          onPressed: (_) => _confirmAndDelete(context, ref, family),
+          icon: Icons.delete_outline,
+          label: text.actionDelete,
+          backgroundColor: colors.errorContainer,
+          foregroundColor: colors.onErrorContainer,
+        ),
+    ];
+
     return Slidable(
       // Keyed by id so an open pane follows its family when the list is
       // reordered or one above it is removed.
       key: ValueKey<String>(family.id),
+      // A viewer has nothing to do to a family, so the gesture does nothing
+      // rather than opening an empty drawer.
+      enabled: actions.isNotEmpty,
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        // Grown by one button's worth rather than squeezing four into three
-        // buttons' room, which would leave "Chia sẻ" too narrow to read.
-        extentRatio: shared == null ? 0.5 : 0.66,
-        children: <Widget>[
-          // What is exported is one family, so the action belongs to its own
-          // row. Before Edit, so that Delete keeps the outermost place a
-          // practised swipe already reaches for.
-          SlidableAction(
-            onPressed: (_) => _export(context, ref, family),
-            icon: Icons.ios_share,
-            label: text.exportAction,
-            backgroundColor: colors.surfaceContainerHighest,
-            foregroundColor: colors.onSurfaceVariant,
-          ),
-          // Beside Xuất, because the two are the same thought: a family
-          // leaving the device. A file goes to one person and can only ever
-          // grow a record; this goes to a server and lets two people keep the
-          // same one (PRODUCT §9.1, §4.2).
-          if (offerSharing)
-            SlidableAction(
-              onPressed: (_) => shareFamily(context, ref, family),
-              icon: Icons.cloud_upload_outlined,
-              label: text.shareAction,
-              backgroundColor: colors.primaryContainer,
-              foregroundColor: colors.onPrimaryContainer,
-            ),
-          if (offerInviting)
-            SlidableAction(
-              onPressed: (_) => showFamilyCircle(context, ref, family),
-              icon: Icons.person_add_alt,
-              label: text.inviteAction,
-              backgroundColor: colors.primaryContainer,
-              foregroundColor: colors.onPrimaryContainer,
-            ),
-          SlidableAction(
-            onPressed: (_) => showFamilyFormSheet(context, editing: family),
-            icon: Icons.edit_outlined,
-            label: text.actionEdit,
-            backgroundColor: colors.secondaryContainer,
-            foregroundColor: colors.onSecondaryContainer,
-          ),
-          SlidableAction(
-            onPressed: (_) => _confirmAndDelete(context, ref, family),
-            icon: Icons.delete_outline,
-            label: text.actionDelete,
-            backgroundColor: colors.errorContainer,
-            foregroundColor: colors.onErrorContainer,
-          ),
-        ],
+        // A sixth of the width each, so the buttons keep their size as their
+        // number changes and "Chia sẻ" never has to fit in a third of what it
+        // needs. Capped, because a pane wider than the row cannot be drawn.
+        extentRatio: (actions.length * 0.165).clamp(0.2, 0.9),
+        children: actions,
       ),
       child: GroupedRow(
         icon: Icons.account_tree,

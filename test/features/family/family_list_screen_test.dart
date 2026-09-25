@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import 'package:ftree/app/app.dart';
 import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
+import 'package:ftree/data/database/family_roles.dart';
 import 'package:ftree/data/database/sharing_marks.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart' as domain;
@@ -301,6 +304,50 @@ void main() {
     });
   });
 
+  group('the account button', () {
+    testWidgets('is not there when nobody is signed in', (tester) async {
+      // Most people never sign in (§4.1). A permanent account button would be
+      // advertising an account to somebody with no use for one.
+      await pumpApp(tester);
+
+      expect(find.byTooltip('Account'), findsNothing);
+    });
+
+    testWidgets('appears when somebody is, and goes when they leave', (
+      tester,
+    ) async {
+      // It followed a sign-out and missed every sign-in, because the answer
+      // was computed once and kept. Being a stream is what fixes it, so the
+      // check hands it a stream and moves it.
+      final session = StreamController<bool>();
+      addTearDown(session.close);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            databaseProvider.overrideWithValue(db),
+            signedInProvider.overrideWith((ref) => session.stream),
+          ],
+          child: const FtreeApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Account'), findsNothing);
+
+      session.add(true);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Account'), findsOneWidget);
+
+      session.add(false);
+      await tester.pumpAndSettle();
+      expect(
+        find.byTooltip('Account'),
+        findsNothing,
+        reason: 'signing out has to take it away again',
+      );
+    });
+  });
+
   group('offering to share a family', () {
     const familyId = 'f0000000-0000-7000-8000-000000000000';
 
@@ -324,7 +371,7 @@ void main() {
 
       expect(find.text('Share'), findsOneWidget);
       expect(
-        find.text('Invite'),
+        find.text('Members'),
         findsNothing,
         reason: 'there is nobody to invite into a family nobody else can see',
       );
@@ -341,6 +388,7 @@ void main() {
         const domain.Family(id: familyId, name: 'Họ Nguyễn'),
       );
       await SharingMarks(db).markShared(familyId);
+      await FamilyRoles(db).remember(familyId, FamilyRole.owner);
       await pumpApp(tester);
       await tester.drag(
         find.ancestor(
@@ -353,7 +401,7 @@ void main() {
 
       expect(find.text('Share'), findsNothing);
       expect(
-        find.text('Invite'),
+        find.text('Members'),
         findsOneWidget,
         reason: 'one slot, and what is left to do to a shared family is this',
       );
@@ -362,6 +410,98 @@ void main() {
         findsOneWidget,
         reason: 'a file can still be sent to somebody; only sharing is once',
       );
+    });
+  });
+
+  group('what each role is offered', () {
+    const familyId = 'f0000000-0000-7000-8000-000000000000';
+
+    /// Seeds one family in [role] — null for a copy nobody else has a claim
+    /// on — marks it shared where a role implies it, and opens the drawer.
+    Future<void> openActions(WidgetTester tester, FamilyRole? role) async {
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      if (role != null) {
+        await SharingMarks(db).markShared(familyId);
+        await FamilyRoles(db).remember(familyId, role);
+      }
+
+      await pumpApp(tester);
+      await tester.drag(
+        find.ancestor(
+          of: find.text('Họ Nguyễn'),
+          matching: find.byType(ListTile),
+        ),
+        const Offset(-500, 0),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a copy nobody else has a claim on gets everything', (
+      tester,
+    ) async {
+      // Made here, or brought in as a file — and a file carries no rights
+      // with it (§5.7).
+      await openActions(tester, null);
+
+      expect(find.text('Export'), findsOneWidget);
+      expect(find.text('Share'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('an owner gets everything but Chia sẻ', (tester) async {
+      await openActions(tester, FamilyRole.owner);
+
+      expect(find.text('Export'), findsOneWidget);
+      expect(find.text('Members'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+      expect(
+        find.text('Share'),
+        findsNothing,
+        reason: 'it is already up there',
+      );
+    });
+
+    testWidgets('an editor may rename it and nothing else', (tester) async {
+      // No export, which is the rule with no policy behind it; no delete,
+      // which `families_update_editor` refuses; no member list, which
+      // `family_members` answers nobody but an owner.
+      await openActions(tester, FamilyRole.editor);
+
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Export'), findsNothing);
+      expect(find.text('Delete'), findsNothing);
+      expect(find.text('Members'), findsNothing);
+    });
+
+    testWidgets('somebody put out of a family is offered nothing either', (
+      tester,
+    ) async {
+      // And no Export, which is the one that would matter: it is how a copy
+      // leaves a phone, and this copy is one nobody is meant to be passing on
+      // any more (PRODUCT §5.0).
+      await openActions(tester, FamilyRole.removed);
+
+      expect(find.text('Export'), findsNothing);
+      expect(find.text('Share'), findsNothing);
+      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Delete'), findsNothing);
+      expect(find.text('Members'), findsNothing);
+    });
+
+    testWidgets('a viewer is offered nothing, and the gesture does nothing', (
+      tester,
+    ) async {
+      // An empty drawer that still opens would promise something.
+      await openActions(tester, FamilyRole.viewer);
+
+      expect(find.text('Export'), findsNothing);
+      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Delete'), findsNothing);
+      expect(find.text('Members'), findsNothing);
     });
   });
 

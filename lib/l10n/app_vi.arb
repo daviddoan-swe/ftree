@@ -11,6 +11,7 @@
     "description": "Tiêu đề màn hình danh sách gia đình"
   },
   "familiesEmpty": "Chưa có gia đình nào",
+  "familyRemovedNotice": "Bác không còn quyền trên dòng họ này. Đây là bản đã tải về máy, chỉ đọc được.",
   "familiesEmptyHint": "Tạo một gia đình để bắt đầu ghi gia phả",
   "familyCreate": "Tạo gia đình",
   "familyName": "Tên gia đình",
@@ -157,6 +158,7 @@
 
   "importNothingNew": "File này không có gì mới so với máy",
   "importAction": "Nhập",
+  "importNotAllowed": "Bác chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.",
   "importFailed": "Không đọc được file",
   "importDonePeople": "{count, plural, =0{Không thêm người nào} =1{Đã thêm 1 người} other{Đã thêm {count} người}}",
   "@importDonePeople": { "placeholders": { "count": { "type": "int" } } },
@@ -292,6 +294,10 @@
   "accountWhy": "Tài khoản chỉ dùng để chia sẻ dòng họ. Gia phả trên máy vẫn dùng được bình thường mà không cần đăng nhập.",
   "accountCreate": "Đăng ký",
   "accountSignIn": "Đăng nhập",
+  "membersAction": "Thành viên",
+  "accountSignOut": "Đăng xuất",
+  "accountSignOutTitle": "Đăng xuất khỏi tài khoản này?",
+  "accountSignOutBody": "Gia phả trên máy vẫn còn nguyên và vẫn dùng được mà không cần tài khoản.\n\nNhưng những mã lời mời đang treo sẽ không gửi lại được từ máy này nữa. Hãy huỷ chúng rồi tạo mã mới sau khi đăng nhập lại.",
   "accountName": "Tên",
   "accountNameHint": "Tên bác muốn người trong dòng họ nhìn thấy",
   "accountNameMissing": "Hãy nhập tên",

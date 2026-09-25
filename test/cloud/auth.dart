@@ -33,6 +33,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/cloud/cloud_session.dart';
 
 void main() {
@@ -53,7 +56,8 @@ void main() {
 
   /// A fresh family id per call, for the same reason.
   String aFamilyId() {
-    final n = DateTime.now().microsecondsSinceEpoch.toRadixString(16)
+    final n = DateTime.now().microsecondsSinceEpoch
+        .toRadixString(16)
         .padLeft(12, '0');
     return 'aaaaaaaa-0000-4000-8000-${n.substring(n.length - 12)}';
   }
@@ -145,6 +149,49 @@ void main() {
           'sex': 'unknown',
         }),
         throwsA(isA<PostgrestException>()),
+      );
+    });
+  });
+
+  group('the interface hears about it', () {
+    test('signing in and out both reach signedInProvider', () async {
+      // The bug this exists for: asked as a future, the answer was computed
+      // once and kept. It survived a sign-out only because that path
+      // invalidated it by hand, and it never noticed a sign-in at all —
+      // the screen that signs somebody in holds no `ref`.
+      //
+      // Checked here rather than in a widget test, because a widget test has
+      // to override the provider to control it, and overriding the thing that
+      // was broken proves nothing. This one runs the real provider against a
+      // real auth server.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final seen = <bool>[];
+      final listener = container.listen<AsyncValue<bool>>(signedInProvider, (
+        _,
+        next,
+      ) {
+        final value = next.valueOrNull;
+        if (value != null) seen.add(value);
+      }, fireImmediately: true);
+      addTearDown(listener.close);
+
+      await signUp(email: anEmail(), password: 'correct horse battery');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(seen.last, isTrue, reason: 'signing in has to reach it');
+
+      await signOut();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(seen.last, isFalse, reason: 'and so does signing out');
+
+      await signIn(email: anEmail(), password: 'x').catchError((_) {});
+      await signUp(email: anEmail(), password: 'correct horse battery');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(
+        seen.last,
+        isTrue,
+        reason: 'and signing in again, which is what nobody was told about',
       );
     });
   });

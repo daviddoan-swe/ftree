@@ -18,6 +18,10 @@ class AppTextVi extends AppText {
   String get familiesEmpty => 'Chưa có gia đình nào';
 
   @override
+  String get familyRemovedNotice =>
+      'Bác không còn quyền trên dòng họ này. Đây là bản đã tải về máy, chỉ đọc được.';
+
+  @override
   String get familiesEmptyHint => 'Tạo một gia đình để bắt đầu ghi gia phả';
 
   @override
@@ -302,6 +306,10 @@ class AppTextVi extends AppText {
   String get importAction => 'Nhập';
 
   @override
+  String get importNotAllowed =>
+      'Bác chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.';
+
+  @override
   String get importFailed => 'Không đọc được file';
 
   @override
@@ -536,6 +544,19 @@ class AppTextVi extends AppText {
 
   @override
   String get accountSignIn => 'Đăng nhập';
+
+  @override
+  String get membersAction => 'Thành viên';
+
+  @override
+  String get accountSignOut => 'Đăng xuất';
+
+  @override
+  String get accountSignOutTitle => 'Đăng xuất khỏi tài khoản này?';
+
+  @override
+  String get accountSignOutBody =>
+      'Gia phả trên máy vẫn còn nguyên và vẫn dùng được mà không cần tài khoản.\n\nNhưng những mã lời mời đang treo sẽ không gửi lại được từ máy này nữa. Hãy huỷ chúng rồi tạo mã mới sau khi đăng nhập lại.';
 
   @override
   String get accountName => 'Tên';

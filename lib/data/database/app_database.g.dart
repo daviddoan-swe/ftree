@@ -71,6 +71,15 @@ class $FamiliesTable extends Families
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _myRoleMeta = const VerificationMeta('myRole');
+  @override
+  late final GeneratedColumn<String> myRole = GeneratedColumn<String>(
+    'my_role',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _usesLunarCalendarMeta = const VerificationMeta(
     'usesLunarCalendar',
   );
@@ -94,6 +103,7 @@ class $FamiliesTable extends Families
     name,
     description,
     sharedAt,
+    myRole,
     usesLunarCalendar,
   ];
   @override
@@ -150,6 +160,12 @@ class $FamiliesTable extends Families
         sharedAt.isAcceptableOrUnknown(data['shared_at']!, _sharedAtMeta),
       );
     }
+    if (data.containsKey('my_role')) {
+      context.handle(
+        _myRoleMeta,
+        myRole.isAcceptableOrUnknown(data['my_role']!, _myRoleMeta),
+      );
+    }
     if (data.containsKey('uses_lunar_calendar')) {
       context.handle(
         _usesLunarCalendarMeta,
@@ -192,6 +208,10 @@ class $FamiliesTable extends Families
         DriftSqlType.dateTime,
         data['${effectivePrefix}shared_at'],
       ),
+      myRole: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}my_role'],
+      ),
       usesLunarCalendar: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}uses_lunar_calendar'],
@@ -227,6 +247,25 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
   /// as "shared on the 24th" where a boolean reads as "shared, at some point
   /// nobody wrote down".
   final DateTime? sharedAt;
+
+  /// What this device may do with this family, or null for full rights.
+  ///
+  /// **Local only, and not part of [Family].** It says nothing about the gia
+  /// phả — it records how this copy came to be here — so the domain entity
+  /// stays clear of it, as it does of `sharedAt` and `updatedAt` (§15.2).
+  ///
+  /// Null means there is nobody else it could belong to: a family made on this
+  /// device, or one that arrived as a file, which carries no rights with it
+  /// (PRODUCT §5.0). Otherwise it is the role this copy arrived with — `owner`
+  /// on pressing Chia sẻ, whatever the code granted on accepting one.
+  ///
+  /// Read without a network, so the interface holds on a train.
+  ///
+  /// **Not cleared when signing out**, unlike `sharedAt`. That one records
+  /// what this device did and can be recovered by asking; this one records
+  /// provenance, and clearing it would hand full rights to anybody who signed
+  /// out of an editor's copy.
+  final String? myRole;
   final bool usesLunarCalendar;
   const FamilyRow({
     required this.updatedAt,
@@ -235,6 +274,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     required this.name,
     this.description,
     this.sharedAt,
+    this.myRole,
     required this.usesLunarCalendar,
   });
   @override
@@ -251,6 +291,9 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     }
     if (!nullToAbsent || sharedAt != null) {
       map['shared_at'] = Variable<DateTime>(sharedAt);
+    }
+    if (!nullToAbsent || myRole != null) {
+      map['my_role'] = Variable<String>(myRole);
     }
     map['uses_lunar_calendar'] = Variable<bool>(usesLunarCalendar);
     return map;
@@ -270,6 +313,9 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       sharedAt: sharedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(sharedAt),
+      myRole: myRole == null && nullToAbsent
+          ? const Value.absent()
+          : Value(myRole),
       usesLunarCalendar: Value(usesLunarCalendar),
     );
   }
@@ -286,6 +332,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
       sharedAt: serializer.fromJson<DateTime?>(json['sharedAt']),
+      myRole: serializer.fromJson<String?>(json['myRole']),
       usesLunarCalendar: serializer.fromJson<bool>(json['usesLunarCalendar']),
     );
   }
@@ -299,6 +346,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
       'sharedAt': serializer.toJson<DateTime?>(sharedAt),
+      'myRole': serializer.toJson<String?>(myRole),
       'usesLunarCalendar': serializer.toJson<bool>(usesLunarCalendar),
     };
   }
@@ -310,6 +358,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     String? name,
     Value<String?> description = const Value.absent(),
     Value<DateTime?> sharedAt = const Value.absent(),
+    Value<String?> myRole = const Value.absent(),
     bool? usesLunarCalendar,
   }) => FamilyRow(
     updatedAt: updatedAt ?? this.updatedAt,
@@ -318,6 +367,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     sharedAt: sharedAt.present ? sharedAt.value : this.sharedAt,
+    myRole: myRole.present ? myRole.value : this.myRole,
     usesLunarCalendar: usesLunarCalendar ?? this.usesLunarCalendar,
   );
   FamilyRow copyWithCompanion(FamiliesCompanion data) {
@@ -330,6 +380,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
           ? data.description.value
           : this.description,
       sharedAt: data.sharedAt.present ? data.sharedAt.value : this.sharedAt,
+      myRole: data.myRole.present ? data.myRole.value : this.myRole,
       usesLunarCalendar: data.usesLunarCalendar.present
           ? data.usesLunarCalendar.value
           : this.usesLunarCalendar,
@@ -345,6 +396,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('sharedAt: $sharedAt, ')
+          ..write('myRole: $myRole, ')
           ..write('usesLunarCalendar: $usesLunarCalendar')
           ..write(')'))
         .toString();
@@ -358,6 +410,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     name,
     description,
     sharedAt,
+    myRole,
     usesLunarCalendar,
   );
   @override
@@ -370,6 +423,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
           other.name == this.name &&
           other.description == this.description &&
           other.sharedAt == this.sharedAt &&
+          other.myRole == this.myRole &&
           other.usesLunarCalendar == this.usesLunarCalendar);
 }
 
@@ -380,6 +434,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
   final Value<String> name;
   final Value<String?> description;
   final Value<DateTime?> sharedAt;
+  final Value<String?> myRole;
   final Value<bool> usesLunarCalendar;
   final Value<int> rowid;
   const FamiliesCompanion({
@@ -389,6 +444,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.sharedAt = const Value.absent(),
+    this.myRole = const Value.absent(),
     this.usesLunarCalendar = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -399,6 +455,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     required String name,
     this.description = const Value.absent(),
     this.sharedAt = const Value.absent(),
+    this.myRole = const Value.absent(),
     this.usesLunarCalendar = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : updatedAt = Value(updatedAt),
@@ -411,6 +468,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     Expression<String>? name,
     Expression<String>? description,
     Expression<DateTime>? sharedAt,
+    Expression<String>? myRole,
     Expression<bool>? usesLunarCalendar,
     Expression<int>? rowid,
   }) {
@@ -421,6 +479,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (sharedAt != null) 'shared_at': sharedAt,
+      if (myRole != null) 'my_role': myRole,
       if (usesLunarCalendar != null) 'uses_lunar_calendar': usesLunarCalendar,
       if (rowid != null) 'rowid': rowid,
     });
@@ -433,6 +492,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     Value<String>? name,
     Value<String?>? description,
     Value<DateTime?>? sharedAt,
+    Value<String?>? myRole,
     Value<bool>? usesLunarCalendar,
     Value<int>? rowid,
   }) {
@@ -443,6 +503,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
       name: name ?? this.name,
       description: description ?? this.description,
       sharedAt: sharedAt ?? this.sharedAt,
+      myRole: myRole ?? this.myRole,
       usesLunarCalendar: usesLunarCalendar ?? this.usesLunarCalendar,
       rowid: rowid ?? this.rowid,
     );
@@ -469,6 +530,9 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     if (sharedAt.present) {
       map['shared_at'] = Variable<DateTime>(sharedAt.value);
     }
+    if (myRole.present) {
+      map['my_role'] = Variable<String>(myRole.value);
+    }
     if (usesLunarCalendar.present) {
       map['uses_lunar_calendar'] = Variable<bool>(usesLunarCalendar.value);
     }
@@ -487,6 +551,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('sharedAt: $sharedAt, ')
+          ..write('myRole: $myRole, ')
           ..write('usesLunarCalendar: $usesLunarCalendar, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2905,6 +2970,7 @@ typedef $$FamiliesTableCreateCompanionBuilder =
       required String name,
       Value<String?> description,
       Value<DateTime?> sharedAt,
+      Value<String?> myRole,
       Value<bool> usesLunarCalendar,
       Value<int> rowid,
     });
@@ -2916,6 +2982,7 @@ typedef $$FamiliesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String?> description,
       Value<DateTime?> sharedAt,
+      Value<String?> myRole,
       Value<bool> usesLunarCalendar,
       Value<int> rowid,
     });
@@ -2998,6 +3065,11 @@ class $$FamiliesTableFilterComposer
 
   ColumnFilters<DateTime> get sharedAt => $composableBuilder(
     column: $table.sharedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get myRole => $composableBuilder(
+    column: $table.myRole,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3096,6 +3168,11 @@ class $$FamiliesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get myRole => $composableBuilder(
+    column: $table.myRole,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get usesLunarCalendar => $composableBuilder(
     column: $table.usesLunarCalendar,
     builder: (column) => ColumnOrderings(column),
@@ -3130,6 +3207,9 @@ class $$FamiliesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get sharedAt =>
       $composableBuilder(column: $table.sharedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get myRole =>
+      $composableBuilder(column: $table.myRole, builder: (column) => column);
 
   GeneratedColumn<bool> get usesLunarCalendar => $composableBuilder(
     column: $table.usesLunarCalendar,
@@ -3221,6 +3301,7 @@ class $$FamiliesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<DateTime?> sharedAt = const Value.absent(),
+                Value<String?> myRole = const Value.absent(),
                 Value<bool> usesLunarCalendar = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FamiliesCompanion(
@@ -3230,6 +3311,7 @@ class $$FamiliesTableTableManager
                 name: name,
                 description: description,
                 sharedAt: sharedAt,
+                myRole: myRole,
                 usesLunarCalendar: usesLunarCalendar,
                 rowid: rowid,
               ),
@@ -3241,6 +3323,7 @@ class $$FamiliesTableTableManager
                 required String name,
                 Value<String?> description = const Value.absent(),
                 Value<DateTime?> sharedAt = const Value.absent(),
+                Value<String?> myRole = const Value.absent(),
                 Value<bool> usesLunarCalendar = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FamiliesCompanion.insert(
@@ -3250,6 +3333,7 @@ class $$FamiliesTableTableManager
                 name: name,
                 description: description,
                 sharedAt: sharedAt,
+                myRole: myRole,
                 usesLunarCalendar: usesLunarCalendar,
                 rowid: rowid,
               ),

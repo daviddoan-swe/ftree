@@ -115,6 +115,12 @@ abstract class AppText {
   /// **'Chưa có gia đình nào'**
   String get familiesEmpty;
 
+  /// No description provided for @familyRemovedNotice.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bác không còn quyền trên dòng họ này. Đây là bản đã tải về máy, chỉ đọc được.'**
+  String get familyRemovedNotice;
+
   /// No description provided for @familiesEmptyHint.
   ///
   /// In vi, this message translates to:
@@ -498,6 +504,12 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Nhập'**
   String get importAction;
+
+  /// No description provided for @importNotAllowed.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bác chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.'**
+  String get importNotAllowed;
 
   /// No description provided for @importFailed.
   ///
@@ -894,6 +906,30 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Đăng nhập'**
   String get accountSignIn;
+
+  /// No description provided for @membersAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Thành viên'**
+  String get membersAction;
+
+  /// No description provided for @accountSignOut.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đăng xuất'**
+  String get accountSignOut;
+
+  /// No description provided for @accountSignOutTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đăng xuất khỏi tài khoản này?'**
+  String get accountSignOutTitle;
+
+  /// No description provided for @accountSignOutBody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gia phả trên máy vẫn còn nguyên và vẫn dùng được mà không cần tài khoản.\n\nNhưng những mã lời mời đang treo sẽ không gửi lại được từ máy này nữa. Hãy huỷ chúng rồi tạo mã mới sau khi đăng nhập lại.'**
+  String get accountSignOutBody;
 
   /// No description provided for @accountName.
   ///

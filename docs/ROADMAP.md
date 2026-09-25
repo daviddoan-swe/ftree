@@ -783,6 +783,13 @@ Implement:
 * **members, changing a role and removing one** — the other half of there
   being no approval step (PRODUCT §5.3, §5.6). Owner-only, behind a swipe.
   Done
+* **signing out** — and the local marks and codes that go with it
+  (PRODUCT §5.9). Done
+* **what each role may do on the device** — the controls the interface offers,
+  mirroring the server policies rather than replacing them (PRODUCT §5.0). Done
+* **keeping those roles in step** — one request for every role this account
+  holds, asked when the application opens. The only thing that reaches a device
+  before M9. Done
 * Row Level Security
 
 ### Where signing in lives, and why it is here rather than at M7

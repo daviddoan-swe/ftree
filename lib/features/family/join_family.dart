@@ -36,6 +36,7 @@ import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
 import '../../data/cloud/family_invitations.dart';
 import '../../data/cloud/supabase_family_repository.dart';
+import '../../data/database/family_roles.dart';
 import '../../data/transfer/family_file.dart';
 import '../../domain/family_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -51,6 +52,13 @@ abstract interface class JoiningCloud {
 
   /// Reads the family whole, now that there is a membership to read it with.
   Future<FamilySnapshot?> download(String familyId);
+
+  /// What the invitation just granted.
+  ///
+  /// Asked rather than returned by `accept_invitation`, which answers with the
+  /// family and nothing else. One more request, against a function that
+  /// already exists, in exchange for leaving a working signature alone.
+  Future<String?> roleIn(String familyId);
 }
 
 final class LiveJoiningCloud implements JoiningCloud {
@@ -66,6 +74,12 @@ final class LiveJoiningCloud implements JoiningCloud {
   @override
   Future<FamilySnapshot?> download(String familyId) =>
       SupabaseFamilyRepository(Supabase.instance.client).loadFamily(familyId);
+
+  @override
+  Future<String?> roleIn(String familyId) async => await Supabase
+      .instance
+      .client
+      .rpc<String?>('my_role', params: <String, Object?>{'target': familyId});
 }
 
 /// Overridden in tests. Nothing else overrides it.
@@ -134,11 +148,13 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen> {
 
     final String familyId;
     final FamilySnapshot? snapshot;
+    final String? role;
     try {
       // Whatever was pasted: the phone's Copy button hands over the whole
       // message, and so does a forwarded one.
       familyId = await cloud.accept(invitationCodeIn(_code.text));
       snapshot = await cloud.download(familyId);
+      role = await cloud.roleIn(familyId);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -179,7 +195,17 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen> {
     // belongs here too — otherwise the list would offer Chia sẻ on a family
     // that is already shared (PRODUCT §4.2).
     await ref.read(sharingMarksProvider).markShared(familyId);
-    ref.invalidate(sharedFamiliesProvider);
+
+    // What this copy arrived as, so the interface offers only what it allows,
+    // and can do so with no network afterwards (PRODUCT §5.0).
+    final granted = FamilyRole.from(role);
+    if (granted != null) {
+      await ref.read(familyRolesProvider).remember(familyId, granted);
+    }
+
+    ref
+      ..invalidate(sharedFamiliesProvider)
+      ..invalidate(familyRoleMapProvider);
 
     if (mounted) Navigator.of(context).pop();
   }

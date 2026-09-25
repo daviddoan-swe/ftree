@@ -260,6 +260,93 @@ option for this audience, and it can be added when somebody is actually stuck.
 
 Initial roles:
 
+### 5.0 What each role may do on the device
+
+**Decided.** The interface offers a control only where the role on that family
+allows it. What follows is the whole table; every row but one mirrors a policy
+that already exists on the server.
+
+| | not shared | owner | editor | viewer |
+|---|---|---|---|---|
+| Export a file | ✓ | ✓ | — | — |
+| Chia sẻ | ✓ | — | — | — |
+| Thành viên | — | ✓ | — | — |
+| Rename the family | ✓ | ✓ | ✓ | — |
+| Delete the family | ✓ | ✓ | — | — |
+| Add a person | ✓ | ✓ | ✓ | — |
+| Edit a person | ✓ | ✓ | ✓ | — |
+| Delete a person | ✓ | ✓ | ✓ | — |
+| Add or remove a relationship | ✓ | ✓ | ✓ | — |
+| Import a file into it | ✓ | ✓ | ✓ | — |
+
+**A family that was never shared has no role and every right.** There is
+nobody else it could belong to. The same is true of one that arrived as a
+file: a file carries no rights, so a copy made from one is simply yours (§5.7).
+
+**The role belongs to the family, not to the device or the account.** Somebody
+holding one family they made themselves and one they were invited into as an
+editor has full rights on the first and restricted rights on the second, at
+the same time, on the same phone. That is why it is a column on the family
+row.
+
+**This mirrors the server; it does not replace it.** Every row above except
+Export corresponds to a policy in `20260924000003_policies.sql`, and the
+policies are what actually decide. Hiding a control is a courtesy — it stops
+somebody doing work that would be refused — and CLAUDE §8 is explicit that
+client-side authorization is never the thing being relied on.
+
+**Export is the exception, and it is only a rule.** Exporting never touches
+the server, so no policy can refuse it; hiding the button is the whole of the
+enforcement. It is worth having because it closes the easy, accidental path —
+dropping a file into a group chat — and states the intent plainly. It is not
+worth calling security: an editor has the whole gia phả on their device
+already, because that is what editing requires. Anybody who can read a record
+can copy it, and no arrangement of buttons changes that.
+
+**Where the role comes from.** Two moments where the device knows it for
+certain, both of which already write to the local database:
+
+* pressing Chia sẻ — this device is the owner
+* accepting an invitation — the code says which role it grants
+
+It is stored beside `sharedAt` and read without a network, so it holds on a
+train.
+
+**It is not cleared when signing out**, unlike `sharedAt`. The two say
+different things: `sharedAt` records what this device did and can be recovered
+by asking (§5.9), while the role records *how this copy came to be here*. A
+copy that arrived as an editor's copy stays one, and clearing it on sign-out
+would hand full rights to anybody who signed out.
+
+**It is kept in step by asking.** When the application opens with a session it
+asks the server, in one request, for every role this account holds, and writes
+the answers down. A promotion, a demotion and a removal all reach a device that
+way, which is the only thing that does before M9 — nothing else synchronises.
+
+**A family the server does not name is one this account was put out of**, and
+the copy is locked to reading. Every control goes, and the screen says why: a
+row of buttons vanishing with no explanation reads as the application breaking
+rather than as a decision somebody took.
+
+**Deleting that copy is deferred**, deliberately, until M9. An editor's own
+additions have never left their phone — there is nowhere for them to go yet —
+so erasing the copy would destroy work that exists nowhere else, and would
+still not be security, because a file may have been exported long before. Once
+synchronisation exists those additions are on the server, and deleting the
+local copy costs nothing; that is when to do it.
+
+**Asking is skipped unless the answer can be trusted.** No session, no network,
+no cloud opened at all: each of those leaves the roles alone. "The server named
+nothing" and "the server could not be reached" look identical from here, and
+one of them would mark every family removed.
+
+**One case defeats that guard, and it is worth knowing.** A session whose
+account no longer exists still carries a valid token, so the server answers —
+with an empty list. Every family then reads as removed. In ordinary use nobody
+is deleted out from under their own session; in development, resetting the
+database does exactly that, and the device has to be signed out by hand
+afterwards.
+
 ### 5.1 Who may invite, and to what
 
 **Decided.** Only an owner may invite. **Any** of the three roles may be
@@ -411,7 +498,10 @@ the distinction between the two meaningless.
 
 ### 5.6 The member list, and who may open it
 
-**Decided.** Reached from **Mời** on a family that has been shared. Two
+**Decided.** Reached from **Thành viên** on a family that has been shared —
+labelled for what pressing it does, which is to open the room rather than to
+send an invitation. Inviting is a button inside it, and making a code is not
+something that should happen as a side effect of looking. Two
 sections: the people who already have access, then the invitations standing
 against the family.
 
@@ -469,6 +559,36 @@ The membership row is tombstoned rather than erased, as everything else here
 is (DOMAIN §15.1). That keeps the record of who was let in, and it means
 inviting them again later simply works: accepting revives the membership they
 had.
+
+### 5.9 Signing out, and what it takes with it
+
+**Decided.** An account button appears on the family list **only while signed
+in**, and opens a screen showing the name, the address, and a way out. Most
+people never sign in (§4.1); a permanent button would be advertising an
+account to somebody with no use for one, and offering to manage something that
+is not there.
+
+**Signing out clears two local things**, because both belong to the account
+that is leaving rather than to the device:
+
+* the marks saying which families this device sent up (§4.2)
+* the invitation codes this device is holding (§5.4)
+
+Left behind, the first would lie to whoever signs in next and the second would
+hand them somebody else's live codes.
+
+**Clearing the marks is safe because it heals itself.** A family with no mark
+offers Chia sẻ again. Pressing it asks the server, which says the family is
+claimed — and then, for the same account, that it can see it, which is case 2
+of §4.3: the mark is recovered and nothing is sent. Signed in as somebody
+else, the same press is told another account holds it, which is true.
+
+**Clearing the codes does not heal**, and the confirmation says so rather than
+letting somebody find out later. An invitation still standing cannot be sent
+from this device again; revoking it and making another is the way back.
+
+The gia phả itself is untouched, and still works with nobody signed in. That
+is the whole of §4.1 and signing out must not quietly walk it back.
 
 ### 5.8 A code for a whole branch, with approval — deferred to M9
 

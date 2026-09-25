@@ -47,6 +47,7 @@ import '../../app/confirm.dart';
 import '../../app/providers.dart';
 import '../../data/cloud/family_claims.dart';
 import '../../data/cloud/supabase_family_repository.dart';
+import '../../data/database/family_roles.dart';
 import '../../domain/family.dart';
 import '../../domain/family_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -178,6 +179,12 @@ Future<bool> shareFamily(
   // Marked after the send, never before: a mark written first would survive a
   // failure and hide the button that would have tried again.
   await _remember(ref, family.id);
+
+  // Whoever creates a family on the server owns it — `owner_on_create` reads
+  // the token of whoever inserted — so this device may do anything with this
+  // copy (PRODUCT §5.0).
+  await ref.read(familyRolesProvider).remember(family.id, FamilyRole.owner);
+  ref.invalidate(familyRoleMapProvider);
   if (context.mounted) _say(context, text.shareDone(family.name));
 
   return true;

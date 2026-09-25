@@ -34,7 +34,8 @@ import 'app_database.dart';
 /// Reads and writes the mark. Nothing else touches `sharedAt`.
 final class SharingMarks {
   /// [now] is injectable so tests can pin the moment, as the repositories are.
-  SharingMarks(this._db, {DateTime Function()? now}) : _now = now ?? DateTime.now;
+  SharingMarks(this._db, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
   final AppDatabase _db;
   final DateTime Function() _now;
@@ -64,6 +65,23 @@ final class SharingMarks {
   Future<bool> isShared(String familyId) async =>
       (await shared()).contains(familyId);
 
+  /// Drops every mark on this device.
+  ///
+  /// For signing out. A mark says *this device sent that family up*, which is
+  /// a fact about the account that is leaving rather than about the device —
+  /// left behind it would lie to whoever signs in next.
+  ///
+  /// Safe to do because it heals: a family with no mark offers Chia sẻ again,
+  /// and pressing it asks the server, which recovers the mark when the family
+  /// is still ours (§4.3, case 2) and says so plainly when it is not.
+  ///
+  /// `updatedAt` is left alone, for the reason [markShared] gives.
+  Future<void> forgetAll() async {
+    await _db
+        .update(_db.families)
+        .write(const FamiliesCompanion(sharedAt: Value<DateTime?>(null)));
+  }
+
   /// Records that [familyId] has been sent.
   ///
   /// Called after the send succeeds, never before: a mark written first would
@@ -74,7 +92,8 @@ final class SharingMarks {
   /// synchronisation orders by (§15.2). Moving it would make a family look
   /// edited when only a local mark changed.
   Future<void> markShared(String familyId) async {
-    await (_db.update(_db.families)..where((f) => f.id.equals(familyId)))
-        .write(FamiliesCompanion(sharedAt: Value<DateTime?>(_now().toUtc())));
+    await (_db.update(_db.families)..where((f) => f.id.equals(familyId))).write(
+      FamiliesCompanion(sharedAt: Value<DateTime?>(_now().toUtc())),
+    );
   }
 }

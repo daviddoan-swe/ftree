@@ -276,3 +276,26 @@ $$;
 REVOKE EXECUTE ON FUNCTION family_members(uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION family_members(uuid) FROM anon;
 GRANT  EXECUTE ON FUNCTION family_members(uuid) TO authenticated;
+
+-- ------------------------------------------------- narrowing memberships --
+
+-- Who may read the membership rows.
+--
+-- `memberships_read` let any member read every row in their family. That was
+-- written when §5 said members see each other, and §5.6 has since decided the
+-- other way: managing the circle is the owner's job, and the list is where
+-- somebody is demoted or put out.
+--
+-- `family_members` already answers only an owner, so no name or address was
+-- leaking. But the table underneath still handed an editor the uuids and the
+-- roles of everybody else, which is the same question answered less usefully.
+--
+-- The second clause is what makes the rest of this work: everybody may read
+-- **their own** row, in any family. That is one request for all of somebody's
+-- roles, which is how a device learns it has been promoted, demoted or removed
+-- without asking family by family.
+DROP POLICY memberships_read ON family_memberships;
+
+CREATE POLICY memberships_read ON family_memberships
+  FOR SELECT TO authenticated
+  USING (my_role(family_id) = 'owner' OR user_id = auth.uid());

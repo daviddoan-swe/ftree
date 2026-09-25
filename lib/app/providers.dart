@@ -10,9 +10,15 @@ library;
 
 // Riverpod exports a `Family` of its own — the provider-family base class —
 // which collides with the domain entity. The entity is what this file is about.
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../data/database/app_database.dart';
+import '../data/cloud/cloud_session.dart';
+import '../data/cloud/family_invitations.dart';
+import '../data/database/family_roles.dart';
 import '../data/database/invitation_codes.dart';
 import '../data/database/sharing_marks.dart';
 import '../data/repositories/drift_family_repository.dart';
@@ -47,6 +53,34 @@ final sharingMarksProvider = Provider<SharingMarks>(
   (ref) => SharingMarks(ref.watch(databaseProvider)),
 );
 
+/// Whether there is a cloud session, and whether there still is.
+///
+/// A stream rather than one answer, because the question has one: somebody
+/// signs in, signs out, and signs in again without the application restarting,
+/// and an answer computed once is wrong from the first of those onwards. Asked
+/// as a future it took a sign-out to notice — that path invalidated it by hand
+/// — and never noticed a sign-in at all, because the screen that signs
+/// somebody in holds no `ref` to invalidate anything with. Three call sites
+/// could have remembered to; the fourth would not have.
+///
+/// `openCloud` is not called here. It belongs in `main`, because initialising
+/// starts a token-refresh timer and a timer started inside a widget test
+/// outlives the test that started it.
+///
+/// False where the cloud was never opened at all. That is every test process,
+/// and an interface that cannot tell whether somebody is signed in should say
+/// no rather than guess yes.
+final signedInProvider = StreamProvider<bool>((ref) async* {
+  try {
+    yield isSignedIn;
+    yield* Supabase.instance.client.auth.onAuthStateChange.map(
+      (_) => isSignedIn,
+    );
+  } catch (_) {
+    yield false;
+  }
+});
+
 /// Reads and writes the codes of invitations this device issued.
 ///
 /// Local by nature, like [sharingMarksProvider]: the server keeps only a hash,
@@ -55,6 +89,63 @@ final sharingMarksProvider = Provider<SharingMarks>(
 final invitationCodeStoreProvider = Provider<InvitationCodeStore>(
   (ref) => InvitationCodeStore(ref.watch(databaseProvider)),
 );
+
+/// Reads and writes the role each copy of a family arrived with.
+final familyRolesProvider = Provider<FamilyRoles>(
+  (ref) => FamilyRoles(ref.watch(databaseProvider)),
+);
+
+/// What this device may do with each family, by id (PRODUCT §5.0).
+///
+/// Watched by every screen that draws a control, so a family whose role has
+/// just been learned redraws without anybody rebuilding it by hand. A family
+/// missing from the map has no role and every right.
+///
+/// Answers from the device and asks the server behind it. The local answer is
+/// what a screen gets, immediately and offline; the request that follows is
+/// how a promotion, a demotion or a removal reaches a phone at all, since
+/// nothing else synchronises yet. It redraws only when something actually
+/// changed, which is also what keeps it from asking itself in a circle.
+final familyRoleMapProvider = FutureProvider<Map<String, FamilyRole>>((
+  ref,
+) async {
+  final roles = ref.watch(familyRolesProvider);
+
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+
+  unawaited(
+    _refreshRoles(roles).then((changed) {
+      if (changed && !disposed) ref.invalidateSelf();
+    }),
+  );
+
+  return roles.all();
+});
+
+/// Asks the server what this account may do, and writes it down.
+///
+/// Every failure is silence: no session, no network, a cloud never opened at
+/// all in a test process. That is deliberate and it is the important part —
+/// "the server named nothing" and "the server could not be reached" look
+/// identical from here, and one of them would mark every family removed.
+Future<bool> _refreshRoles(FamilyRoles roles) async {
+  try {
+    if (!isSignedIn) return false;
+
+    final named = await FamilyInvitations(Supabase.instance.client).myRoles();
+
+    final fromServer = <String, FamilyRole>{};
+    for (final entry in named.entries) {
+      final role = FamilyRole.from(entry.value);
+      if (role != null) fromServer[entry.key] = role;
+    }
+
+    return roles.reconcile(fromServer);
+  } catch (_) {
+    return false;
+  }
+}
 
 /// The ids this device has sent to the cloud.
 ///

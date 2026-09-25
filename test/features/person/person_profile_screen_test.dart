@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
+import 'package:ftree/data/database/family_roles.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart' as domain;
 import 'package:ftree/domain/genealogical_date.dart';
@@ -34,11 +35,7 @@ void main() {
       'p0000000-0000-7000-8000-${n.toString().padLeft(12, '0')}';
 
   Future<void> seedFamily({bool lunar = false}) => repository.saveFamily(
-    domain.Family(
-      id: familyId,
-      name: 'Họ Nguyễn',
-      usesLunarCalendar: lunar,
-    ),
+    domain.Family(id: familyId, name: 'Họ Nguyễn', usesLunarCalendar: lunar),
   );
 
   Future<Person> seedPerson(
@@ -67,10 +64,7 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppText.localizationsDelegates,
           supportedLocales: AppText.supportedLocales,
-          home: PersonProfileScreen(
-            familyId: familyId,
-            personId: personId(n),
-          ),
+          home: PersonProfileScreen(familyId: familyId, personId: personId(n)),
         ),
       ),
     );
@@ -171,11 +165,7 @@ void main() {
       // No death date does not mean living (ARCHITECTURE §11.1). Somebody born
       // in 1782 is not two hundred and something; nothing is better.
       await seedFamily();
-      await seedPerson(
-        1,
-        'Cụ Tổ',
-        birthDate: GenealogicalDate(year: 1782),
-      );
+      await seedPerson(1, 'Cụ Tổ', birthDate: GenealogicalDate(year: 1782));
       await openProfile(tester, 1);
 
       expect(find.textContaining('years old'), findsNothing);
@@ -223,7 +213,11 @@ void main() {
     tester,
   ) async {
     await seedFamily();
-    await seedPerson(1, 'Nguyễn Văn A', birthDate: GenealogicalDate(year: 1887));
+    await seedPerson(
+      1,
+      'Nguyễn Văn A',
+      birthDate: GenealogicalDate(year: 1887),
+    );
     await openProfile(tester, 1);
 
     expect(find.text('1887'), findsOneWidget);
@@ -379,7 +373,8 @@ void main() {
       for (final parent in <int>[1, 2]) {
         await repository.saveRelationship(
           Relationship.parentChild(
-            id: 'r0000000-0000-7000-8000-00000000000$parent'
+            id:
+                'r0000000-0000-7000-8000-00000000000$parent'
                 '0',
             familyId: familyId,
             parent: personId(parent),
@@ -423,10 +418,7 @@ void main() {
       // no record of the deletion to synchronise (DOMAIN.md §15.2).
       final rows = await db.select(db.persons).get();
       expect(rows.length, 3);
-      expect(
-        rows.singleWhere((r) => r.id == personId(3)).deletedAt,
-        isNotNull,
-      );
+      expect(rows.singleWhere((r) => r.id == personId(3)).deletedAt, isNotNull);
 
       final snapshot = await repository.loadFamily(familyId);
       expect(snapshot!.graph.personById(personId(3)), isNull);
@@ -475,7 +467,10 @@ void main() {
         reason: 'still something on screen',
       );
       // The person really did go, even though the screen stayed.
-      expect((await repository.loadFamily(familyId))!.graph.persons, hasLength(2));
+      expect(
+        (await repository.loadFamily(familyId))!.graph.persons,
+        hasLength(2),
+      );
     });
 
     testWidgets('leaves the profile once the person is gone', (tester) async {
@@ -527,16 +522,16 @@ void main() {
   });
 
   group('the chart from this person', () {
-    Future<void> link(int parent, int child) =>
-        repository.saveRelationship(
-          Relationship.parentChild(
-            id: 'r0000000-0000-7000-8000-${parent.toString().padLeft(6, '0')}'
-                '${child.toString().padLeft(6, '0')}',
-            familyId: familyId,
-            parent: personId(parent),
-            child: personId(child),
-          ),
-        );
+    Future<void> link(int parent, int child) => repository.saveRelationship(
+      Relationship.parentChild(
+        id:
+            'r0000000-0000-7000-8000-${parent.toString().padLeft(6, '0')}'
+            '${child.toString().padLeft(6, '0')}',
+        familyId: familyId,
+        parent: personId(parent),
+        child: personId(child),
+      ),
+    );
 
     Future<void> seedLine() async {
       await seedFamily();
@@ -569,13 +564,15 @@ void main() {
       await tester.pumpAndSettle();
 
       final layout =
-          (tester.widget<CustomPaint>(
-                find.byWidgetPredicate(
-                  (w) => w is CustomPaint && w.painter is TreePainter,
-                ),
-              ).painter!
-              as TreePainter)
-          .layout;
+          (tester
+                      .widget<CustomPaint>(
+                        find.byWidgetPredicate(
+                          (w) => w is CustomPaint && w.painter is TreePainter,
+                        ),
+                      )
+                      .painter!
+                  as TreePainter)
+              .layout;
 
       expect(layout.nodeFor(personId(2)), isNotNull);
       expect(layout.nodeFor(personId(3)), isNotNull, reason: 'his descendant');
@@ -597,6 +594,90 @@ void main() {
 
       expect(find.text('Gen 2'), findsOneWidget);
       expect(find.text('Gen 1'), findsNothing);
+    });
+  });
+
+  group('what a role is offered on a profile', () {
+    testWidgets('a copy nobody else has a claim on shows everything', (
+      tester,
+    ) async {
+      await seedFamily();
+      await seedPerson(1, 'Cụ Tổ');
+      await openProfile(tester, 1);
+
+      expect(find.text('Edit person'), findsOneWidget);
+      expect(find.text('Delete this person'), findsOneWidget);
+    });
+
+    testWidgets('an editor keeps them', (tester) async {
+      // persons_insert and persons_update both take owner or editor, and
+      // deleting is soft, so it is an update and an editor may do it.
+      await seedFamily();
+      await seedPerson(1, 'Cụ Tổ');
+      await FamilyRoles(db).remember(familyId, FamilyRole.editor);
+
+      await openProfile(tester, 1);
+
+      expect(find.text('Edit person'), findsOneWidget);
+      expect(find.text('Delete this person'), findsOneWidget);
+    });
+
+    testWidgets('a viewer is offered neither, nor a way to add a relative', (
+      tester,
+    ) async {
+      // Every one of these is refused by a policy, so offering it would be
+      // offering work that cannot land (PRODUCT §5.0).
+      await seedFamily();
+      await seedPerson(1, 'Cụ Tổ');
+      await FamilyRoles(db).remember(familyId, FamilyRole.viewer);
+
+      await openProfile(tester, 1);
+
+      expect(find.text('Edit person'), findsNothing);
+      expect(find.text('Delete this person'), findsNothing);
+      expect(find.byTooltip('Add a relative'), findsNothing);
+    });
+
+    testWidgets('but a viewer still reads who is related to whom', (
+      tester,
+    ) async {
+      // What goes is the link that breaks a relationship, not the list of
+      // them. A viewer reads the gia phả; that is the whole of the role.
+      await seedFamily();
+      await seedPerson(1, 'Ông A');
+      await seedPerson(2, 'Bà B');
+      await repository.saveRelationship(
+        Relationship.spouse(
+          id: 'r0000000-0000-7000-8000-000000000001',
+          familyId: familyId,
+          personA: personId(1),
+          personB: personId(2),
+        ),
+      );
+      await FamilyRoles(db).remember(familyId, FamilyRole.viewer);
+
+      await openProfile(tester, 1);
+
+      expect(find.text('Bà B'), findsOneWidget);
+      expect(find.byIcon(Icons.link_off), findsNothing);
+    });
+  });
+
+  group('a copy somebody was put out of', () {
+    testWidgets('reads, and does nothing else', (tester) async {
+      // The server has already done everything it can — the family is
+      // invisible to them and every write is refused. What it cannot reach is
+      // the copy on this phone, so the interface is the whole of it.
+      await seedFamily();
+      await seedPerson(1, 'Cụ Tổ');
+      await FamilyRoles(db).remember(familyId, FamilyRole.removed);
+
+      await openProfile(tester, 1);
+
+      expect(find.text('Cụ Tổ'), findsWidgets, reason: 'it still reads');
+      expect(find.text('Edit person'), findsNothing);
+      expect(find.text('Delete this person'), findsNothing);
+      expect(find.byTooltip('Add a relative'), findsNothing);
     });
   });
 }

@@ -68,6 +68,25 @@ class Families extends Table with _SyncColumns {
   /// nobody wrote down".
   DateTimeColumn get sharedAt => dateTime().nullable()();
 
+  /// What this device may do with this family, or null for full rights.
+  ///
+  /// **Local only, and not part of [Family].** It says nothing about the gia
+  /// phả — it records how this copy came to be here — so the domain entity
+  /// stays clear of it, as it does of `sharedAt` and `updatedAt` (§15.2).
+  ///
+  /// Null means there is nobody else it could belong to: a family made on this
+  /// device, or one that arrived as a file, which carries no rights with it
+  /// (PRODUCT §5.0). Otherwise it is the role this copy arrived with — `owner`
+  /// on pressing Chia sẻ, whatever the code granted on accepting one.
+  ///
+  /// Read without a network, so the interface holds on a train.
+  ///
+  /// **Not cleared when signing out**, unlike `sharedAt`. That one records
+  /// what this device did and can be recovered by asking; this one records
+  /// provenance, and clearing it would hand full rights to anybody who signed
+  /// out of an editor's copy.
+  TextColumn get myRole => text().nullable()();
+
   BoolColumn get usesLunarCalendar =>
       boolean().withDefault(const Constant(false))();
 
@@ -239,8 +258,10 @@ class AppDatabase extends _$AppDatabase {
   ///     without asking a server it may not be able to reach.
   /// 4 — `invitationCodes`, so an invitation can be sent again after the
   ///     message carrying it was closed.
+  /// 5 — `families.myRole`, so the interface offers only what this copy is
+  ///     allowed to do, with no network to ask.
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -280,6 +301,24 @@ class AppDatabase extends _$AppDatabase {
         // Empty on every device that upgrades, which is the truth: no
         // invitation has ever been issued from here.
         await m.createTable(invitationCodes);
+      }
+      if (from < 5) {
+        await m.addColumn(families, families.myRole);
+
+        // Null is right for a family nobody has shared: there is nobody else
+        // with a claim on it. But a family already carrying a mark is one this
+        // device put on a server, and null there would take its owner's member
+        // list away on upgrade.
+        //
+        // Owner is a guess, and the imprecise case is a family this device
+        // *joined* rather than shared — joining marks it too. The guess is
+        // safe because it is checked where it matters: the member list asks
+        // the server for the caller's role before it draws anything, and
+        // answers an editor with "only the owner manages this". A wrong guess
+        // here buys somebody a door that opens onto a sentence.
+        await customStatement(
+          "UPDATE families SET my_role = 'owner' WHERE shared_at IS NOT NULL",
+        );
       }
     },
     beforeOpen: (OpeningDetails details) async {

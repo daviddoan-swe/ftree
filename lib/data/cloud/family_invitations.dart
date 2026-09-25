@@ -270,6 +270,27 @@ final class FamilyInvitations {
     ];
   }
 
+  /// Every role the signed-in account holds, by family id.
+  ///
+  /// One request for all of them. `memberships_read` lets anybody read their
+  /// own row in any family, which is what makes this a single question rather
+  /// than one per family — and it is how a device finds out it was promoted,
+  /// demoted or put out without being told.
+  Future<Map<String, String>> myRoles() async {
+    final me = _db.auth.currentUser?.id;
+    if (me == null) return const <String, String>{};
+
+    final rows = await _db
+        .from('family_memberships')
+        .select('family_id, role')
+        .eq('user_id', me)
+        .isFilter('deleted_at', null);
+
+    return <String, String>{
+      for (final row in rows) row['family_id'] as String: row['role'] as String,
+    };
+  }
+
   /// Changes what somebody may do in a family.
   ///
   /// Only an owner may call this and mean it — `memberships_update` sees to

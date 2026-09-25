@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 
 import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
+import '../../data/database/family_roles.dart';
 import '../../domain/family.dart';
 import '../../domain/name_search.dart';
 import 'generation_filter.dart';
@@ -75,12 +76,19 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
     final data = snapshot.valueOrNull;
 
+    // What this copy arrived as. Absent means nobody else has a claim on it,
+    // and every right follows (PRODUCT §5.0).
+    final role = ref.watch(familyRoleMapProvider).valueOrNull?[familyId];
+
     return Scaffold(
       appBar: AppBar(
         leading: circleBackButton(context),
         title: Text(data?.family.name ?? ''),
         actions: <Widget>[
-          if (data != null)
+          // A viewer reads; the server refuses their writes anyway
+          // (`persons_insert`), so offering the button would be offering work
+          // that cannot land (PRODUCT §5.0).
+          if (data != null && role.mayEditPeople)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: IconButton.filledTonal(
@@ -96,155 +104,185 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             ),
         ],
       ),
-      body: snapshot.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
-        data: (data) {
-          if (data == null) return const SizedBox.shrink();
-          final people = data.graph.persons;
-          if (people.isEmpty) return const _NoPeopleYet();
+      body: Column(
+        children: <Widget>[
+          // Said out loud, because every control vanishing with no explanation
+          // reads as the application breaking rather than as a decision
+          // somebody took (PRODUCT §5.0). The gia phả stays readable; nothing
+          // more, and nothing less.
+          if (role == FamilyRole.removed)
+            Container(
+              width: double.infinity,
+              color: GroupedColors.red.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                text.familyRemovedNotice,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: GroupedColors.red),
+              ),
+            ),
+          Expanded(
+            child: snapshot.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('$error')),
+              data: (data) {
+                if (data == null) return const SizedBox.shrink();
+                final people = data.graph.persons;
+                if (people.isEmpty) return const _NoPeopleYet();
 
-          // Diacritics are ignored, because half the family will type the name
-          // without them (PRODUCT.md §1.1).
-          final typed = _query.text.trim();
+                // Diacritics are ignored, because half the family will type the name
+                // without them (PRODUCT.md §1.1).
+                final typed = _query.text.trim();
 
-          // Đời from the graph, which is where every screen gets them, so no
-          // two can disagree about a reader's own family (DOMAIN.md §11.1).
-          final doi = data.graph.generations();
-          final counts = countByGeneration(people, doi);
-          final filter = GenerationFilter(
-            counts: counts,
-            chosen: _generation,
-            onChosen: _chooseGeneration,
-          );
+                // Đời from the graph, which is where every screen gets them, so no
+                // two can disagree about a reader's own family (DOMAIN.md §11.1).
+                final doi = data.graph.generations();
+                final counts = countByGeneration(people, doi);
+                final filter = GenerationFilter(
+                  counts: counts,
+                  chosen: _generation,
+                  onChosen: _chooseGeneration,
+                );
 
-          // Both narrow at once: đời five and named Hải is a reasonable thing
-          // to be looking for, and either alone may be hundreds of people.
-          //
-          // Ranked rather than filtered: whoever is *called* what was typed
-          // comes before whoever merely contains it somewhere.
-          final matches = rankedByName(
-            ofGeneration(people, doi, _generation),
-            typed,
-            nameOf: (person) => person.displayName,
-          );
+                // Both narrow at once: đời five and named Hải is a reasonable thing
+                // to be looking for, and either alone may be hundreds of people.
+                //
+                // Ranked rather than filtered: whoever is *called* what was typed
+                // comes before whoever merely contains it somewhere.
+                final matches = rankedByName(
+                  ofGeneration(people, doi, _generation),
+                  typed,
+                  nameOf: (person) => person.displayName,
+                );
 
-          // Floating over the list rather than beside it: the tree and the
-          // search field are always within reach, and the list keeps the full
-          // height of the screen to scroll through.
-          return Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: CustomScrollView(
-                  controller: _scroll,
-                  slivers: <Widget>[
-                    SliverToBoxAdapter(
-                      // Name and notes are not repeated under the portrait:
-                      // the bar above already carries the name, and the notes
-                      // were read on the way in.
-                      child: AvatarHeader(
-                        initials: familyInitial(data.family.name),
-                        badge: CountBadge(
-                          icon: Icons.person,
-                          label: people.length.toString(),
-                        ),
+                // Floating over the list rather than beside it: the tree and the
+                // search field are always within reach, and the list keeps the full
+                // height of the screen to scroll through.
+                return Stack(
+                  children: <Widget>[
+                    Positioned.fill(
+                      child: CustomScrollView(
+                        controller: _scroll,
+                        slivers: <Widget>[
+                          SliverToBoxAdapter(
+                            // Name and notes are not repeated under the portrait:
+                            // the bar above already carries the name, and the notes
+                            // were read on the way in.
+                            child: AvatarHeader(
+                              initials: familyInitial(data.family.name),
+                              badge: CountBadge(
+                                icon: Icons.person,
+                                label: people.length.toString(),
+                              ),
+                            ),
+                          ),
+                          if (filter.isWorthShowing)
+                            // Pinned: the row stays under the bar once the portrait
+                            // above it has scrolled away. On three hundred names a
+                            // reader is deep in the list by the time they know which
+                            // đời they wanted, and a filter they have to scroll back
+                            // to the top to reach is one they will not use.
+                            //
+                            // The portrait is not pinned with it. It says which
+                            // family this is, which the bar already says, and it
+                            // would cost half the screen to keep.
+                            SliverPersistentHeader(
+                              pinned: true,
+                              delegate: _PinnedRow(
+                                height: GenerationFilter.height,
+                                background: GroupedColors.page(context),
+                                child: filter,
+                              ),
+                            ),
+                          if (matches.isEmpty)
+                            SliverToBoxAdapter(
+                              child: GroupedSection(
+                                children: <Widget>[
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      14,
+                                      16,
+                                      14,
+                                    ),
+                                    child: Text(
+                                      text.searchNoMatch,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.copyWith(
+                                            color: GroupedColors.secondaryLabel(
+                                              context,
+                                            ),
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            GroupedSliverSection(
+                              // No count above the list: the chip that is chosen
+                              // carries its own, and the same number twice on one
+                              // screen is one of them going stale.
+                              itemCount: matches.length,
+                              itemBuilder: (context, index) =>
+                                  _PersonTile(person: matches[index]),
+                            ),
+                          // Enough room to scroll the last row clear of what floats
+                          // over it.
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 150),
+                          ),
+                        ],
                       ),
                     ),
-                    if (filter.isWorthShowing)
-                      // Pinned: the row stays under the bar once the portrait
-                      // above it has scrolled away. On three hundred names a
-                      // reader is deep in the list by the time they know which
-                      // đời they wanted, and a filter they have to scroll back
-                      // to the top to reach is one they will not use.
-                      //
-                      // The portrait is not pinned with it. It says which
-                      // family this is, which the bar already says, and it
-                      // would cost half the screen to keep.
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _PinnedRow(
-                          height: GenerationFilter.height,
-                          background: GroupedColors.page(context),
-                          child: filter,
-                        ),
-                      ),
-                    if (matches.isEmpty)
-                      SliverToBoxAdapter(
-                        child: GroupedSection(
+
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: SafeArea(
+                        top: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: <Widget>[
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                14,
-                                16,
-                                14,
+                              padding: const EdgeInsets.only(
+                                right: 16,
+                                bottom: 4,
                               ),
-                              child: Text(
-                                text.searchNoMatch,
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(
-                                      color: GroupedColors.secondaryLabel(
-                                        context,
-                                      ),
-                                    ),
+                              child: FloatingActionButton(
+                                heroTag: null,
+                                // A circle, not Material 3's rounded square: it sits
+                                // beside round icon buttons and a pill.
+                                shape: const CircleBorder(),
+                                onPressed: () =>
+                                    showTreeScreen(context, familyId),
+                                tooltip: text.treeTitle,
+                                child: const Icon(Icons.account_tree_rounded),
                               ),
+                            ),
+                            // Never scrolled away: with a few thousand names, a
+                            // search field that leaves the screen is one nobody can
+                            // reach when they need it.
+                            SearchPill(
+                              controller: _query,
+                              hint: text.searchByName,
+                              onChanged: (_) => setState(() {}),
                             ),
                           ],
                         ),
-                      )
-                    else
-                      GroupedSliverSection(
-                        // No count above the list: the chip that is chosen
-                        // carries its own, and the same number twice on one
-                        // screen is one of them going stale.
-                        itemCount: matches.length,
-                        itemBuilder: (context, index) =>
-                            _PersonTile(person: matches[index]),
                       ),
-                    // Enough room to scroll the last row clear of what floats
-                    // over it.
-                    const SliverToBoxAdapter(child: SizedBox(height: 150)),
+                    ),
                   ],
-                ),
-              ),
-
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16, bottom: 4),
-                        child: FloatingActionButton(
-                          heroTag: null,
-                          // A circle, not Material 3's rounded square: it sits
-                          // beside round icon buttons and a pill.
-                          shape: const CircleBorder(),
-                          onPressed: () => showTreeScreen(context, familyId),
-                          tooltip: text.treeTitle,
-                          child: const Icon(Icons.account_tree_rounded),
-                        ),
-                      ),
-                      // Never scrolled away: with a few thousand names, a
-                      // search field that leaves the screen is one nobody can
-                      // reach when they need it.
-                      SearchPill(
-                        controller: _query,
-                        hint: text.searchByName,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

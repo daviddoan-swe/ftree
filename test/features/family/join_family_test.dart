@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
+import 'package:ftree/data/database/family_roles.dart';
 import 'package:ftree/data/database/sharing_marks.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart';
@@ -29,11 +30,19 @@ String personId(int n) =>
     'p0000000-0000-7000-8000-${n.toString().padLeft(12, '0')}';
 
 final class StandInJoining implements JoiningCloud {
-  StandInJoining({this.letsMeIn = true, this.acceptThrows, this.onServer});
+  StandInJoining({
+    this.letsMeIn = true,
+    this.acceptThrows,
+    this.onServer,
+    this.grants = 'editor',
+  });
 
   bool letsMeIn;
   Object? acceptThrows;
   FamilySnapshot? onServer;
+
+  /// What the code the stand-in accepts turns out to have granted.
+  String? grants;
 
   final List<String> accepted = <String>[];
   int signInAttempts = 0;
@@ -54,6 +63,9 @@ final class StandInJoining implements JoiningCloud {
 
   @override
   Future<FamilySnapshot?> download(String id) async => onServer;
+
+  @override
+  Future<String?> roleIn(String familyId) async => grants;
 }
 
 FamilySnapshot _up(List<Person> persons) => FamilySnapshot(
@@ -155,6 +167,28 @@ void main() {
       final snapshot = await repository.loadFamily(familyId);
       expect(snapshot!.graph.persons, hasLength(1));
       expect(await marks.isShared(familyId), isTrue);
+    });
+
+    testWidgets('the role the code granted is kept, so the interface knows', (
+      WidgetTester tester,
+    ) async {
+      // Without it every invited copy would look like one nobody has a claim
+      // on, and a viewer would be offered Export, Delete and the rest
+      // (PRODUCT §5.0).
+      final cloud = StandInJoining(
+        grants: 'viewer',
+        onServer: _up(<Person>[
+          Person(id: personId(1), familyId: familyId, displayName: 'Cụ Tổ'),
+        ]),
+      );
+      await open(tester, cloud);
+
+      await enter(tester, 'K7P2-9XMR-4T');
+      await agree(tester);
+
+      expect(await FamilyRoles(db).all(), <String, FamilyRole>{
+        familyId: FamilyRole.viewer,
+      });
     });
 
     testWidgets('it does not land on top of work already here', (

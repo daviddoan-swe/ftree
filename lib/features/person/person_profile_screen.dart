@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import '../../app/confirm.dart';
 import '../../app/grouped_list.dart';
 import '../../app/providers.dart';
+import '../../data/database/family_roles.dart';
 import '../../domain/age.dart';
 import '../../domain/family.dart';
 import '../../domain/family_graph.dart';
@@ -88,6 +89,10 @@ class PersonProfileScreen extends ConsumerWidget {
     final data = snapshot.valueOrNull;
     final person = data?.graph.personById(personId);
 
+    // What this copy arrived as. Absent means nobody else has a claim on it,
+    // and every right follows (PRODUCT §5.0).
+    final role = ref.watch(familyRoleMapProvider).valueOrNull?[familyId];
+
     return Scaffold(
       // The same round button the family list carries, in the same corner and
       // with the same glyph: it opens the same screen, and the only
@@ -135,7 +140,9 @@ class PersonProfileScreen extends ConsumerWidget {
           // Adding a relative is the one thing done from here often enough to
           // earn the corner. Editing is rarer and waits at the foot of the
           // screen, where a change follows reading what is already recorded.
-          if (person != null && data != null)
+          // `relationships_insert` asks for owner or editor, so a viewer
+          // pressing this would be doing work the server refuses.
+          if (person != null && data != null && role.mayEditPeople)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: IconButton.filledTonal(
@@ -424,6 +431,12 @@ class _DeletePerson extends ConsumerWidget {
     final text = AppText.of(context);
     final theme = Theme.of(context);
 
+    // A viewer reads a profile; there is nothing here for them to press.
+    // `persons_update` asks for owner or editor, and deleting is soft, so it
+    // is an update too and an editor may do it (PRODUCT §5.0).
+    final role = ref.watch(familyRoleMapProvider).valueOrNull?[person.familyId];
+    if (!role.mayEditPeople) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -530,6 +543,13 @@ class _Relatives extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (people.isEmpty) return const SizedBox.shrink();
 
+    // A viewer still reads who is related to whom — the list stays. What goes
+    // is the link that breaks one, which `relationships_update` refuses them
+    // anyway (PRODUCT §5.0).
+    final role = ref
+        .watch(familyRoleMapProvider)
+        .valueOrNull?[subject.familyId];
+
     return GroupedSection(
       header: label,
       children: <Widget>[
@@ -539,7 +559,7 @@ class _Relatives extends ConsumerWidget {
             iconColor: personColor(person),
             title: person.displayName,
             subtitle: subtitles?.elementAtOrNull(index),
-            trailing: switch (removes) {
+            trailing: switch (role.mayEditPeople ? removes : null) {
               final RelationshipType type => IconButton(
                 icon: const Icon(Icons.link_off, size: 20),
                 tooltip: AppText.of(context).actionRemove,
