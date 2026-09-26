@@ -678,6 +678,14 @@ class AppTextVi extends AppText {
   }
 
   @override
+  String inviteRange(String from, String to) {
+    return '$from – $to';
+  }
+
+  @override
+  String get inviteNobodyUsed => 'Chưa ai dùng';
+
+  @override
   String get inviteUsed => 'Đã dùng';
 
   @override

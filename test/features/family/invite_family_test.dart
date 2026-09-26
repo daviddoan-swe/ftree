@@ -65,12 +65,14 @@ final class StandInCircle implements FamilyCircle {
       role: myRole,
       email: 'toi@example.test',
       name: namesThem ? 'Bác Minh' : null,
+      joinedAt: DateTime.utc(2026, 3, 2, 12),
     ),
     Member(
       userId: other,
       role: 'editor',
       email: 'em@example.test',
       name: namesThem ? 'Chú Hải' : null,
+      joinedAt: DateTime.utc(2026, 9, 14, 12),
     ),
   ];
 
@@ -136,11 +138,37 @@ final class StandInCircle implements FamilyCircle {
   }
 }
 
+/// Midday UTC throughout, not midnight. The screen shows these in the reader's
+/// own zone, which is right — "joined" is read beside a clock on a wall — and a
+/// date written at midnight lands on the day before for every reader west of
+/// Greenwich, including the machine these run on.
+///
+/// One somebody walked through, with the address of who it was.
+Invitation _used(String id, {String role = 'editor'}) => Invitation(
+  id: id,
+  familyId: 'f-1',
+  role: role,
+  createdAt: DateTime.utc(2026, 9, 20, 12),
+  expiresAt: DateTime.utc(2026, 9, 27, 12),
+  acceptedAt: DateTime.utc(2026, 9, 22, 12),
+  acceptedByEmail: 'chuhai@example.test',
+);
+
+/// One the owner closed before anybody used it.
+Invitation _revoked(String id) => Invitation(
+  id: id,
+  familyId: 'f-1',
+  role: 'viewer',
+  createdAt: DateTime.utc(2026, 9, 18, 12),
+  expiresAt: DateTime.utc(2026, 9, 25, 12),
+  revokedAt: DateTime.utc(2026, 9, 19, 12),
+);
+
 Invitation _live(String id, {String role = 'editor'}) => Invitation(
   id: id,
   familyId: 'f-1',
   role: role,
-  createdAt: DateTime.utc(2026, 9, 25),
+  createdAt: DateTime.utc(2026, 9, 25, 12),
   expiresAt: DateTime.now().toUtc().add(const Duration(days: 6)),
 );
 
@@ -408,6 +436,130 @@ void main() {
     });
   });
 
+  group('what each row says', () {
+    testWidgets('a member shows when they came in, over what they may do', (
+      WidgetTester tester,
+    ) async {
+      // Running a family is deciding who is in it, and "since when" is half of
+      // what that decision is made on.
+      await open(tester, StandInCircle());
+
+      expect(find.text('14/09/2026'), findsOneWidget);
+      expect(find.text('Editor'), findsOneWidget);
+    });
+
+    testWidgets('a used invitation names who used it, and when', (
+      WidgetTester tester,
+    ) async {
+      // The record of who let whom in. Without the address it answers "was it
+      // used?" and not "by whom?", which is the question an owner has.
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_used('inv-1')]),
+      );
+
+      expect(find.textContaining('chuhai@example.test'), findsOneWidget);
+      expect(find.text('22/09/2026'), findsOneWidget);
+      expect(find.text('Used'), findsOneWidget);
+    });
+
+    testWidgets('a revoked one shows the day it was closed', (
+      WidgetTester tester,
+    ) async {
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_revoked('inv-2')]),
+      );
+
+      expect(find.text('19/09/2026'), findsOneWidget);
+      expect(find.text('Revoked'), findsOneWidget);
+    });
+
+    testWidgets('every row leads with the role, in every state', (
+      WidgetTester tester,
+    ) async {
+      // It was the code while the invitation was live and the role afterwards,
+      // so the one thing every row has in common moved about and the column
+      // could not be read down.
+      await open(
+        tester,
+        StandInCircle(
+          invitations: <Invitation>[
+            _live('inv-9'),
+            _used('inv-1'),
+            _revoked('inv-2'),
+          ],
+        ),
+      );
+
+      // Two editors among the invitations, plus the editor in the member list.
+      expect(find.text('Editor'), findsNWidgets(3));
+      expect(find.text('Viewer'), findsOneWidget);
+    });
+
+    testWidgets('a live one says how long it is good for, beside the buttons', (
+      WidgetTester tester,
+    ) async {
+      // Still running, so the span is the thing worth knowing about it, and it
+      // sits with the two things that can be done about it.
+      await store.remember(id: 'inv-9', familyId: 'f-1', code: 'K7P2-9XMR-4T');
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_live('inv-9')]),
+      );
+
+      expect(find.textContaining('25/09/2026 – '), findsOneWidget);
+      expect(find.text('Send'), findsOneWidget);
+      expect(find.text('Revoke'), findsOneWidget);
+    });
+
+    testWidgets('and all of it fits on a phone', (WidgetTester tester) async {
+      // The default test surface is 800 points wide, which is wider than any
+      // phone and hides exactly the overflow this row now risks: a role, a
+      // code, a span of two dates and two buttons, all on one line. Flutter
+      // fails a test on a RenderFlex overflow, so the narrow surface is the
+      // whole assertion.
+      tester.view.physicalSize = const Size(1170, 2532); // iPhone 13 Pro
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await store.remember(id: 'inv-9', familyId: 'f-1', code: 'K7P2-9XMR-4T');
+      await open(
+        tester,
+        StandInCircle(
+          invitations: <Invitation>[_live('inv-9'), _used('inv-1')],
+        ),
+      );
+
+      expect(find.text('Send'), findsOneWidget);
+    });
+
+    testWidgets('a finished one does not, because the day it ended says more', (
+      WidgetTester tester,
+    ) async {
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_used('inv-1')]),
+      );
+
+      expect(find.textContaining('20/09/2026 – 27/09/2026'), findsNothing);
+      expect(find.textContaining('chuhai@example.test'), findsOneWidget);
+    });
+
+    testWidgets('one nobody used says so rather than showing a blank', (
+      WidgetTester tester,
+    ) async {
+      // An empty line where an address goes reads as the screen having failed
+      // to load a name — when what it means is that there was never one.
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_revoked('inv-2')]),
+      );
+
+      expect(find.text('Nobody used it'), findsOneWidget);
+    });
+  });
+
   group('the list of invitations', () {
     testWidgets('a code this device holds can be sent again', (
       WidgetTester tester,
@@ -420,7 +572,7 @@ void main() {
         StandInCircle(invitations: <Invitation>[_live('inv-9')]),
       );
 
-      expect(find.text('K7P2-9XMR-4T'), findsOneWidget);
+      expect(find.textContaining('K7P2-9XMR-4T'), findsOneWidget);
       expect(find.text('Send'), findsOneWidget);
       expect(find.text('Revoke'), findsOneWidget);
     });
@@ -434,7 +586,10 @@ void main() {
         StandInCircle(invitations: <Invitation>[_live('inv-9')]),
       );
 
-      expect(find.text('This device no longer holds the code'), findsOneWidget);
+      expect(
+        find.textContaining('This device no longer holds the code'),
+        findsOneWidget,
+      );
       expect(find.text('Send'), findsNothing);
       expect(find.text('Revoke'), findsOneWidget);
     });

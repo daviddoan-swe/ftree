@@ -394,15 +394,42 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                     ),
 
                   if (iAmOwner) ...<Widget>[
-                    GroupedSection(
-                      header: text.membersTitle,
-                      children: <Widget>[
-                        for (final member in _members)
-                          _memberRow(text, member, me),
-                      ],
+                    // Bounded, and scrolling inside itself past that. A family
+                    // with twenty administrators would otherwise push the one
+                    // control on this screen below the fold, and somebody
+                    // looking for it would have to scroll through the whole
+                    // list of relatives twice to find out where it went.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+                      ),
+                      child: SingleChildScrollView(
+                        child: GroupedSection(
+                          header: text.membersTitle,
+                          children: <Widget>[
+                            for (final member in _members)
+                              _memberRow(text, member, me),
+                          ],
+                        ),
+                      ),
                     ),
 
-                    const SizedBox(height: 24),
+                    // Directly under the members and above the invitations,
+                    // because it belongs to neither list: it is the one thing
+                    // to *do* here, and it was the last row of a list that
+                    // grows for ever. A filled button rather than a row, so it
+                    // cannot be mistaken for another invitation.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                      child: FilledButton.icon(
+                        onPressed: _invite,
+                        icon: const Icon(Icons.person_add_alt, size: 20),
+                        label: Text(text.inviteNew),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                      ),
+                    ),
 
                     GroupedSection(
                       header: text.inviteTitle,
@@ -410,13 +437,6 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                       children: <Widget>[
                         for (final invitation in _invitations)
                           _invitationRow(text, invitation),
-                        GroupedRow(
-                          icon: Icons.person_add_alt,
-                          iconColor: GroupedColors.primary(context),
-                          title: text.inviteNew,
-                          showChevron: false,
-                          onTap: _invite,
-                        ),
                       ],
                     ),
                   ],
@@ -474,10 +494,56 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
             ? '${member.name ?? text.memberNoName} (${text.membersYou})'
             : (member.name ?? text.memberNoName),
         subtitle: member.email,
-        value: _roleName(text, member.role),
+        // The date above, what they may do below. Somebody running a family
+        // wants both at a glance and the row has one column to put them in.
+        trailing: _stacked(_day(member.joinedAt), _roleName(text, member.role)),
         showChevron: false,
       ),
     );
+  }
+
+  /// A date span and two buttons have to share a row with a role and a code,
+  /// so the buttons give back the padding they do not need.
+  static final ButtonStyle _tight = TextButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+    minimumSize: const Size(0, 32),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    visualDensity: VisualDensity.compact,
+  );
+
+  /// A date over a word, right-aligned, in the two weights a row allows.
+  ///
+  /// The date is bare rather than labelled. On its own it would be a puzzle;
+  /// sitting directly over "Editor" or "Used" it is read as belonging to it,
+  /// and a label would cost a line on every row to say what one glance
+  /// already says.
+  Widget _stacked(String above, String below) {
+    final theme = Theme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Text(
+          above,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: GroupedColors.secondaryLabel(context),
+          ),
+        ),
+        Text(below, style: theme.textTheme.bodyMedium),
+      ],
+    );
+  }
+
+  /// A day, in the device's own zone.
+  ///
+  /// The day only. These timestamps come from the server, but they are read
+  /// beside a clock on a wall — and minutes would lend "joined" and "used" a
+  /// precision nobody is asking them for (§15.3).
+  String _day(DateTime at) {
+    final local = at.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}/${local.year}';
   }
 
   Widget _invitationRow(AppText text, Invitation invitation) {
@@ -495,32 +561,74 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
         ? text.inviteExpired
         : text.inviteExpiresIn(invitation.expiresAt.difference(now).inDays);
 
+    // What the code is for is the heading, in every state. It was the code
+    // itself while the invitation was live and the role afterwards, so the one
+    // thing every row has in common moved about and the column could not be
+    // read down.
+    final role = _roleName(text, invitation.role);
+
+    // One line under the role, and which line depends on what became of it.
+    //
+    // While it is live the code is the useful thing — it is how the invitation
+    // gets sent again, and a device that no longer holds it says so. Once
+    // somebody has walked through it, the address of who that was is the whole
+    // point of keeping the record. One that ended with nobody using it says so
+    // in words: left blank the row would read as though the screen had failed
+    // to load a name that was never there.
+    final who = live
+        ? (code ?? text.inviteNoCode)
+        : (invitation.acceptedByEmail ?? text.inviteNobodyUsed);
+
     return GroupedRow(
       icon: Icons.mail_outline,
       iconColor: live ? GroupedColors.teal : GroupedColors.grey,
-      // A code this device no longer holds is still listed: it is still
-      // standing, and still worth revoking. There is simply nothing to send.
-      title: live
-          ? (code ?? text.inviteNoCode)
-          : _roleName(text, invitation.role),
-      subtitle: live ? '${_roleName(text, invitation.role)} · $state' : state,
+      title: role,
+      subtitle: who,
       showChevron: false,
       trailing: live
-          ? Row(
+          // How long it is good for, over what can be done about it. The dates
+          // sit here rather than under the role because on a live invitation
+          // they are the thing still running; on a finished one they are
+          // history, and the day it ended says more than the days it had.
+          ? Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
-                if (code != null)
-                  TextButton(
-                    onPressed: () => _send(code),
-                    child: Text(text.inviteSend),
+                Text(
+                  text.inviteRange(
+                    _day(invitation.createdAt),
+                    _day(invitation.expiresAt),
                   ),
-                TextButton(
-                  onPressed: () => _revoke(invitation),
-                  child: Text(text.inviteRevoke),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: GroupedColors.secondaryLabel(context),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (code != null)
+                      TextButton(
+                        onPressed: () => _send(code),
+                        style: _tight,
+                        child: Text(text.inviteSend),
+                      ),
+                    TextButton(
+                      onPressed: () => _revoke(invitation),
+                      style: _tight,
+                      child: Text(text.inviteRevoke),
+                    ),
+                  ],
                 ),
               ],
             )
-          : null,
+          // The day it ended over what ended it. An expired code has no such
+          // day — nothing happened to it, a date simply passed — so it shows
+          // the word alone rather than inventing a moment for it.
+          : _stacked(switch (invitation) {
+              final i when i.isAccepted => _day(i.acceptedAt!),
+              final i when i.isRevoked => _day(i.revokedAt!),
+              _ => '',
+            }, state),
     );
   }
 }

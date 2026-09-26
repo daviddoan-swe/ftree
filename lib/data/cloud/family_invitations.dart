@@ -112,6 +112,7 @@ final class Invitation {
     required this.expiresAt,
     this.code,
     this.acceptedAt,
+    this.acceptedByEmail,
     this.revokedAt,
   });
 
@@ -122,6 +123,14 @@ final class Invitation {
   final DateTime expiresAt;
   final String? code;
   final DateTime? acceptedAt;
+
+  /// Who used it, by the address they signed up with.
+  ///
+  /// Null while it is still live, and null for a row read back straight from
+  /// the table — the address comes from `auth.users`, which only
+  /// `family_invitation_list` can reach.
+  final String? acceptedByEmail;
+
   final DateTime? revokedAt;
 
   bool get isAccepted => acceptedAt != null;
@@ -143,6 +152,7 @@ final class Invitation {
     expiresAt: expiresAt,
     code: plaintext,
     acceptedAt: acceptedAt,
+    acceptedByEmail: acceptedByEmail,
     revokedAt: revokedAt,
   );
 }
@@ -156,12 +166,20 @@ final class Member {
     required this.userId,
     required this.role,
     required this.email,
+    required this.joinedAt,
     this.name,
   });
 
   final String userId;
   final String role;
   final String email;
+
+  /// When their membership row was written, which is when they used the code.
+  ///
+  /// Not the invitation's `accepted_at`: somebody promoted from the member
+  /// list never used one, and the founder of a family was written in by the
+  /// trigger. This is the date all of them have.
+  final DateTime joinedAt;
 
   /// What they called themselves when they signed up, or null.
   ///
@@ -214,14 +232,16 @@ final class FamilyInvitations {
   /// Used and revoked ones are included. They are the record of who let whom
   /// in, and a list that hid them would answer "who has been invited?" with
   /// only half the truth.
+  /// A function rather than a table read, because the address of whoever used
+  /// a code lives in `auth.users` and PostgREST cannot join onto it. Ordering
+  /// and the owner-only check move into it with the join.
   Future<List<Invitation>> forFamily(String familyId) async {
-    final rows = await _db
-        .from('family_invitations')
-        .select()
-        .eq('family_id', familyId)
-        .order('created_at', ascending: false);
+    final rows = await _db.rpc<List<dynamic>>(
+      'family_invitation_list',
+      params: <String, Object?>{'target': familyId},
+    );
 
-    return rows.map(_fromRow).toList();
+    return rows.cast<Map<String, dynamic>>().map(_fromRow).toList();
   }
 
   /// Makes an unused invitation permanently unusable.
@@ -266,6 +286,7 @@ final class FamilyInvitations {
           role: row['role'] as String,
           email: (row['email'] as String?) ?? '',
           name: row['name'] as String?,
+          joinedAt: DateTime.parse(row['joined_at'] as String).toUtc(),
         ),
     ];
   }
@@ -340,6 +361,7 @@ final class FamilyInvitations {
     createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
     expiresAt: DateTime.parse(row['expires_at'] as String).toUtc(),
     acceptedAt: _time(row['accepted_at']),
+    acceptedByEmail: row['accepted_by_email'] as String?,
     revokedAt: _time(row['revoked_at']),
   );
 

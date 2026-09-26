@@ -1123,6 +1123,18 @@ abstract class AppText {
   /// **'{count, plural, =0{Hết hạn hôm nay} =1{Còn 1 ngày} other{Còn {count} ngày}}'**
   String inviteExpiresIn(int count);
 
+  /// No description provided for @inviteRange.
+  ///
+  /// In vi, this message translates to:
+  /// **'{from} – {to}'**
+  String inviteRange(String from, String to);
+
+  /// No description provided for @inviteNobodyUsed.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa ai dùng'**
+  String get inviteNobodyUsed;
+
   /// No description provided for @inviteUsed.
   ///
   /// In vi, this message translates to:

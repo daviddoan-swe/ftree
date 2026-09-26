@@ -281,6 +281,9 @@
   "inviteExpiresIn": "{count, plural, =0{Expires today} =1{1 day left} other{{count} days left}}",
   "@inviteExpiresIn": { "placeholders": { "count": { "type": "int" } } },
 
+  "inviteRange": "{from} – {to}",
+  "@inviteRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
+  "inviteNobodyUsed": "Nobody used it",
   "inviteUsed": "Used",
   "inviteRevoked": "Revoked",
   "inviteExpired": "Expired",

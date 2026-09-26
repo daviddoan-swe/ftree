@@ -685,6 +685,14 @@ class AppTextEn extends AppText {
   }
 
   @override
+  String inviteRange(String from, String to) {
+    return '$from – $to';
+  }
+
+  @override
+  String get inviteNobodyUsed => 'Nobody used it';
+
+  @override
   String get inviteUsed => 'Used';
 
   @override
