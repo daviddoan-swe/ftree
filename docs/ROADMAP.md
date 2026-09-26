@@ -1190,12 +1190,34 @@ some eleven kilobytes of `id=in.(...)` into a request line.
 Two defects found by running it on a device rather than in a test, both in the
 local migration path and both older than step 4:
 
-* **An interrupted upgrade seals the device.** A phone was found at
+* **An interrupted upgrade seals the device. Fixed.** A phone was found at
   `user_version` 4 whose `families` table already carried v5's `my_role`: a
   step had committed and the version had not. Every launch after that replayed
   from 4 and died on `duplicate column name`, with no way out from inside the
   application. Reachable in the ordinary way — the upgrade runs at launch, and
   swiping the application away or being jetsammed is enough.
+
+  Confirmed at the source rather than from the symptom: drift runs the steps
+  outside any transaction and writes the version only once they have all
+  finished (`engines.dart`, "set version now, after migrations ran
+  successfully"), so each `ALTER TABLE` commits on its own.
+
+  Two halves, and each covers what the other cannot. Every step now runs in one
+  transaction **with its own version bump inside it**, so an interruption
+  leaves the database exactly as the last finished step left it — measured:
+  SQLite rolls back `ALTER TABLE` and `PRAGMA user_version` together. And
+  every step steps over work it finds already done, because a transaction
+  cannot reach back and undo what a previous process committed, which is the
+  state the devices already broken are in.
+
+  Tested by rebuilding that device: a v4 database carrying v5's column opens,
+  finishes, and keeps what it held. One stopped among step 2's indexes recovers
+  the same way. A step made to fail after its first statement leaves neither
+  the column nor a moved version behind.
+
+  Still untested: the window between a step's `COMMIT` and its version write,
+  which is now zero statements wide and which the step-over would recover from
+  anyway. Interrupting between two statements needs a seam no test has.
 * **v6 sealed work it called sent.** Adding `unsent` gave every existing row
   the column default, false. The comment claimed that "cannot lose anything",
   weighing the pull alone: a row marked *sent* is one the push will never

@@ -39,6 +39,137 @@ void main() {
     });
   }
 
+  group('an upgrade that was interrupted half way', () {
+    // The shape a real device was found in. Drift runs the steps outside any
+    // transaction and writes `PRAGMA user_version` only after all of them have
+    // finished (`engines.dart`: "set version now, after migrations ran
+    // successfully"), so each `ALTER TABLE` commits on its own. Anything that
+    // stops the process in between — swiping the application away, a low
+    // battery, iOS reclaiming memory — leaves columns added under a version
+    // that does not know about them.
+    //
+    // Replaying then met its own work: `duplicate column name: my_role`, on
+    // every launch, for ever. There is no way out from inside the application,
+    // and uninstalling to clear it takes the gia phả with it.
+
+    /// A v4 database that got part of the way and stopped.
+    ///
+    /// Built through the real v4 schema, then given the columns a later step
+    /// had already committed — with the version left where it was, which is
+    /// exactly the state the process dying would leave behind.
+    Future<AppDatabase> halfWayThrough(int stoppedAt, {String? holding}) async {
+      final schema = await verifier.schemaAt(4);
+      final old = v4.DatabaseAtV4(schema.newConnection());
+
+      if (holding != null) {
+        final stamp = DateTime.utc(2026, 9, 24).toIso8601String();
+        await old.customStatement(
+          'INSERT INTO families (id, name, uses_lunar_calendar, updated_at) '
+          "VALUES ('f-1', '$holding', 0, '$stamp')",
+        );
+      }
+
+      await old.customStatement(
+        'ALTER TABLE families ADD COLUMN my_role TEXT NULL',
+      );
+      if (stoppedAt > 5) {
+        await old.customStatement(
+          // Exactly as drift writes it, `CHECK` included. Written by hand
+          // without one, the recovered schema fails to match and the test
+          // reports a defect that only the fixture had.
+          'ALTER TABLE persons ADD COLUMN unsent INTEGER NOT NULL DEFAULT 0 '
+          'CHECK (unsent IN (0, 1))',
+        );
+      }
+      await old.customStatement('PRAGMA user_version = 4');
+      await old.close();
+
+      return AppDatabase(schema.newConnection());
+    }
+
+    test('opens anyway, and finishes the job', () async {
+      final db = await halfWayThrough(5);
+
+      // Reaching the schema at all is the assertion: before this, opening it
+      // threw `duplicate column name` and went on throwing for ever.
+      await verifier.migrateAndValidate(db, currentSchema);
+      await db.close();
+    });
+
+    test('and so does one that stopped a step later', () async {
+      final db = await halfWayThrough(6);
+
+      await verifier.migrateAndValidate(db, currentSchema);
+      await db.close();
+    });
+
+    test('one stopped among the indexes recovers too', () async {
+      // Step 2 makes four of them. Stopping after the first leaves a database
+      // that meets `already exists` rather than `duplicate column name` — the
+      // same wall by another name.
+      final schema = await verifier.schemaAt(1);
+      final old = v1.DatabaseAtV1(schema.newConnection());
+      await old.customStatement(
+        'CREATE INDEX persons_by_family ON persons (family_id, deleted_at)',
+      );
+      await old.customStatement('PRAGMA user_version = 1');
+      await old.close();
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, currentSchema);
+      await db.close();
+    });
+
+    test('a step that fails leaves nothing of itself behind', () async {
+      // The other half, and the one that stops this happening again. Step 5
+      // adds a column and then backfills it; taking away what the backfill
+      // reads makes it fail after the column is in. Without the transaction
+      // the column would stay, the version would not move, and the device
+      // would be in exactly the state described above.
+      final schema = await verifier.schemaAt(4);
+      final prepared = v4.DatabaseAtV4(schema.newConnection());
+      await prepared.customStatement(
+        'ALTER TABLE families DROP COLUMN shared_at',
+      );
+      await prepared.close();
+
+      final db = AppDatabase(schema.newConnection());
+      await expectLater(
+        db.customSelect('SELECT 1').get(),
+        throwsA(isA<Exception>()),
+      );
+      await db.close();
+
+      // Opened at 4 because that is still what it says, so nothing migrates
+      // and the raw state can be read.
+      final after = v4.DatabaseAtV4(schema.newConnection());
+      final version = await after
+          .customSelect('SELECT * FROM pragma_user_version')
+          .getSingle();
+      final columns = await after
+          .customSelect(
+            "SELECT name FROM pragma_table_info('families') WHERE name = 'my_role'",
+          )
+          .get();
+
+      expect(version.data.values.first, 4, reason: 'the step did not finish');
+      expect(columns, isEmpty, reason: 'and left none of its work behind');
+      await after.close();
+    });
+
+    test('the data it already held is still there afterwards', () async {
+      // Recovering by starting from an empty database would be no recovery at
+      // all — it is the gia phả that is being rescued, not the schema.
+      final db = await halfWayThrough(5, holding: 'Họ Nguyễn');
+
+      await verifier.migrateAndValidate(db, currentSchema);
+
+      final rows = await db.customSelect('SELECT name FROM families').get();
+      expect(rows.single.read<String>('name'), 'Họ Nguyễn');
+      await db.close();
+    });
+  });
+
   test('a device that already holds data keeps it', () async {
     const familyId = 'f0000000-0000-7000-8000-000000000000';
     const personId = 'p0000000-0000-7000-8000-000000000001';

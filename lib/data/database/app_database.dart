@@ -348,6 +348,79 @@ class AppDatabase extends _$AppDatabase {
   DriftDatabaseOptions get options =>
       const DriftDatabaseOptions(storeDateTimeAsText: true);
 
+  /// Runs one step of an upgrade and records that it ran, in one transaction.
+  ///
+  /// Drift runs the steps outside any transaction of its own and writes the
+  /// schema version only once all of them have finished — its own words, in
+  /// `engines.dart`: "set version now, after migrations ran successfully". So
+  /// every `ALTER TABLE` commits on its own while the number on the database
+  /// still says where it started.
+  ///
+  /// A process that stops in between therefore leaves columns added under a
+  /// version that does not know about them, and the upgrade runs at launch,
+  /// so swiping the application away, a flat battery or iOS reclaiming memory
+  /// is enough. A device was found in exactly that state: `my_role` present,
+  /// version 4, and `duplicate column name` on every launch afterwards with no
+  /// way out from inside the application — uninstalling to clear it takes the
+  /// gia phả with it.
+  ///
+  /// Both halves go in together here, so an interruption leaves the database
+  /// exactly as the last finished step left it. That SQLite rolls back
+  /// `ALTER TABLE` and `PRAGMA user_version` together is measured, not
+  /// assumed. Drift's own write of the version afterwards then finds it
+  /// already there and changes nothing.
+  Future<void> _step(int from, int to, Future<void> Function() body) async {
+    if (from >= to) return;
+
+    await customStatement('BEGIN');
+    try {
+      await body();
+      await customStatement('PRAGMA user_version = $to');
+      await customStatement('COMMIT');
+    } catch (_) {
+      await customStatement('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// Creates something named [name] unless the database already has it.
+  ///
+  /// The same rescue as [_addColumn], for the two steps that make objects
+  /// rather than columns. A device stopped inside step 2 or step 4 carries
+  /// half its indexes, or the table without the version that knows about it,
+  /// and meets `already exists` instead of `duplicate column name`.
+  Future<void> _createOnce(String name, Future<void> Function() create) async {
+    final present = await customSelect(
+      'SELECT 1 FROM sqlite_master WHERE name = ?',
+      variables: <Variable<Object>>[Variable<String>(name)],
+    ).get();
+
+    if (present.isEmpty) await create();
+  }
+
+  /// Adds [column] to [table] unless it is already there.
+  ///
+  /// [_step] stops this happening from here on. It cannot help the devices it
+  /// was too late for: their half-finished work is already committed, and a
+  /// transaction cannot reach back and undo what another process committed
+  /// before it. Those devices need the replay to meet its own work and step
+  /// over it, which is the whole of what this does.
+  Future<void> _addColumn(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    final present = await customSelect(
+      'SELECT 1 FROM pragma_table_info(?) WHERE name = ?',
+      variables: <Variable<Object>>[
+        Variable<String>(table.actualTableName),
+        Variable<String>(column.name),
+      ],
+    ).get();
+
+    if (present.isEmpty) await m.addColumn(table, column);
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) => m.createAll(),
@@ -356,24 +429,36 @@ class AppDatabase extends _$AppDatabase {
     /// gets. The two paths drifting apart is the classic migration defect, and
     /// a test compares them rather than trusting this.
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from < 2) {
-        await m.create(personsByFamily);
-        await m.create(relationshipsByFamily);
-        await m.create(relationshipsByPersonA);
-        await m.create(relationshipsByPersonB);
-      }
-      if (from < 3) {
+      await _step(from, 2, () async {
+        await _createOnce('persons_by_family', () => m.create(personsByFamily));
+        await _createOnce(
+          'relationships_by_family',
+          () => m.create(relationshipsByFamily),
+        );
+        await _createOnce(
+          'relationships_by_person_a',
+          () => m.create(relationshipsByPersonA),
+        );
+        await _createOnce(
+          'relationships_by_person_b',
+          () => m.create(relationshipsByPersonB),
+        );
+      });
+      await _step(from, 3, () async {
         // Null for every family already here, which is the truth: nothing has
         // been shared, because until now there was nowhere to share it to.
-        await m.addColumn(families, families.sharedAt);
-      }
-      if (from < 4) {
+        await _addColumn(m, families, families.sharedAt);
+      });
+      await _step(from, 4, () async {
         // Empty on every device that upgrades, which is the truth: no
         // invitation has ever been issued from here.
-        await m.createTable(invitationCodes);
-      }
-      if (from < 5) {
-        await m.addColumn(families, families.myRole);
+        await _createOnce(
+          'invitation_codes',
+          () => m.createTable(invitationCodes),
+        );
+      });
+      await _step(from, 5, () async {
+        await _addColumn(m, families, families.myRole);
 
         // Null is right for a family nobody has shared: there is nobody else
         // with a claim on it. But a family already carrying a mark is one this
@@ -389,12 +474,12 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "UPDATE families SET my_role = 'owner' WHERE shared_at IS NOT NULL",
         );
-      }
-      if (from < 6) {
-        await m.addColumn(families, families.unsent);
-        await m.addColumn(persons, persons.unsent);
-        await m.addColumn(relationships, relationships.unsent);
-        await m.addColumn(families, families.lastSeen);
+      });
+      await _step(from, 6, () async {
+        await _addColumn(m, families, families.unsent);
+        await _addColumn(m, persons, persons.unsent);
+        await _addColumn(m, relationships, relationships.unsent);
+        await _addColumn(m, families, families.lastSeen);
 
         // False and zero for everything already here. Zero is right: a
         // lastSeen above zero would make a pull skip everything below that
@@ -421,19 +506,19 @@ class AppDatabase extends _$AppDatabase {
         // It cannot recur: from v6 on, `mappers.dart` sets the flag on every
         // write. Only a device that existed before v6 can be carrying sealed
         // work.
-      }
-      if (from < 7) {
+      });
+      await _step(from, 7, () async {
         // Null for everything, which is the truth: no row on a device that has
         // not synchronised yet has a version it was edited away from, and none
         // is in disagreement with anybody.
-        await m.addColumn(persons, persons.baseFields);
-        await m.addColumn(persons, persons.theirsFields);
-      }
-      if (from < 8) {
+        await _addColumn(m, persons, persons.baseFields);
+        await _addColumn(m, persons, persons.theirsFields);
+      });
+      await _step(from, 8, () async {
         // False for everything, which is the truth: nothing has been removed
         // out from under an edit on a device that has not pulled since.
-        await m.addColumn(persons, persons.theirsDeleted);
-      }
+        await _addColumn(m, persons, persons.theirsDeleted);
+      });
     },
     beforeOpen: (OpeningDetails details) async {
       // SQLite ignores foreign keys unless asked, per connection. Without this
