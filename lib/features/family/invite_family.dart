@@ -36,6 +36,7 @@ import '../../app/providers.dart';
 import '../../data/cloud/cloud_session.dart';
 import '../../data/cloud/family_invitations.dart';
 import '../../domain/family.dart';
+import '../../domain/name_search.dart';
 import '../../l10n/app_localizations.dart';
 import '../account/sign_in.dart';
 
@@ -145,6 +146,42 @@ class InvitationsScreen extends ConsumerStatefulWidget {
 class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
   String? _myRole;
   List<Member> _members = const <Member>[];
+
+  /// What has been typed into the member search, and which role is being
+  /// looked at. Null means every role.
+  final TextEditingController _search = TextEditingController();
+  String? _onlyRole;
+
+  /// Below this, everybody is on the screen at once and a search field is a
+  /// box asking a question nobody has. A family with a hundred viewers is a
+  /// different screen from one with three administrators, and it is the same
+  /// screen in the code, so the controls arrive when the list does.
+  static const int _worthSearching = 8;
+
+  /// The members this screen is currently showing.
+  ///
+  /// Name *and* address, because half the accounts in a gia phả have no name
+  /// yet — they signed up before names were asked for — and an address is
+  /// then the only thing there is to type. Diacritics are folded by
+  /// [nameMatches], so `hai` finds Hải without anybody switching keyboards.
+  List<Member> get _shown {
+    final typed = _search.text.trim();
+
+    return <Member>[
+      for (final member in _members)
+        if (_onlyRole == null || member.role == _onlyRole)
+          if (nameMatches(member.name ?? '', typed) ||
+              nameMatches(member.email, typed))
+            member,
+    ];
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   List<Invitation> _invitations = const <Invitation>[];
 
   /// The plaintext this device still holds, by invitation id. Absent for one
@@ -399,20 +436,48 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                     // control on this screen below the fold, and somebody
                     // looking for it would have to scroll through the whole
                     // list of relatives twice to find out where it went.
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-                      ),
-                      child: SingleChildScrollView(
-                        child: GroupedSection(
-                          header: text.membersTitle,
-                          children: <Widget>[
-                            for (final member in _members)
-                              _memberRow(text, member, me),
-                          ],
+                    if (_members.length >= _worthSearching) ...<Widget>[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                        child: SearchPill(
+                          controller: _search,
+                          hint: text.membersSearch,
+                          onChanged: (_) => setState(() {}),
                         ),
                       ),
-                    ),
+                      _roleFilter(text),
+                    ],
+
+                    // Said rather than left blank. `GroupedSection` collapses
+                    // to nothing when it has no rows, so a filter that matches
+                    // nobody would leave a gap where the list was — which
+                    // reads as the screen having failed to load it.
+                    if (_shown.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        child: Text(
+                          text.membersNoMatch,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: GroupedColors.secondaryLabel(context),
+                          ),
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+                        ),
+                        child: SingleChildScrollView(
+                          child: GroupedSection(
+                            header: text.membersTitle,
+                            children: <Widget>[
+                              for (final member in _shown)
+                                _memberRow(text, member, me),
+                            ],
+                          ),
+                        ),
+                      ),
 
                     // Directly under the members and above the invitations,
                     // because it belongs to neither list: it is the one thing
@@ -443,6 +508,60 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  /// One chip per role, and one for all of them.
+  ///
+  /// The reason a search field is not enough on its own: the question a
+  /// hundred members raises is rarely "where is Hải" — it is "who are all the
+  /// viewers", and that is not something anybody can type.
+  ///
+  /// Each chip carries its count, so an empty role is visible before it is
+  /// pressed rather than after.
+  Widget _roleFilter(AppText text) {
+    int countOf(String? role) => role == null
+        ? _members.length
+        : _members.where((m) => m.role == role).length;
+
+    Widget chip(String? role, String label) {
+      final chosen = _onlyRole == role;
+
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          selected: chosen,
+          onSelected: (_) => setState(() => _onlyRole = role),
+          showCheckmark: false,
+          backgroundColor: GroupedColors.unselected(context),
+          selectedColor: GroupedColors.primary(context),
+          side: BorderSide.none,
+          shape: const StadiumBorder(),
+          label: Text(
+            '$label  ${countOf(role)}',
+            style: TextStyle(
+              color: chosen
+                  ? GroupedColors.onPrimary(context)
+                  : GroupedColors.onUnselected(context),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            chip(null, text.membersAll),
+            chip('owner', text.roleOwner),
+            chip('editor', text.roleEditor),
+            chip('viewer', text.roleViewer),
+          ],
+        ),
+      ),
     );
   }
 
@@ -484,9 +603,10 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
       ),
       child: GroupedRow(
         icon: Icons.person_outline,
-        iconColor: member.role == 'owner'
-            ? GroupedColors.primary(context)
-            : GroupedColors.grey,
+        // By role, which is the one thing this list exists to say. An owner
+        // used to be the only one marked out; an editor and a viewer shared
+        // the same grey, which is the pair most worth telling apart.
+        iconColor: _roleTone(member.role),
         // The name is the title, the address the line under it. An account made
         // before names were asked for has none, and says so rather than wearing
         // its address as one.
@@ -496,11 +616,29 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
         subtitle: member.email,
         // The date above, what they may do below. Somebody running a family
         // wants both at a glance and the row has one column to put them in.
-        trailing: _stacked(_day(member.joinedAt), _roleName(text, member.role)),
+        trailing: _stacked(
+          _day(member.joinedAt),
+          _roleName(text, member.role),
+          tone: _roleTone(member.role),
+        ),
         showChevron: false,
       ),
     );
   }
+
+  /// The colour a role always wears, wherever a role is named.
+  ///
+  /// Least authority to most, so the order is learnable rather than
+  /// remembered: a viewer is grey, an editor writes and is blue, an owner
+  /// holds the family and takes the colour the application is built around.
+  ///
+  /// Reinforcement, never the signal. Every role is also spelled out, so
+  /// somebody who cannot tell these three apart loses nothing at all.
+  Color _roleTone(String role) => switch (role) {
+    'owner' => GroupedColors.primary(context),
+    'editor' => GroupedColors.blue,
+    _ => GroupedColors.grey,
+  };
 
   /// A date span and two buttons have to share a row with a role and a code,
   /// so the buttons give back the padding they do not need.
@@ -517,7 +655,7 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
   /// sitting directly over "Editor" or "Used" it is read as belonging to it,
   /// and a label would cost a line on every row to say what one glance
   /// already says.
-  Widget _stacked(String above, String below) {
+  Widget _stacked(String above, String below, {Color? tone}) {
     final theme = Theme.of(context);
 
     return Column(
@@ -530,7 +668,7 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
             color: GroupedColors.secondaryLabel(context),
           ),
         ),
-        Text(below, style: theme.textTheme.bodyMedium),
+        Text(below, style: theme.textTheme.bodyMedium?.copyWith(color: tone)),
       ],
     );
   }
@@ -561,6 +699,24 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
         ? text.inviteExpired
         : text.inviteExpiresIn(invitation.expiresAt.difference(now).inDays);
 
+    // One colour for the whole row's state, chosen once. The icon and the word
+    // read it from here, because a green dot beside a red word is worse than
+    // no colour at all.
+    //
+    // It reinforces the word; it never replaces it. Every state still says its
+    // name, so a reader who cannot tell these four apart loses nothing.
+    final tone = switch (invitation) {
+      // Still usable, and the only one that can still be acted on.
+      _ when live => GroupedColors.teal,
+      // Somebody walked through it. The outcome the code was made for.
+      final i when i.isAccepted => GroupedColors.green,
+      // Closed on purpose, by somebody, at a moment that is recorded.
+      final i when i.isRevoked => GroupedColors.red,
+      // Nothing happened to it. Grey is the absence of an event, which is
+      // exactly what running out is.
+      _ => GroupedColors.grey,
+    };
+
     // What the code is for is the heading, in every state. It was the code
     // itself while the invitation was live and the role afterwards, so the one
     // thing every row has in common moved about and the column could not be
@@ -581,7 +737,7 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
 
     return GroupedRow(
       icon: Icons.mail_outline,
-      iconColor: live ? GroupedColors.teal : GroupedColors.grey,
+      iconColor: tone,
       title: role,
       subtitle: who,
       showChevron: false,
@@ -624,11 +780,15 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
           // The day it ended over what ended it. An expired code has no such
           // day — nothing happened to it, a date simply passed — so it shows
           // the word alone rather than inventing a moment for it.
-          : _stacked(switch (invitation) {
-              final i when i.isAccepted => _day(i.acceptedAt!),
-              final i when i.isRevoked => _day(i.revokedAt!),
-              _ => '',
-            }, state),
+          : _stacked(
+              switch (invitation) {
+                final i when i.isAccepted => _day(i.acceptedAt!),
+                final i when i.isRevoked => _day(i.revokedAt!),
+                _ => '',
+              },
+              state,
+              tone: tone,
+            ),
     );
   }
 }

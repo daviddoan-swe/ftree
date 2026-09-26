@@ -1405,6 +1405,24 @@ abstract class AppText {
   /// **'Ảnh đại diện'**
   String get conflictMedia;
 
+  /// No description provided for @membersSearch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tìm theo tên hoặc email'**
+  String get membersSearch;
+
+  /// No description provided for @membersAll.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tất cả'**
+  String get membersAll;
+
+  /// No description provided for @membersNoMatch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không có ai khớp'**
+  String get membersNoMatch;
+
   /// No description provided for @membersTitle.
   ///
   /// In vi, this message translates to:

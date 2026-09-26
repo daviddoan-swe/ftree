@@ -852,6 +852,15 @@ class AppTextEn extends AppText {
   String get conflictMedia => 'Portrait';
 
   @override
+  String get membersSearch => 'Search by name or address';
+
+  @override
+  String get membersAll => 'All';
+
+  @override
+  String get membersNoMatch => 'Nobody here matches that';
+
+  @override
   String get membersTitle => 'Members';
 
   @override

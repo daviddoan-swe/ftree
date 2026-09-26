@@ -843,6 +843,15 @@ class AppTextVi extends AppText {
   String get conflictMedia => 'Ảnh đại diện';
 
   @override
+  String get membersSearch => 'Tìm theo tên hoặc email';
+
+  @override
+  String get membersAll => 'Tất cả';
+
+  @override
+  String get membersNoMatch => 'Không có ai khớp';
+
+  @override
   String get membersTitle => 'Thành viên';
 
   @override

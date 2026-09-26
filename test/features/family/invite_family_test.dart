@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
+import 'package:ftree/app/grouped_list.dart';
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/cloud/family_invitations.dart';
 import 'package:ftree/data/database/app_database.dart';
@@ -31,7 +32,11 @@ final class StandInCircle implements FamilyCircle {
     this.letsMeIn = true,
     List<Invitation>? invitations,
     this.removeThrows,
+    this.crowd = const <Member>[],
   }) : _invitations = invitations ?? <Invitation>[];
+
+  /// Extra members, for the screens a hundred relatives make.
+  final List<Member> crowd;
 
   String myRole;
   bool namesThem = true;
@@ -74,6 +79,7 @@ final class StandInCircle implements FamilyCircle {
       name: namesThem ? 'Chú Hải' : null,
       joinedAt: DateTime.utc(2026, 9, 14, 12),
     ),
+    ...crowd,
   ];
 
   @override
@@ -162,6 +168,15 @@ Invitation _revoked(String id) => Invitation(
   createdAt: DateTime.utc(2026, 9, 18, 12),
   expiresAt: DateTime.utc(2026, 9, 25, 12),
   revokedAt: DateTime.utc(2026, 9, 19, 12),
+);
+
+/// One that simply ran out: nobody used it, nobody closed it.
+Invitation _expired(String id) => Invitation(
+  id: id,
+  familyId: 'f-1',
+  role: 'viewer',
+  createdAt: DateTime.utc(2026, 9, 10, 12),
+  expiresAt: DateTime.utc(2026, 9, 17, 12),
 );
 
 Invitation _live(String id, {String role = 'editor'}) => Invitation(
@@ -436,6 +451,96 @@ void main() {
     });
   });
 
+  group('a family with a hundred relatives in it', () {
+    /// Enough viewers to make a screen nobody can read down.
+    List<Member> viewers(int many) => <Member>[
+      for (var n = 0; n < many; n++)
+        Member(
+          userId: 'u-$n',
+          role: n.isEven ? 'viewer' : 'editor',
+          email: 'nguoi$n@example.test',
+          name: n == 7 ? 'Cô Hải' : 'Người $n',
+          joinedAt: DateTime.utc(2026, 5, 1, 12),
+        ),
+    ];
+
+    testWidgets('a short list is left alone', (WidgetTester tester) async {
+      // Two members and a search field is a box asking a question nobody has.
+      await open(tester, StandInCircle());
+
+      expect(find.text('Search by name or address'), findsNothing);
+      expect(find.textContaining('All'), findsNothing);
+    });
+
+    testWidgets('a long one is given something to search with', (
+      WidgetTester tester,
+    ) async {
+      await open(tester, StandInCircle(crowd: viewers(20)));
+
+      expect(find.text('Search by name or address'), findsOneWidget);
+    });
+
+    testWidgets('typing narrows it, diacritics and all', (
+      WidgetTester tester,
+    ) async {
+      // `hai` finds Hải. Half a gia phả's names carry marks and nobody
+      // switches keyboards to search.
+      await open(tester, StandInCircle(crowd: viewers(20)));
+
+      await tester.enterText(find.byType(TextField), 'hai');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cô Hải'), findsOneWidget);
+      expect(find.text('Người 8'), findsNothing);
+    });
+
+    testWidgets('and an address is searchable too', (
+      WidgetTester tester,
+    ) async {
+      // Half the accounts have no name — they signed up before names were
+      // asked for — so an address is the only thing there is to type.
+      await open(tester, StandInCircle(crowd: viewers(20)));
+
+      await tester.enterText(find.byType(TextField), 'nguoi11@');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Người 11'), findsOneWidget);
+      expect(find.text('Người 12'), findsNothing);
+    });
+
+    testWidgets('a role can be asked for on its own', (
+      WidgetTester tester,
+    ) async {
+      // The question a hundred members raises is rarely "where is Hải" — it
+      // is "who are all the viewers", and that is not something to type.
+      await open(tester, StandInCircle(crowd: viewers(20)));
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(ChoiceChip),
+          matching: find.textContaining('Viewer'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Every remaining row is a viewer: the editors are gone, and so is the
+      // owner who is not one either.
+      expect(find.text('Người 1'), findsNothing, reason: 'an editor');
+      expect(find.text('Người 2'), findsOneWidget, reason: 'a viewer');
+    });
+
+    testWidgets('matching nobody says so rather than showing a blank', (
+      WidgetTester tester,
+    ) async {
+      await open(tester, StandInCircle(crowd: viewers(20)));
+
+      await tester.enterText(find.byType(TextField), 'khong-co-ai');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nobody here matches that'), findsOneWidget);
+    });
+  });
+
   group('what each row says', () {
     testWidgets('a member shows when they came in, over what they may do', (
       WidgetTester tester,
@@ -461,6 +566,77 @@ void main() {
       expect(find.textContaining('chuhai@example.test'), findsOneWidget);
       expect(find.text('22/09/2026'), findsOneWidget);
       expect(find.text('Used'), findsOneWidget);
+    });
+
+    testWidgets('each state wears its own colour, on the icon and the word', (
+      WidgetTester tester,
+    ) async {
+      // Four states in one list. Colour reinforces the word rather than
+      // replacing it, so what matters is that the four differ — and that the
+      // icon and the word agree, because a green dot beside a red word would
+      // be worse than no colour at all.
+      await store.remember(id: 'inv-9', familyId: 'f-1', code: 'K7P2-9XMR-4T');
+      await open(
+        tester,
+        StandInCircle(
+          invitations: <Invitation>[
+            _live('inv-9'),
+            _used('inv-1'),
+            _revoked('inv-2'),
+            _expired('inv-3'),
+          ],
+        ),
+      );
+
+      Color colourOf(String word) =>
+          tester.widget<Text>(find.text(word)).style!.color!;
+
+      final used = colourOf('Used');
+      final revoked = colourOf('Revoked');
+      final expired = colourOf('Expired');
+
+      expect(<Color>{used, revoked, expired}, hasLength(3));
+
+      // And the icon beside each says the same thing. `RowIcon` paints the
+      // colour as the tile behind a white glyph, so the tile is what carries
+      // it. The live one has no word — its corner holds two buttons — so its
+      // icon is what states its colour at all.
+      final icons = tester
+          .widgetList<RowIcon>(find.byType(RowIcon))
+          .where((r) => r.icon == Icons.mail_outline)
+          .map((r) => r.color)
+          .toList();
+
+      expect(icons, hasLength(4));
+      expect(icons.toSet(), hasLength(4), reason: 'one colour per state');
+      expect(icons, contains(used));
+      expect(icons, contains(revoked));
+      expect(icons, contains(expired));
+    });
+
+    testWidgets('one that ran out says so, and shows no day', (
+      WidgetTester tester,
+    ) async {
+      // A seven-day code cannot be watched expiring by hand, so this is the
+      // only place the state is checked at all.
+      //
+      // No date, unlike used and revoked: nothing happened to it. Nobody
+      // pressed anything and nobody walked through it — a day simply passed,
+      // and putting one on the row would be inventing a moment.
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_expired('inv-3')]),
+      );
+
+      expect(find.text('Expired'), findsOneWidget);
+      expect(find.text('Nobody used it'), findsOneWidget);
+      expect(find.textContaining('17/09/2026'), findsNothing);
+      expect(find.text('Send'), findsNothing);
+      expect(
+        find.text('Revoke'),
+        findsNothing,
+        reason: 'nothing left to close',
+      );
     });
 
     testWidgets('a revoked one shows the day it was closed', (
