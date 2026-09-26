@@ -245,6 +245,78 @@ void main() {
     expect(owner.email, isNotEmpty);
   });
 
+  test('an owner deleting a family takes its people with it', () async {
+    // One call for the three tables (ROADMAP M9, step 4). What has to be true
+    // is that nothing is left standing: a family row alive with every person
+    // in it tombstoned would be a gia phả reduced to a name.
+    await anAccount();
+    final family = await aFamily();
+    final at = DateTime.now().toUtc();
+
+    final held = await sink().send(
+      family,
+      // As `pending()` supplies it: the family's own tombstone, and the
+      // people the local deletion tombstoned along with it.
+      Outgoing(
+        stampedAt: at,
+        deletedFamily: family,
+        deletedPersons: <String>[personIn(family, 1)],
+      ),
+    );
+
+    expect(held, contains(family));
+    expect(
+      held,
+      contains(personIn(family, 1)),
+      reason:
+          'one row answers for all of them: the function is one transaction, '
+          'so the family carrying the stamp means they all do',
+    );
+
+    final answer = await CloudChanges(client()).since(family, 0);
+    expect(answer.familyDeleted, isTrue);
+    expect(answer.family, isNull);
+    expect(answer.persons, isEmpty);
+    expect(answer.deletedPersons, contains(personIn(family, 1)));
+  });
+
+  test('an editor asking to delete one is refused, and loudly', () async {
+    // The gap this closes. `delete_family_deep` runs as the caller, and the
+    // three tables' policies are not uniform: `families_update_editor` forbids
+    // an editor setting `deleted_at`, but `persons_update` says only "owner or
+    // editor", because removing one person is ordinary work. Without the check
+    // added in `20260925000002_family_deletion.sql` an editor would empty the
+    // family and leave the family row standing, raising nothing — a refused
+    // UPDATE changes nothing and reports success.
+    final owner = await anAccount();
+    final family = await aFamily();
+    final invitation = await FamilyInvitations(
+      client(),
+    ).create(familyId: family, role: 'editor');
+    await signOut();
+
+    await anAccount();
+    await FamilyInvitations(client()).accept(invitation.code!);
+
+    await expectLater(
+      sink().send(
+        family,
+        Outgoing(stampedAt: DateTime.now().toUtc(), deletedFamily: family),
+      ),
+      throwsA(isA<PostgrestException>()),
+    );
+
+    // And nothing was half-done: the raise comes before the first statement,
+    // so the people are untouched too.
+    await signOut();
+    await signIn(email: owner.email, password: password);
+    final answer = await CloudChanges(client()).since(family, 0);
+    expect(answer.familyDeleted, isFalse);
+    expect(answer.family?.name, 'Họ Nguyễn');
+    expect(answer.persons.single.displayName, 'Cụ Tổ');
+    expect(answer.deletedPersons, isEmpty);
+  });
+
   test('nothing to send sends nothing', () async {
     await anAccount();
     final family = await aFamily();

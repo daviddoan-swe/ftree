@@ -1243,6 +1243,156 @@ abstract class AppText {
   /// **'Chưa đặt tên'**
   String get memberNoName;
 
+  /// No description provided for @conflictsTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Cần bác quyết'**
+  String get conflictsTitle;
+
+  /// No description provided for @conflictsWaiting.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{1 người đang chờ bác quyết} other{{count} người đang chờ bác quyết}}'**
+  String conflictsWaiting(int count);
+
+  /// No description provided for @conflictsNone.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không còn gì phải quyết'**
+  String get conflictsNone;
+
+  /// No description provided for @conflictMine.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bản của bác'**
+  String get conflictMine;
+
+  /// No description provided for @conflictTheirs.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bản trên máy chủ'**
+  String get conflictTheirs;
+
+  /// No description provided for @conflictWas.
+  ///
+  /// In vi, this message translates to:
+  /// **'Trước đó: {value}'**
+  String conflictWas(String value);
+
+  /// No description provided for @conflictEmpty.
+  ///
+  /// In vi, this message translates to:
+  /// **'để trống'**
+  String get conflictEmpty;
+
+  /// No description provided for @conflictYes.
+  ///
+  /// In vi, this message translates to:
+  /// **'có'**
+  String get conflictYes;
+
+  /// No description provided for @conflictNo.
+  ///
+  /// In vi, this message translates to:
+  /// **'không'**
+  String get conflictNo;
+
+  /// No description provided for @conflictKeep.
+  ///
+  /// In vi, this message translates to:
+  /// **'Giữ lựa chọn này'**
+  String get conflictKeep;
+
+  /// No description provided for @conflictRemovedByThem.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã bị xoá ở máy khác, trong lúc bác đang sửa.'**
+  String get conflictRemovedByThem;
+
+  /// No description provided for @conflictRemovedByMe.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bác đã xoá người này ở máy này, trong lúc máy khác đang sửa.'**
+  String get conflictRemovedByMe;
+
+  /// No description provided for @conflictKeepPerson.
+  ///
+  /// In vi, this message translates to:
+  /// **'Giữ lại trong gia phả'**
+  String get conflictKeepPerson;
+
+  /// No description provided for @conflictRemovePerson.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xoá khỏi gia phả'**
+  String get conflictRemovePerson;
+
+  /// No description provided for @conflictForEverybody.
+  ///
+  /// In vi, this message translates to:
+  /// **'Cho cả họ, ở lần đồng bộ tới'**
+  String get conflictForEverybody;
+
+  /// No description provided for @conflictAsServerHas.
+  ///
+  /// In vi, this message translates to:
+  /// **'Theo bản trên máy chủ: {value}'**
+  String conflictAsServerHas(String value);
+
+  /// No description provided for @conflictDropsMine.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bỏ phần bác sửa mà chưa gửi'**
+  String get conflictDropsMine;
+
+  /// No description provided for @conflictDecide.
+  ///
+  /// In vi, this message translates to:
+  /// **'Lưu quyết định này'**
+  String get conflictDecide;
+
+  /// No description provided for @conflictBirthDate.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày sinh'**
+  String get conflictBirthDate;
+
+  /// No description provided for @conflictBirthApproximate.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày sinh là áng chừng'**
+  String get conflictBirthApproximate;
+
+  /// No description provided for @conflictBirthLunar.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày sinh âm lịch'**
+  String get conflictBirthLunar;
+
+  /// No description provided for @conflictDeathDate.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày mất'**
+  String get conflictDeathDate;
+
+  /// No description provided for @conflictDeathApproximate.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày mất là áng chừng'**
+  String get conflictDeathApproximate;
+
+  /// No description provided for @conflictDeathLunar.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ngày mất âm lịch'**
+  String get conflictDeathLunar;
+
+  /// No description provided for @conflictMedia.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ảnh đại diện'**
+  String get conflictMedia;
+
   /// No description provided for @membersTitle.
   ///
   /// In vi, this message translates to:

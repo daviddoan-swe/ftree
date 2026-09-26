@@ -20,6 +20,17 @@
 /// tombstone sent through it would revive the person. Removals use the
 /// functions built for them, which is also what keeps a deleted person's edges
 /// from being left pointing at somebody who is gone (§15.1).
+///
+/// Deleting a whole family goes **instead of** the rest, not after it: one
+/// call does all three tables, so anything sent before it would be undone by
+/// it and anything after it left alive in a family that is gone.
+///
+/// Its refusal is the loud shape, not the silent one. `delete_family_deep`
+/// raises `insufficient_privilege` for anybody but the owner, so the push
+/// throws rather than coming back with a short list, and the caller leaves
+/// everything flagged without reaching the read-back at all. Measured, not
+/// assumed: `test/cloud/push.dart` signs an editor in and watches it throw
+/// (ROADMAP M9, step 4).
 library;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -53,6 +64,20 @@ final class CloudPush implements ChangeSink {
       now: () => outgoing.stampedAt,
     );
 
+    // On its own, and instead of everything else. `delete_family_deep` takes
+    // the family, its people and their edges together, so anything sent before
+    // it would be undone by it and anything sent after it would be left alive
+    // in a family that is gone. It also saves three hundred round trips on a
+    // three-hundred-person gia phả.
+    //
+    // The read-back still covers every row, because the function stamps them
+    // all with this batch's timestamp — so a refusal is caught here exactly as
+    // it is anywhere else, and the device goes on offering the family.
+    if (outgoing.deletedFamily != null) {
+      await repository.deleteFamily(outgoing.deletedFamily!);
+      return _held(familyId, outgoing);
+    }
+
     if (outgoing.family != null ||
         outgoing.persons.isNotEmpty ||
         outgoing.relationships.isNotEmpty) {
@@ -82,13 +107,26 @@ final class CloudPush implements ChangeSink {
     final stamp = outgoing.stampedAt.toIso8601String();
     final held = <String>{};
 
-    if (outgoing.family != null) {
+    if (outgoing.family != null || outgoing.deletedFamily != null) {
       final rows = await _db
           .from('families')
           .select('id')
           .eq('id', familyId)
           .eq('updated_at', stamp);
       held.addAll(rows.map((row) => row['id'] as String));
+    }
+
+    // One row answers for all of them. `delete_family_deep` is a single
+    // transaction over the three tables, so the family carrying this batch's
+    // timestamp means every person and edge in it does too — and its absence
+    // means nothing happened at all, because the refusal is raised before the
+    // first statement.
+    //
+    // Asking row by row would also be asking in one URL: three hundred people
+    // is an `id=in.(...)` of some eleven kilobytes, which is past what a
+    // request line is safely allowed to be.
+    if (outgoing.deletedFamily != null) {
+      return held.isEmpty ? const <String>{} : outgoing.ids;
     }
 
     for (final table in <String>['persons', 'relationships']) {

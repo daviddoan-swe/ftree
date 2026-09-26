@@ -38,6 +38,7 @@ final class Outgoing {
   const Outgoing({
     required this.stampedAt,
     this.family,
+    this.deletedFamily,
     this.persons = const <Person>[],
     this.relationships = const <Relationship>[],
     this.deletedPersons = const <String>[],
@@ -50,6 +51,14 @@ final class Outgoing {
   final DateTime stampedAt;
 
   final Family? family;
+
+  /// The id of a family this device has tombstoned, for everybody.
+  ///
+  /// Its own field rather than a [family] with a flag, because it travels by
+  /// its own road: `save_family_all` clears `deleted_at` on everything it
+  /// writes, so a family sent through it comes back to life.
+  final String? deletedFamily;
+
   final List<Person> persons;
   final List<Relationship> relationships;
   final List<String> deletedPersons;
@@ -57,6 +66,7 @@ final class Outgoing {
 
   bool get isEmpty =>
       family == null &&
+      deletedFamily == null &&
       persons.isEmpty &&
       relationships.isEmpty &&
       deletedPersons.isEmpty &&
@@ -65,6 +75,7 @@ final class Outgoing {
   /// Every id this carries, living and tombstoned.
   Set<String> get ids => <String>{
     if (family != null) family!.id,
+    ?deletedFamily,
     ...persons.map((p) => p.id),
     ...relationships.map((r) => r.id),
     ...deletedPersons,
@@ -96,12 +107,18 @@ final class FamilyPush {
     // go — and going would settle the disagreement in this device's favour
     // without anybody being asked, which is the one thing the conflict was
     // kept for (ROADMAP M9, step 3).
+    //
+    // `theirsDeleted` is the same rule for the other shape of disagreement.
+    // It is the more dangerous one to get wrong: the server has removed this
+    // person, and sending the row up would not merely win the argument, it
+    // would revive them for everybody (ROADMAP M9, step 4).
     final personRows =
         await (_db.select(_db.persons)..where(
               (p) =>
                   p.familyId.equals(familyId) &
                   p.unsent.equals(true) &
-                  p.theirsFields.isNull(),
+                  p.theirsFields.isNull() &
+                  p.theirsDeleted.equals(false),
             ))
             .get();
 
@@ -111,13 +128,15 @@ final class FamilyPush {
 
     return Outgoing(
       stampedAt: at,
-      // A family this device has tombstoned is not pushed as a rename. Who may
-      // delete a family is the server's to decide, and deleting one for
-      // everybody is a larger act than synchronising an edit — it waits for a
-      // later step rather than riding along in this batch.
+      // A family this device has tombstoned is not pushed as a rename. It goes
+      // as a deletion, by its own road, and only the server decides whether
+      // this member was allowed to ask for it (ROADMAP M9, step 4).
       family: familyRow == null || familyRow.deletedAt != null
           ? null
           : familyFromRow(familyRow),
+      deletedFamily: familyRow != null && familyRow.deletedAt != null
+          ? familyRow.id
+          : null,
       persons: <Person>[
         for (final row in personRows)
           if (row.deletedAt == null) personFromRow(row),

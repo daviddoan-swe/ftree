@@ -11,6 +11,7 @@ import '../../app/providers.dart';
 import '../../data/database/family_roles.dart';
 import '../../domain/family.dart';
 import '../../domain/name_search.dart';
+import '../sync/conflicts_screen.dart';
 import 'generation_filter.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
@@ -63,6 +64,18 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     });
   }
 
+  /// Held rather than reached for through `ref`, because the send below runs
+  /// while this screen is being taken down and a `WidgetRef` stops working the
+  /// moment its widget is disposed. The container belongs to the scope above
+  /// every screen, so it is still there to finish the work.
+  ///
+  /// Read with `listen: false` in [initState], which looks the element up
+  /// without depending on it — the form a lookup has to take this early.
+  late final ProviderContainer _container = ProviderScope.containerOf(
+    context,
+    listen: false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -74,12 +87,29 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     // After the first frame, because this reads providers and writes to the
     // database, and neither belongs in the middle of building a widget.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(syncFamily(ref, widget.familyId));
+      if (mounted) unawaited(syncFamily(_container, widget.familyId));
     });
   }
 
   @override
   void dispose() {
+    // Leaving is when somebody has finished writing, and so when what they
+    // wrote should go. Opening was the wrong moment for it: by then the work
+    // had been sitting here since the last visit, and a person added to a
+    // family nobody opened again stayed on one phone and reached nobody.
+    //
+    // The whole of a synchronisation and not only the sending half, for the
+    // reason written on [syncFamily]: the server takes what it is given, so a
+    // push with no pull in front of it overwrites whatever arrived since this
+    // screen opened, and the device that wrote it has already cleared the flag
+    // that would have sent it again. Somebody editing the same relative in the
+    // minutes this screen was open would simply lose it.
+    //
+    // Not awaited, and deliberately outliving this screen. Nothing it brings
+    // down has a screen left to draw it, and anything it fails to get away
+    // stays flagged and goes on the next visit (PRODUCT §4.2).
+    unawaited(syncFamily(_container, widget.familyId));
+
     _query.dispose();
     _scroll.dispose();
     super.dispose();
@@ -123,6 +153,32 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       ),
       body: Column(
         children: <Widget>[
+          // Said where the family is, not on a screen somebody has to think to
+          // open. A disagreement nobody is told about is a disagreement that
+          // settles itself by being forgotten (ROADMAP M9, step 3b).
+          if (ref.watch(conflictCountProvider(familyId)).valueOrNull
+              case final waiting? when waiting > 0)
+            Material(
+              color: GroupedColors.orange.withValues(alpha: 0.15),
+              child: InkWell(
+                onTap: () => showConflicts(context, familyId),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.call_split, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(text.conflictsWaiting(waiting))),
+                      const Icon(Icons.chevron_right, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // Said out loud, because every control vanishing with no explanation
           // reads as the application breaking rather than as a decision
           // somebody took (PRODUCT §5.0). The gia phả stays readable; nothing

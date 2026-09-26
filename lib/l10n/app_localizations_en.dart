@@ -754,6 +754,96 @@ class AppTextEn extends AppText {
   String get memberNoName => 'No name given';
 
   @override
+  String get conflictsTitle => 'Your decision';
+
+  @override
+  String conflictsWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people are waiting on your decision',
+      one: '1 person is waiting on your decision',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get conflictsNone => 'Nothing left to decide';
+
+  @override
+  String get conflictMine => 'Your version';
+
+  @override
+  String get conflictTheirs => 'The version on the server';
+
+  @override
+  String conflictWas(String value) {
+    return 'Before: $value';
+  }
+
+  @override
+  String get conflictEmpty => 'left empty';
+
+  @override
+  String get conflictYes => 'yes';
+
+  @override
+  String get conflictNo => 'no';
+
+  @override
+  String get conflictKeep => 'Keep these';
+
+  @override
+  String get conflictRemovedByThem =>
+      'Removed on another device, while you were editing them.';
+
+  @override
+  String get conflictRemovedByMe =>
+      'You removed them here, while another device was editing them.';
+
+  @override
+  String get conflictKeepPerson => 'Keep them in the gia phả';
+
+  @override
+  String get conflictRemovePerson => 'Remove them from the gia phả';
+
+  @override
+  String get conflictForEverybody =>
+      'For everybody, at the next synchronisation';
+
+  @override
+  String conflictAsServerHas(String value) {
+    return 'As the server has them: $value';
+  }
+
+  @override
+  String get conflictDropsMine => 'Your unsent changes to them are dropped';
+
+  @override
+  String get conflictDecide => 'Save this decision';
+
+  @override
+  String get conflictBirthDate => 'Date of birth';
+
+  @override
+  String get conflictBirthApproximate => 'Birth is approximate';
+
+  @override
+  String get conflictBirthLunar => 'Lunar date of birth';
+
+  @override
+  String get conflictDeathDate => 'Date of death';
+
+  @override
+  String get conflictDeathApproximate => 'Death is approximate';
+
+  @override
+  String get conflictDeathLunar => 'Lunar date of death';
+
+  @override
+  String get conflictMedia => 'Portrait';
+
+  @override
   String get membersTitle => 'Members';
 
   @override

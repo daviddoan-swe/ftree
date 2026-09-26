@@ -1,6 +1,8 @@
 /// The first screen: the families recorded on this device.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -22,11 +24,45 @@ import 'join_family.dart';
 import 'share_family.dart';
 import 'family_screen.dart';
 
-class FamilyListScreen extends ConsumerWidget {
+class FamilyListScreen extends ConsumerStatefulWidget {
   const FamilyListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FamilyListScreen> createState() => _FamilyListScreenState();
+}
+
+class _FamilyListScreenState extends ConsumerState<FamilyListScreen> {
+  /// Asks the server what this account may do, whenever the application comes
+  /// back to the front.
+  ///
+  /// The role map is cached for as long as the process lives, so without this
+  /// a demotion made on another device reached the device only when somebody
+  /// opened a family — and until they did, the swipe actions went on offering
+  /// Sửa and Xoá to somebody the server would refuse (PRODUCT §5.0).
+  ///
+  /// This screen rather than somewhere more central because it is the one that
+  /// is always mounted, and because the rights it draws are exactly the ones
+  /// that go stale. Putting down the phone and picking it up again is how a
+  /// change made elsewhere is normally noticed.
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    final container = ProviderScope.containerOf(context, listen: false);
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(refreshedRoles(container)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final text = AppText.of(context);
     final families = ref.watch(familyListProvider);
 

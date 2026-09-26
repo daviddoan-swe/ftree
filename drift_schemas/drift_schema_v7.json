@@ -705,12 +705,12 @@
     {
       "id": 4,
       "references": [
-        2
+        1
       ],
       "type": "index",
       "data": {
-        "on": 2,
-        "name": "relationships_by_family",
+        "on": 1,
+        "name": "persons_by_family",
         "sql": null,
         "unique": false,
         "columns": [
@@ -733,6 +733,29 @@
       "type": "index",
       "data": {
         "on": 2,
+        "name": "relationships_by_family",
+        "sql": null,
+        "unique": false,
+        "columns": [
+          {
+            "column": "family_id",
+            "order_by": null
+          },
+          {
+            "column": "deleted_at",
+            "order_by": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "references": [
+        2
+      ],
+      "type": "index",
+      "data": {
+        "on": 2,
         "name": "relationships_by_person_a",
         "sql": null,
         "unique": false,
@@ -745,7 +768,7 @@
       }
     },
     {
-      "id": 6,
+      "id": 7,
       "references": [
         2
       ],
@@ -798,6 +821,15 @@
         {
           "dialect": "sqlite",
           "sql": "CREATE TABLE IF NOT EXISTS \"invitation_codes\" (\"id\" TEXT NOT NULL, \"family_id\" TEXT NOT NULL, \"code\" TEXT NOT NULL, \"created_at\" TEXT NOT NULL, PRIMARY KEY (\"id\"));"
+        }
+      ]
+    },
+    {
+      "name": "persons_by_family",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE INDEX persons_by_family ON persons (family_id, deleted_at)"
         }
       ]
     },

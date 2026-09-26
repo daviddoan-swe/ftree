@@ -51,6 +51,7 @@ final class IncomingChanges {
   const IncomingChanges({
     required this.highestSeq,
     this.family,
+    this.familyDeleted = false,
     this.persons = const <Person>[],
     this.relationships = const <Relationship>[],
     this.deletedPersons = const <String>[],
@@ -65,6 +66,15 @@ final class IncomingChanges {
   final int highestSeq;
 
   final Family? family;
+
+  /// The whole family has been tombstoned on the server.
+  ///
+  /// Separate from [family] being null, which only means it did not change.
+  /// This is the owner having deleted it for everybody, and it outranks every
+  /// other change in the same answer — there is nothing to apply a correction
+  /// to (ROADMAP M9, step 4).
+  final bool familyDeleted;
+
   final List<Person> persons;
   final List<Relationship> relationships;
 
@@ -75,6 +85,7 @@ final class IncomingChanges {
 
   bool get isEmpty =>
       family == null &&
+      !familyDeleted &&
       persons.isEmpty &&
       relationships.isEmpty &&
       deletedPersons.isEmpty &&
@@ -89,6 +100,8 @@ final class PullResult {
     required this.lastSeen,
     this.conflicted = const <String>[],
     this.merged = 0,
+    this.familyDeleted = false,
+    this.familyChanged = false,
   });
 
   /// Rows written into the local database.
@@ -111,6 +124,21 @@ final class PullResult {
 
   /// The number now recorded for the family.
   final int lastSeen;
+
+  /// The family's own row changed — its name, its notes, its calendar.
+  ///
+  /// Reported apart from [applied], which counts people too. The list of
+  /// families reads the repository rather than a snapshot, so it is the one
+  /// screen that cannot notice a rename on its own, and telling it on every
+  /// pull that brought anything would re-read every family to catch the rare
+  /// case where one was renamed.
+  final bool familyChanged;
+
+  /// The owner deleted the whole family, and this pull has taken it away.
+  ///
+  /// Worth reporting on its own: nothing else a pull does makes a screen the
+  /// device is looking at cease to have anything to show.
+  final bool familyDeleted;
 }
 
 /// Writes what the server sent into the local database.
@@ -143,11 +171,26 @@ final class FamilyPull {
     final conflicted = <String>[];
     var applied = 0;
     var merged = 0;
+    var familyDeleted = false;
+    var familyChanged = false;
     final at = _now().toUtc();
 
     await _db.transaction(() async {
       final unsentPersons = await _unsentPersons(familyId);
       final unsentEdges = await _unsentRelationships(familyId);
+
+      // Before anything else, and instead of everything else. The owner has
+      // deleted the family for everybody (PRODUCT §5.10); corrections arriving
+      // in the same answer have nothing left to correct, and applying them
+      // first would only write rows this statement is about to tombstone.
+      if (changes.familyDeleted) {
+        await _tombstoneWholeFamily(familyId, at);
+        familyDeleted = true;
+        applied++;
+        await (_db.update(_db.families)..where((f) => f.id.equals(familyId)))
+            .write(FamiliesCompanion(lastSeen: Value<int>(changes.highestSeq)));
+        return;
+      }
 
       final family = changes.family;
       if (family != null) {
@@ -169,11 +212,12 @@ final class FamilyPull {
             ).copyWith(unsent: const Value<bool>(false)),
           );
           applied++;
+          familyChanged = true;
         }
       }
 
       for (final person in changes.persons) {
-        if (unsentPersons.contains(person.id)) {
+        if (unsentPersons.containsKey(person.id)) {
           switch (await _merge(person, at)) {
             case _Outcome.merged:
               merged++;
@@ -215,10 +259,24 @@ final class FamilyPull {
       // so a later pull can tell it has been dealt with and nothing has to
       // guess whether an absent row was never here or has been removed.
       for (final id in changes.deletedPersons) {
-        if (unsentPersons.contains(id)) {
-          held.add(id);
+        final here = unsentPersons[id];
+
+        // They removed somebody this device has been editing. Landing the
+        // tombstone would destroy the edit; holding it would let the next push
+        // send the person back up alive and undo the deletion. Neither is a
+        // decision this code is entitled to take, so it is written down as a
+        // question (ROADMAP M9, step 4).
+        //
+        // A local tombstone is not a disagreement — both sides want the person
+        // gone — so it falls through and is simply applied.
+        if (here != null && here.deletedAt == null) {
+          await (_db.update(_db.persons)..where((p) => p.id.equals(id))).write(
+            const PersonsCompanion(theirsDeleted: Value<bool>(true)),
+          );
+          conflicted.add(id);
           continue;
         }
+
         await (_db.update(_db.persons)..where((p) => p.id.equals(id))).write(
           PersonsCompanion(
             deletedAt: Value<DateTime?>(at),
@@ -229,11 +287,11 @@ final class FamilyPull {
         applied++;
       }
 
+      // An edge tombstone is applied even over an unsent edge, where a person's
+      // is not. There is nothing in an edge to lose: it carries no recorded
+      // detail, only which two people it joins, and changing that makes it a
+      // different edge. Asking would be asking about nothing.
       for (final id in changes.deletedRelationships) {
-        if (unsentEdges.contains(id)) {
-          held.add(id);
-          continue;
-        }
         await (_db.update(
           _db.relationships,
         )..where((r) => r.id.equals(id))).write(
@@ -256,6 +314,8 @@ final class FamilyPull {
       held: held,
       conflicted: conflicted,
       merged: merged,
+      familyDeleted: familyDeleted,
+      familyChanged: familyChanged,
       lastSeen: changes.highestSeq,
     );
   }
@@ -280,8 +340,28 @@ final class FamilyPull {
       _db.persons,
     )..where((p) => p.id.equals(theirs.id))).getSingleOrNull();
 
-    final stored = row?.baseFields;
-    if (row == null || stored == null) return _Outcome.held;
+    if (row == null) return _Outcome.held;
+
+    // This device removed them and the server has changes to them. Not a merge:
+    // `personToRow` clears `deletedAt`, because writing a row asserts that it
+    // exists (§15.2), so merging here would quietly bring back somebody
+    // somebody else deliberately took out. There is no version of a person that
+    // is both gone and corrected, so the two are kept apart and the question is
+    // left for step 4's screen. Only `theirsFields` is written; the tombstone
+    // stands until it is answered.
+    if (row.deletedAt != null) {
+      await (_db.update(
+        _db.persons,
+      )..where((p) => p.id.equals(theirs.id))).write(
+        PersonsCompanion(
+          theirsFields: Value<String?>(jsonEncode(personFields(theirs))),
+        ),
+      );
+      return _Outcome.conflicted;
+    }
+
+    final stored = row.baseFields;
+    if (stored == null) return _Outcome.held;
 
     final base = (jsonDecode(stored) as Map<String, dynamic>)
         .cast<String, Object?>();
@@ -317,12 +397,60 @@ final class FamilyPull {
     return _Outcome.merged;
   }
 
-  Future<Set<String>> _unsentPersons(String familyId) async {
+  /// Tombstones the family, its people and their edges, together.
+  ///
+  /// The same shape as `delete_family_deep` on the server and as the local
+  /// repository's own deletion: edges first, because leaving one live would
+  /// leave it pointing at people the device no longer shows.
+  ///
+  /// Unsent work is taken with the rest. The owner deleting the family is not a
+  /// disagreement about one person that somebody could be asked about — there
+  /// would be nothing left to keep the answer in.
+  Future<void> _tombstoneWholeFamily(String familyId, DateTime at) async {
+    await (_db.update(
+      _db.relationships,
+    )..where((r) => r.familyId.equals(familyId))).write(
+      RelationshipsCompanion(
+        deletedAt: Value<DateTime?>(at),
+        updatedAt: Value<DateTime>(at),
+        unsent: const Value<bool>(false),
+      ),
+    );
+
+    await (_db.update(
+      _db.persons,
+    )..where((p) => p.familyId.equals(familyId))).write(
+      PersonsCompanion(
+        deletedAt: Value<DateTime?>(at),
+        updatedAt: Value<DateTime>(at),
+        unsent: const Value<bool>(false),
+        // No question survives the family it was about.
+        baseFields: const Value<String?>(null),
+        theirsFields: const Value<String?>(null),
+        theirsDeleted: const Value<bool>(false),
+      ),
+    );
+
+    await (_db.update(_db.families)..where((f) => f.id.equals(familyId))).write(
+      FamiliesCompanion(
+        deletedAt: Value<DateTime?>(at),
+        updatedAt: Value<DateTime>(at),
+        unsent: const Value<bool>(false),
+      ),
+    );
+  }
+
+  /// The rows in [familyId] this device has changed and not sent, by id.
+  ///
+  /// The rows rather than the ids, because a tombstone arriving has to know
+  /// whether the local row is itself a tombstone: two sides agreeing somebody
+  /// is gone is not a disagreement.
+  Future<Map<String, PersonRow>> _unsentPersons(String familyId) async {
     final rows = await (_db.select(
       _db.persons,
     )..where((p) => p.familyId.equals(familyId) & p.unsent.equals(true))).get();
 
-    return <String>{for (final row in rows) row.id};
+    return <String, PersonRow>{for (final row in rows) row.id: row};
   }
 
   Future<Set<String>> _unsentRelationships(String familyId) async {

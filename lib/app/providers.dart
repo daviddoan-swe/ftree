@@ -22,6 +22,7 @@ import '../data/database/family_roles.dart';
 import '../data/database/invitation_codes.dart';
 import '../data/sync/cloud_changes.dart';
 import '../data/sync/cloud_push.dart';
+import '../data/sync/conflicts.dart';
 import '../data/sync/family_pull.dart';
 import '../data/sync/family_push.dart';
 import '../data/database/sharing_marks.dart';
@@ -127,6 +128,31 @@ final familyRoleMapProvider = FutureProvider<Map<String, FamilyRole>>((
   return roles.all();
 });
 
+/// Asks the server again what this account may do.
+///
+/// [familyRoleMapProvider] asks once, when it is first built, and never again:
+/// it is not `autoDispose`, so the answer is cached for as long as the
+/// application is running. A demotion made on another device therefore never
+/// reached this one until it was restarted, and the controls an editor had
+/// stayed where they were — which is the shape of failure §5.0 exists to
+/// prevent, an interface promising something the server will refuse.
+///
+/// Returns the roles as they now stand locally, read from the store rather
+/// than from the provider: invalidating it leaves it loading for a moment, and
+/// a role read as null in that moment means "a family nobody else has a claim
+/// on", which is every right rather than none.
+/// Takes a [ProviderContainer] rather than a `WidgetRef` because one caller is
+/// a screen on its way out: a `WidgetRef` stops working the moment its widget
+/// is disposed, and the container belongs to the scope above it, which
+/// outlives every screen.
+Future<Map<String, FamilyRole>> refreshedRoles(
+  ProviderContainer container,
+) async {
+  final roles = container.read(familyRolesProvider);
+  if (await _refreshRoles(roles)) container.invalidate(familyRoleMapProvider);
+  return roles.all();
+}
+
 /// Asks the server what this account may do, and writes it down.
 ///
 /// Every failure is silence: no session, no network, a cloud never opened at
@@ -172,6 +198,16 @@ final changeSourceProvider = Provider<ChangeSource>(
   (ref) => CloudChanges(Supabase.instance.client),
 );
 
+/// Reads the disagreements a pull could not settle, and records the answers.
+final conflictsProvider = Provider<Conflicts>(
+  (ref) => Conflicts(ref.watch(databaseProvider)),
+);
+
+/// How many people in a family are waiting on a decision (PRODUCT §5.0).
+final conflictCountProvider = FutureProvider.family<int, String>(
+  (ref, familyId) => ref.watch(conflictsProvider).countIn(familyId),
+);
+
 /// Reads what is waiting to go up, and records what has gone (ROADMAP M9).
 final familyPushProvider = Provider<FamilyPush>(
   (ref) => FamilyPush(ref.watch(databaseProvider)),
@@ -190,24 +226,67 @@ final changeSinkProvider = Provider<ChangeSink>(
 ///
 /// Best effort and silent, like the pull. Rows the server did not take stay
 /// flagged and go again next time.
-Future<void> syncFamily(WidgetRef ref, String familyId) async {
+/// Down first, then up.
+///
+/// The order is load-bearing, not a matter of taste. A merge needs three
+/// versions — what this device typed, what the server last gave it, and what
+/// the other side typed — and `markSent` clears the second along with the
+/// flag, because once the server holds this version there is no earlier one
+/// the two sides started from.
+///
+/// So a push that ran first left the pull behind it with two versions where it
+/// needed three. It could not tell an edit from an absence of one, landed the
+/// server's row outright, and the work this device had done went with it: no
+/// merge, no disagreement, nobody asked. The whole of steps 3 and 3b was
+/// unreachable through the interface, and the way it failed was the silent
+/// one.
+///
+/// Pulling first, an unsent row meets the other side's version while it still
+/// remembers what the two started from. What fits together is merged and stays
+/// unsent, so the push behind it carries the merged result up. What does not
+/// is kept as a question and held back from that push, which is what stops it
+/// being settled in this device's favour with nobody asked
+/// (`test/data/sync/sync_order_test.dart`).
+Future<void> syncFamily(ProviderContainer container, String familyId) async {
+  await pullFamily(container, familyId);
+  await pushFamily(container, familyId);
+}
+
+/// Sends what [familyId] is holding, and brings nothing back.
+///
+/// Called when somebody leaves a family, which is the moment they have
+/// finished writing in it. Opening one is the right moment to *read* the
+/// server and the wrong moment to send: by then the work has been sitting here
+/// since the last visit, and a person added to a family nobody opened again
+/// stayed on one phone and reached nobody.
+///
+/// Leaving is a boundary rather than a rule. Work not sent — because the
+/// application was killed on the screen, or there was no network — stays
+/// flagged and goes on the next visit, which is the whole point of the flag.
+Future<void> pushFamily(ProviderContainer container, String familyId) async {
   try {
     if (!isSignedIn) return;
 
-    final shared = ref.read(sharedFamiliesProvider).valueOrNull;
+    final shared = container.read(sharedFamiliesProvider).valueOrNull;
     if (shared == null || !shared.contains(familyId)) return;
 
     // Only where this copy is allowed to write at all. A viewer's push would
     // be refused row by row and silently, and the read-back would come back
     // empty — correct, but a request spent to learn what the device already
     // knew (PRODUCT §5.0).
-    final role = ref.read(familyRoleMapProvider).valueOrNull?[familyId];
+    //
+    // Asked afresh, and before the decision rather than after it. Opening a
+    // family is already the moment this code spends a request on, and the role
+    // is the thing most likely to have changed since the last one: somebody
+    // demoted on another device would otherwise go on being offered the
+    // controls of the role they used to have.
+    final role = (await refreshedRoles(container))[familyId];
     if (role.mayEditPeople) {
-      final push = ref.read(familyPushProvider);
+      final push = container.read(familyPushProvider);
       final outgoing = await push.pending(familyId);
       if (!outgoing.isEmpty) {
         await push.markSent(
-          await ref.read(changeSinkProvider).send(familyId, outgoing),
+          await container.read(changeSinkProvider).send(familyId, outgoing),
         );
       }
     }
@@ -215,8 +294,6 @@ Future<void> syncFamily(WidgetRef ref, String familyId) async {
     // Offline, signed out, or a cloud never opened. What was waiting is still
     // waiting, which is what the flag is for.
   }
-
-  await pullFamily(ref, familyId);
 }
 
 /// Brings [familyId] up to date with the server, if that is possible at all.
@@ -227,23 +304,40 @@ Future<void> syncFamily(WidgetRef ref, String familyId) async {
 ///
 /// Rows this device has changed and not sent are held rather than overwritten,
 /// which [FamilyPull] decides and this only passes on.
-Future<void> pullFamily(WidgetRef ref, String familyId) async {
+Future<void> pullFamily(ProviderContainer container, String familyId) async {
   try {
     if (!isSignedIn) return;
 
     // A family this device never sent up has nothing on the server to ask
     // about, and asking would spend a request to be told so.
-    final shared = ref.read(sharedFamiliesProvider).valueOrNull;
+    final shared = container.read(sharedFamiliesProvider).valueOrNull;
     if (shared == null || !shared.contains(familyId)) return;
 
-    final pull = ref.read(familyPullProvider);
-    final changes = await ref
+    final pull = container.read(familyPullProvider);
+    final changes = await container
         .read(changeSourceProvider)
         .since(familyId, await pull.lastSeen(familyId));
 
     final result = await pull.apply(familyId, changes);
-    if (result.applied > 0) {
-      ref.invalidate(familySnapshotProvider(familyId));
+    if (result.applied > 0 || result.merged > 0) {
+      container.invalidate(familySnapshotProvider(familyId));
+    }
+    if (result.conflicted.isNotEmpty) {
+      container.invalidate(conflictCountProvider(familyId));
+    }
+    if (result.familyChanged) {
+      // The list reads the repository, not the snapshot, so a rename arriving
+      // from another device reached every screen that draws from
+      // [familySnapshotProvider] and none that draws from here — the family
+      // called one thing inside and another in the list of families.
+      container.invalidate(familyListProvider);
+    }
+    if (result.familyDeleted) {
+      // The owner deleted it for everybody (ROADMAP M9, step 4). The list is
+      // the only place that would still be showing it, and it reads the
+      // repository rather than this result, so it has to be told.
+      container.invalidate(familyListProvider);
+      container.invalidate(sharedFamiliesProvider);
     }
   } catch (_) {
     // Offline, signed out, or a cloud never opened. The copy on the device is

@@ -289,6 +289,15 @@ editor has full rights on the first and restricted rights on the second, at
 the same time, on the same phone. That is why it is a column on the family
 row.
 
+**A role can change under the device, and the device has to notice.** The
+answer is cached for as long as the application is running, so a demotion made
+on somebody else's phone would otherwise leave the old controls in place until
+the application was restarted — an editor demoted to viewer still being offered
+Sửa and Xoá. It is asked again whenever a family is opened, which is already
+the moment a request is spent, and whenever the application comes back to the
+front. Between those the answer may be stale, and the server refusing is what
+keeps that safe rather than merely untidy.
+
 **This mirrors the server; it does not replace it.** Every row above except
 Export corresponds to a policy in `20260924000003_policies.sql`, and the
 policies are what actually decide. Hiding a control is a courtesy — it stops
@@ -648,6 +657,53 @@ a queue to hand out something a file already hands out.
 has to remember to open. With no push notifications a request can sit for
 weeks. Somebody who asked with a group code expects to wait, which softens it,
 but it is still a new obligation on the one person who did not ask for one.
+
+### 5.10 Deleting, and who it reaches
+
+Two different acts wear the same word, and the difference is who the role table
+already gives the button to (§5.0).
+
+**A family nobody else has a claim on, or one the owner deletes, goes for
+everybody.** The owner's tombstone travels to the server and to every member's
+device at their next synchronisation. This was decided over the alternative of
+keeping deletion local to the device that pressed it, and the cost was accepted
+openly: a family deleted by mistake takes the whole household's work with it,
+and there is no undo. What argued for it is that the owner is the one person
+entitled to decide a gia phả should not exist, and a delete that did not reach
+anybody would leave them unable to act on that decision at all.
+
+**Nobody else has the button.** `mayDeleteFamily` is the owner's, or belongs to
+a family with no role at all — one made on this device or brought in as a file.
+An editor may delete *people*; they may not delete the family those people are
+in. That is stated twice on purpose, once in the interface and once in the
+policy, because the second is the one that holds: `families_update_editor`
+carries `deleted_at IS NULL` on both halves, and `delete_family_deep` refuses
+outright unless the caller is the owner.
+
+The second check is not decoration. The three tables' policies are not uniform:
+`persons_update` and `relationships_update` say only "owner or editor", because
+an editor removing one person is ordinary work. So an editor who reached
+`delete_family_deep` would have tombstoned every person and every edge while the
+family row survived — a gia phả of three hundred people reduced to a name, no
+error raised, because an UPDATE a policy forbids changes nothing and reports
+success.
+
+**A removal that meets an edit is put to somebody.** One relative removes a
+person while another is writing their biography. Neither answer may be taken
+quietly: applying the tombstone destroys work that cannot be recovered, and
+ignoring it sends the person back up alive and undoes a deletion nobody was
+told about. So it is held as a question, the same way a disagreement about a
+field is (§4.2), and asked as one question about the person rather than field by
+field — there is no version of somebody both gone and corrected.
+
+Which answer is already selected is whatever the device holds. It holds them
+alive when the server removed them, and holds a tombstone when this device's own
+owner pressed delete. Pressing on through therefore never reverses a decision
+somebody here took deliberately, in either direction.
+
+**Relationships are not asked about.** An edge carries no recorded detail, only
+which two people it joins, and changing that makes it a different edge. A
+tombstone for one is applied. Asking would be asking about nothing.
 
 ---
 

@@ -80,12 +80,13 @@ final class CloudChanges implements ChangeSource {
 
     return IncomingChanges(
       highestSeq: highest,
-      // A tombstoned family is not sent down as a rename. Somebody whose
-      // family was deleted on the server is a case for M9's later steps, and
-      // quietly applying the last name it had would say nothing about it.
+      // A tombstoned family is not sent down as a rename — it is sent down as
+      // a deletion. Applying the last name it had would be the one reading of
+      // the row that says nothing about what happened to it.
       family: families.isEmpty || gone(families.first)
           ? null
           : familyFromRow(families.first),
+      familyDeleted: families.isNotEmpty && gone(families.first),
       persons: <Person>[
         for (final row in people)
           if (!gone(row)) personFromRow(row),

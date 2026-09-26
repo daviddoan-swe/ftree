@@ -746,6 +746,95 @@ class AppTextVi extends AppText {
   String get memberNoName => 'Chưa đặt tên';
 
   @override
+  String get conflictsTitle => 'Cần bác quyết';
+
+  @override
+  String conflictsWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count người đang chờ bác quyết',
+      one: '1 người đang chờ bác quyết',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get conflictsNone => 'Không còn gì phải quyết';
+
+  @override
+  String get conflictMine => 'Bản của bác';
+
+  @override
+  String get conflictTheirs => 'Bản trên máy chủ';
+
+  @override
+  String conflictWas(String value) {
+    return 'Trước đó: $value';
+  }
+
+  @override
+  String get conflictEmpty => 'để trống';
+
+  @override
+  String get conflictYes => 'có';
+
+  @override
+  String get conflictNo => 'không';
+
+  @override
+  String get conflictKeep => 'Giữ lựa chọn này';
+
+  @override
+  String get conflictRemovedByThem =>
+      'Đã bị xoá ở máy khác, trong lúc bác đang sửa.';
+
+  @override
+  String get conflictRemovedByMe =>
+      'Bác đã xoá người này ở máy này, trong lúc máy khác đang sửa.';
+
+  @override
+  String get conflictKeepPerson => 'Giữ lại trong gia phả';
+
+  @override
+  String get conflictRemovePerson => 'Xoá khỏi gia phả';
+
+  @override
+  String get conflictForEverybody => 'Cho cả họ, ở lần đồng bộ tới';
+
+  @override
+  String conflictAsServerHas(String value) {
+    return 'Theo bản trên máy chủ: $value';
+  }
+
+  @override
+  String get conflictDropsMine => 'Bỏ phần bác sửa mà chưa gửi';
+
+  @override
+  String get conflictDecide => 'Lưu quyết định này';
+
+  @override
+  String get conflictBirthDate => 'Ngày sinh';
+
+  @override
+  String get conflictBirthApproximate => 'Ngày sinh là áng chừng';
+
+  @override
+  String get conflictBirthLunar => 'Ngày sinh âm lịch';
+
+  @override
+  String get conflictDeathDate => 'Ngày mất';
+
+  @override
+  String get conflictDeathApproximate => 'Ngày mất là áng chừng';
+
+  @override
+  String get conflictDeathLunar => 'Ngày mất âm lịch';
+
+  @override
+  String get conflictMedia => 'Ảnh đại diện';
+
+  @override
   String get membersTitle => 'Thành viên';
 
   @override

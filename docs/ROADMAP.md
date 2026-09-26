@@ -1087,13 +1087,167 @@ Only people. A family has three mergeable fields and a relationship has none
 worth merging — changing which two people an edge joins makes it a different
 edge — so both keep step one's behaviour and hold.
 
+**Step 3b — asking. Done.** The disagreement is now put to somebody, field by
+field, and the answer is written down.
+
+The questions are not stored. Which fields disagree follows from the three
+versions the row already holds, so `Conflicts` re-runs the merge to find them.
+A stored list would be a fourth thing to keep in step with the other three, and
+could go stale — somebody edits the person again and the question is about a
+value that is nobody's any more.
+
+The screen shows both versions **and the one they started from**. Two values
+alone do not say which way either side moved; `Cụ Tổ` → `Cụ Tổ (tôi)` against
+`Cụ Tổ` → `Cụ Tổ (họ)` is a different question from one side leaving the field
+untouched. A field somebody deliberately cleared is labelled as emptied rather
+than drawn blank, because a blank row beside a filled one reads as the screen
+having failed to load it.
+
+This device's version is selected to begin with, and pressing on through keeps
+it. Defaulting to the server would settle disagreements on behalf of anybody who
+did not read the screen, in favour of whichever device pushed second.
+
+Settling moves the base on to **what the server held**, not to what was chosen.
+This is the part that is easy to get wrong and silent when wrong: the answer
+still has to be pushed, and until the server takes it the next pull carries
+their version again. With the base at the server's version that pull changes
+nothing. With the base at the chosen version the rejected value walks straight
+back in, and nobody is asked a second time. There is a test for exactly that
+sequence.
+
+Dates are asked about by their pieces — `birthDateIso`, `birthDateApproximate`,
+the four lunar components — so adding a lunar reading to a date somebody else
+corrected the year of is two independent answers, not one disagreement about a
+whole date (§4.4).
+
+**Step 4 — deletion travelling both ways. Done.** Tombstones already went up
+and came down; what was missing was what happens when one meets an edit, and it
+was missing in a way that undid deletions silently in both directions.
+
+Measured before it was changed, not assumed:
+
+* **They removed somebody this device was editing.** The pull held the row and
+  reported it. The row stayed live and unsent, so the *next push* sent the
+  person up alive through `save_family_all`, which clears `deleted_at` on
+  everything it writes — and the person came back for everybody. The relative
+  who removed them saw them return with no explanation.
+* **This device removed somebody the server was changing.** `_merge` wrote the
+  row through `personToRow`, which also clears `deleted_at`, so a clean merge
+  revived them locally. Only a clean merge: where both sides touched the same
+  field the conflict branch wrote nothing and the tombstone survived by luck.
+  That is why the first test written for it passed with the guard removed.
+
+Neither answer may be taken quietly — applying the tombstone destroys work that
+cannot be recovered, ignoring it reverses a deletion nobody was told about — so
+both are held as questions and put to somebody (PRODUCT §5.10). `theirsFields`
+carries the first direction; the second needs `persons.theirsDeleted`, because a
+removal has no fields to keep. Schema v8.
+
+Asked as **one question about the person**, not field by field: there is no
+version of somebody both gone and corrected. The answer already selected is
+whatever the device holds — alive when the server removed them, a tombstone when
+this device's own owner pressed delete — so pressing on through never reverses a
+deliberate decision in either direction.
+
+`unsent` is set only where the answer is news to the server: keeping somebody
+they removed has to go up and revive them; standing by a removal made here has
+to go up and take them away. The other two answers agree with what the server
+already holds.
+
+**Relationships are not asked about.** An edge carries no recorded detail, only
+which two people it joins, and changing that makes it a different edge, so a
+tombstone for one is applied even over an unsent edge. Holding it was the bug:
+held forever, and then pushed back as a living edge.
+
+**A whole family now goes for everybody, and the server had a hole in it.**
+`delete_family_deep` runs as the caller, and the three tables' policies are not
+uniform: `families_update_editor` forbids an editor setting `deleted_at`, but
+`persons_update` says only "owner or editor" because removing one person is
+ordinary work. An editor reaching that function would therefore have tombstoned
+every person and every edge while the family row survived — three hundred people
+reduced to a name, no error raised, because a refused UPDATE changes nothing and
+reports success. Unreachable while nothing called it; step 4 calls it, so
+`20260925000002_family_deletion.sql` raises `insufficient_privilege` first.
+
+The push sends it **instead of the rest** — one call does all three tables, so
+anything sent before would be undone by it and anything after left alive in a
+family that is gone, and a three-hundred-person gia phả costs one round trip
+instead of three hundred.
+
+Its refusal is the **loud** shape, which is worth writing down because step 2's
+whole confirmation machinery exists for the silent one. `delete_family_deep`
+raises, so the push throws and the caller leaves everything flagged without
+reaching the read-back. `test/cloud/push.dart` signs an editor in against a
+real Postgres and watches it throw, then signs the owner back in and checks
+that nothing was half-done — the raise comes before the first statement, so the
+people are untouched too.
+
+The confirmation for this one path also reads **one row, not three hundred**.
+The function is a single transaction, so the family carrying the batch's
+timestamp means every person and edge in it does; asking row by row would put
+some eleven kilobytes of `id=in.(...)` into a request line.
+
+Two defects found by running it on a device rather than in a test, both in the
+local migration path and both older than step 4:
+
+* **An interrupted upgrade seals the device.** A phone was found at
+  `user_version` 4 whose `families` table already carried v5's `my_role`: a
+  step had committed and the version had not. Every launch after that replayed
+  from 4 and died on `duplicate column name`, with no way out from inside the
+  application. Reachable in the ordinary way — the upgrade runs at launch, and
+  swiping the application away or being jetsammed is enough.
+* **v6 sealed work it called sent.** Adding `unsent` gave every existing row
+  the column default, false. The comment claimed that "cannot lose anything",
+  weighing the pull alone: a row marked *sent* is one the push will never
+  offer, and before v6 there was no push, so anything edited after the family
+  was last uploaded had gone nowhere. Measured, not reasoned — a person added
+  on a v5 device two minutes after its last upload, present on that phone and
+  on no server, still invisible to synchronisation after the upgrade. It cannot
+  recur past v6, so only devices older than it can be carrying sealed work, and
+  the repair belongs in a reconciliation against the server: the device cannot
+  tell which of its rows were already sent, and the server can.
+
+Neither is fixed here. The migrations are left exactly as they shipped, because
+one that has run on a device is history.
+
+Found on the way: `drift_schema_v7.json` was missing the `persons_by_family`
+index. It was dumped while the `_MergeColumns` mixin still sat between
+`@DataClassName` and the class, and the migration test's loop stopped at v6, so
+nothing ever started from v7. Re-dumped, and the loop now runs to v7.
+
+**The order, which was wrong, and which made steps 3 and 3b unreachable.**
+Found by asking how to make the question screen appear on two real devices: it
+could not be made to appear at all.
+
+`syncFamily` sent before it fetched. `markSent` clears `baseFields` along with
+the flag — right on its own terms, because once the server holds this version
+there is no earlier one the two sides started from — so the pull behind a push
+had two versions where a merge needs three. Unable to tell an edit from an
+absence of one, it landed the server's row outright and this device's work went
+with it. No merge ran, no disagreement was recorded, nobody was asked. Every
+test of steps 3 and 3b called the pull directly, so all of them passed while
+the path through the application could not reach them.
+
+The same defect sat at the other boundary once sending moved to *leaving* the
+screen: a send with no fetch in front of it writes over whatever arrived while
+the screen was open, and the device that wrote that version has already cleared
+the flag that would send it again. Both are now fetch-then-send, and
+`test/data/sync/sync_order_test.dart` states the requirement where it can be
+checked — as a property of the two pieces, since `syncFamily` itself opens with
+`isSignedIn` and cannot be reached from a test process.
+
+**When a synchronisation runs.** Opening a family fetches and then sends;
+leaving it does the same. Opening was never enough on its own: work written
+during a visit sat on the device until somebody opened that family *again*, so
+a person added to a family nobody returned to reached nobody. Leaving is the
+moment somebody has finished writing, which makes it the moment the writing
+should go.
+
 Still to do:
 
-* **Step 3b — asking.** A conflict is detected, kept and counted; there is no
-  screen yet where somebody chooses between the two versions.
-* **Step 4 — deletion travelling both ways**, on the tombstones from M3.
 * **Step 5 — synchronisation status**, so it is not a black box: last brought
-  down, and what is still waiting to go up.
+  down, and what is still waiting to go up. It should carry a synchronise-now
+  control: whatever moments are chosen, somebody sometimes wants to press it.
 
 Constraints already fixed (ARCHITECTURE §12):
 

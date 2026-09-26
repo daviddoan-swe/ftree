@@ -225,6 +225,13 @@ final class DriftFamilyRepository implements FamilyRepository {
           deletedAt: Value(at),
           updatedAt: Value(at),
           unsent: const Value<bool>(true),
+          // No question survives the family it was about. Left behind, a
+          // disagreement about one person's birthplace would go on being
+          // counted, and offered, in a gia phả that is gone (ROADMAP M9,
+          // step 4).
+          baseFields: const Value<String?>(null),
+          theirsFields: const Value<String?>(null),
+          theirsDeleted: const Value<bool>(false),
         ),
       );
 

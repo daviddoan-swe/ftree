@@ -609,6 +609,10 @@ class DatabaseAtV7 extends GeneratedDatabase {
   late final Persons persons = Persons(this);
   late final Relationships relationships = Relationships(this);
   late final InvitationCodes invitationCodes = InvitationCodes(this);
+  late final Index personsByFamily = Index(
+    'persons_by_family',
+    'CREATE INDEX persons_by_family ON persons (family_id, deleted_at)',
+  );
   late final Index relationshipsByFamily = Index(
     'relationships_by_family',
     'CREATE INDEX relationships_by_family ON relationships (family_id, deleted_at)',
@@ -630,6 +634,7 @@ class DatabaseAtV7 extends GeneratedDatabase {
     persons,
     relationships,
     invitationCodes,
+    personsByFamily,
     relationshipsByFamily,
     relationshipsByPersonA,
     relationshipsByPersonB,

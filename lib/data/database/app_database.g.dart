@@ -737,6 +737,21 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _theirsDeletedMeta = const VerificationMeta(
+    'theirsDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> theirsDeleted = GeneratedColumn<bool>(
+    'theirs_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("theirs_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant<bool>(false),
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -1021,6 +1036,7 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
     unsent,
     baseFields,
     theirsFields,
+    theirsDeleted,
     id,
     familyId,
     displayName,
@@ -1090,6 +1106,15 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
         theirsFields.isAcceptableOrUnknown(
           data['theirs_fields']!,
           _theirsFieldsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('theirs_deleted')) {
+      context.handle(
+        _theirsDeletedMeta,
+        theirsDeleted.isAcceptableOrUnknown(
+          data['theirs_deleted']!,
+          _theirsDeletedMeta,
         ),
       );
     }
@@ -1311,6 +1336,10 @@ class $PersonsTable extends Persons with TableInfo<$PersonsTable, PersonRow> {
         DriftSqlType.string,
         data['${effectivePrefix}theirs_fields'],
       ),
+      theirsDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}theirs_deleted'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -1453,6 +1482,16 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
   /// again and the disagreement would quietly become this device's version
   /// winning.
   final String? theirsFields;
+
+  /// The server has removed this row, and this device has unsent changes to it.
+  ///
+  /// The other half of [theirsFields], and it cannot be carried by it: a
+  /// removal has no fields to keep. Left unrecorded, the pull would have to
+  /// choose between landing the tombstone on somebody's unsent work and holding
+  /// it forever — and holding it is worse than it sounds, because the next push
+  /// sends the row up as a living person and the deletion is undone on the
+  /// server with nobody told (ROADMAP M9, step 4).
+  final bool theirsDeleted;
   final String id;
   final String familyId;
   final String displayName;
@@ -1492,6 +1531,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     required this.unsent,
     this.baseFields,
     this.theirsFields,
+    required this.theirsDeleted,
     required this.id,
     required this.familyId,
     required this.displayName,
@@ -1531,6 +1571,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     if (!nullToAbsent || theirsFields != null) {
       map['theirs_fields'] = Variable<String>(theirsFields);
     }
+    map['theirs_deleted'] = Variable<bool>(theirsDeleted);
     map['id'] = Variable<String>(id);
     map['family_id'] = Variable<String>(familyId);
     map['display_name'] = Variable<String>(displayName);
@@ -1605,6 +1646,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
       theirsFields: theirsFields == null && nullToAbsent
           ? const Value.absent()
           : Value(theirsFields),
+      theirsDeleted: Value(theirsDeleted),
       id: Value(id),
       familyId: Value(familyId),
       displayName: Value(displayName),
@@ -1675,6 +1717,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
       unsent: serializer.fromJson<bool>(json['unsent']),
       baseFields: serializer.fromJson<String?>(json['baseFields']),
       theirsFields: serializer.fromJson<String?>(json['theirsFields']),
+      theirsDeleted: serializer.fromJson<bool>(json['theirsDeleted']),
       id: serializer.fromJson<String>(json['id']),
       familyId: serializer.fromJson<String>(json['familyId']),
       displayName: serializer.fromJson<String>(json['displayName']),
@@ -1720,6 +1763,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
       'unsent': serializer.toJson<bool>(unsent),
       'baseFields': serializer.toJson<String?>(baseFields),
       'theirsFields': serializer.toJson<String?>(theirsFields),
+      'theirsDeleted': serializer.toJson<bool>(theirsDeleted),
       'id': serializer.toJson<String>(id),
       'familyId': serializer.toJson<String>(familyId),
       'displayName': serializer.toJson<String>(displayName),
@@ -1753,6 +1797,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     bool? unsent,
     Value<String?> baseFields = const Value.absent(),
     Value<String?> theirsFields = const Value.absent(),
+    bool? theirsDeleted,
     String? id,
     String? familyId,
     String? displayName,
@@ -1783,6 +1828,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     unsent: unsent ?? this.unsent,
     baseFields: baseFields.present ? baseFields.value : this.baseFields,
     theirsFields: theirsFields.present ? theirsFields.value : this.theirsFields,
+    theirsDeleted: theirsDeleted ?? this.theirsDeleted,
     id: id ?? this.id,
     familyId: familyId ?? this.familyId,
     displayName: displayName ?? this.displayName,
@@ -1837,6 +1883,9 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
       theirsFields: data.theirsFields.present
           ? data.theirsFields.value
           : this.theirsFields,
+      theirsDeleted: data.theirsDeleted.present
+          ? data.theirsDeleted.value
+          : this.theirsDeleted,
       id: data.id.present ? data.id.value : this.id,
       familyId: data.familyId.present ? data.familyId.value : this.familyId,
       displayName: data.displayName.present
@@ -1910,6 +1959,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
           ..write('unsent: $unsent, ')
           ..write('baseFields: $baseFields, ')
           ..write('theirsFields: $theirsFields, ')
+          ..write('theirsDeleted: $theirsDeleted, ')
           ..write('id: $id, ')
           ..write('familyId: $familyId, ')
           ..write('displayName: $displayName, ')
@@ -1945,6 +1995,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     unsent,
     baseFields,
     theirsFields,
+    theirsDeleted,
     id,
     familyId,
     displayName,
@@ -1979,6 +2030,7 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
           other.unsent == this.unsent &&
           other.baseFields == this.baseFields &&
           other.theirsFields == this.theirsFields &&
+          other.theirsDeleted == this.theirsDeleted &&
           other.id == this.id &&
           other.familyId == this.familyId &&
           other.displayName == this.displayName &&
@@ -2011,6 +2063,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
   final Value<bool> unsent;
   final Value<String?> baseFields;
   final Value<String?> theirsFields;
+  final Value<bool> theirsDeleted;
   final Value<String> id;
   final Value<String> familyId;
   final Value<String> displayName;
@@ -2042,6 +2095,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     this.unsent = const Value.absent(),
     this.baseFields = const Value.absent(),
     this.theirsFields = const Value.absent(),
+    this.theirsDeleted = const Value.absent(),
     this.id = const Value.absent(),
     this.familyId = const Value.absent(),
     this.displayName = const Value.absent(),
@@ -2074,6 +2128,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     this.unsent = const Value.absent(),
     this.baseFields = const Value.absent(),
     this.theirsFields = const Value.absent(),
+    this.theirsDeleted = const Value.absent(),
     required String id,
     required String familyId,
     required String displayName,
@@ -2110,6 +2165,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     Expression<bool>? unsent,
     Expression<String>? baseFields,
     Expression<String>? theirsFields,
+    Expression<bool>? theirsDeleted,
     Expression<String>? id,
     Expression<String>? familyId,
     Expression<String>? displayName,
@@ -2142,6 +2198,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
       if (unsent != null) 'unsent': unsent,
       if (baseFields != null) 'base_fields': baseFields,
       if (theirsFields != null) 'theirs_fields': theirsFields,
+      if (theirsDeleted != null) 'theirs_deleted': theirsDeleted,
       if (id != null) 'id': id,
       if (familyId != null) 'family_id': familyId,
       if (displayName != null) 'display_name': displayName,
@@ -2180,6 +2237,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     Value<bool>? unsent,
     Value<String?>? baseFields,
     Value<String?>? theirsFields,
+    Value<bool>? theirsDeleted,
     Value<String>? id,
     Value<String>? familyId,
     Value<String>? displayName,
@@ -2212,6 +2270,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
       unsent: unsent ?? this.unsent,
       baseFields: baseFields ?? this.baseFields,
       theirsFields: theirsFields ?? this.theirsFields,
+      theirsDeleted: theirsDeleted ?? this.theirsDeleted,
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
       displayName: displayName ?? this.displayName,
@@ -2259,6 +2318,9 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
     }
     if (theirsFields.present) {
       map['theirs_fields'] = Variable<String>(theirsFields.value);
+    }
+    if (theirsDeleted.present) {
+      map['theirs_deleted'] = Variable<bool>(theirsDeleted.value);
     }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
@@ -2356,6 +2418,7 @@ class PersonsCompanion extends UpdateCompanion<PersonRow> {
           ..write('unsent: $unsent, ')
           ..write('baseFields: $baseFields, ')
           ..write('theirsFields: $theirsFields, ')
+          ..write('theirsDeleted: $theirsDeleted, ')
           ..write('id: $id, ')
           ..write('familyId: $familyId, ')
           ..write('displayName: $displayName, ')
@@ -3817,6 +3880,7 @@ typedef $$PersonsTableCreateCompanionBuilder =
       Value<bool> unsent,
       Value<String?> baseFields,
       Value<String?> theirsFields,
+      Value<bool> theirsDeleted,
       required String id,
       required String familyId,
       required String displayName,
@@ -3850,6 +3914,7 @@ typedef $$PersonsTableUpdateCompanionBuilder =
       Value<bool> unsent,
       Value<String?> baseFields,
       Value<String?> theirsFields,
+      Value<bool> theirsDeleted,
       Value<String> id,
       Value<String> familyId,
       Value<String> displayName,
@@ -3972,6 +4037,11 @@ class $$PersonsTableFilterComposer
 
   ColumnFilters<String> get theirsFields => $composableBuilder(
     column: $table.theirsFields,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get theirsDeleted => $composableBuilder(
+    column: $table.theirsDeleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4199,6 +4269,11 @@ class $$PersonsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get theirsDeleted => $composableBuilder(
+    column: $table.theirsDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -4363,6 +4438,11 @@ class $$PersonsTableAnnotationComposer
 
   GeneratedColumn<String> get theirsFields => $composableBuilder(
     column: $table.theirsFields,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get theirsDeleted => $composableBuilder(
+    column: $table.theirsDeleted,
     builder: (column) => column,
   );
 
@@ -4584,6 +4664,7 @@ class $$PersonsTableTableManager
                 Value<bool> unsent = const Value.absent(),
                 Value<String?> baseFields = const Value.absent(),
                 Value<String?> theirsFields = const Value.absent(),
+                Value<bool> theirsDeleted = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> familyId = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
@@ -4615,6 +4696,7 @@ class $$PersonsTableTableManager
                 unsent: unsent,
                 baseFields: baseFields,
                 theirsFields: theirsFields,
+                theirsDeleted: theirsDeleted,
                 id: id,
                 familyId: familyId,
                 displayName: displayName,
@@ -4648,6 +4730,7 @@ class $$PersonsTableTableManager
                 Value<bool> unsent = const Value.absent(),
                 Value<String?> baseFields = const Value.absent(),
                 Value<String?> theirsFields = const Value.absent(),
+                Value<bool> theirsDeleted = const Value.absent(),
                 required String id,
                 required String familyId,
                 required String displayName,
@@ -4679,6 +4762,7 @@ class $$PersonsTableTableManager
                 unsent: unsent,
                 baseFields: baseFields,
                 theirsFields: theirsFields,
+                theirsDeleted: theirsDeleted,
                 id: id,
                 familyId: familyId,
                 displayName: displayName,

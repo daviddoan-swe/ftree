@@ -206,6 +206,59 @@ void main() {
 
       expect(outgoing.persons.map((p) => p.id), <String>[personId(2)]);
     });
+
+    test('nor a person the server has removed from under an edit', () async {
+      // The more dangerous of the two. Sending this row would not merely win an
+      // argument about a birthplace — it would bring somebody back to life for
+      // everybody, because `save_family_all` clears `deleted_at` on everything
+      // it writes (ROADMAP M9, step 4).
+      await repository.savePerson(person(1, 'sửa ở máy này'));
+      await db.customStatement(
+        'UPDATE persons SET theirs_deleted = 1 WHERE id = ?',
+        <Object>[personId(1)],
+      );
+
+      final outgoing = await push.pending(familyId);
+
+      expect(outgoing.persons, isEmpty);
+      expect(outgoing.deletedPersons, isEmpty);
+    });
+  });
+
+  group('deleting a whole family', () {
+    test('goes as a deletion, never as a rename', () async {
+      // `save_family_all` clears `deleted_at` on everything it writes, so a
+      // tombstoned family sent through the batch would come back to life with
+      // the name it had.
+      await repository.deleteFamily(familyId);
+
+      final outgoing = await push.pending(familyId);
+
+      expect(outgoing.deletedFamily, familyId);
+      expect(outgoing.family, isNull);
+    });
+
+    test('and it is one of the ids a push waits to see land', () async {
+      // The server refuses an editor asking for it, and refuses in silence.
+      // Left out of this set the device would clear `unsent` on a deletion the
+      // server never took, and stop offering the family it still holds.
+      await repository.deleteFamily(familyId);
+
+      final outgoing = await push.pending(familyId);
+
+      expect(outgoing.ids, contains(familyId));
+    });
+
+    test('a living family is not offered as a deletion', () async {
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn Phúc'),
+      );
+
+      final outgoing = await push.pending(familyId);
+
+      expect(outgoing.deletedFamily, isNull);
+      expect(outgoing.family?.name, 'Họ Nguyễn Phúc');
+    });
   });
 
   group('what it counts', () {

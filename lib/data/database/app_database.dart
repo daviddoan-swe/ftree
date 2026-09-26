@@ -144,6 +144,17 @@ mixin _MergeColumns on Table {
   /// again and the disagreement would quietly become this device's version
   /// winning.
   TextColumn get theirsFields => text().nullable()();
+
+  /// The server has removed this row, and this device has unsent changes to it.
+  ///
+  /// The other half of [theirsFields], and it cannot be carried by it: a
+  /// removal has no fields to keep. Left unrecorded, the pull would have to
+  /// choose between landing the tombstone on somebody's unsent work and holding
+  /// it forever — and holding it is worse than it sounds, because the next push
+  /// sends the row up as a living person and the deletion is undone on the
+  /// server with nobody told (ROADMAP M9, step 4).
+  BoolColumn get theirsDeleted =>
+      boolean().withDefault(const Constant<bool>(false))();
 }
 
 /// Someone recorded in a tree.
@@ -317,8 +328,10 @@ class AppDatabase extends _$AppDatabase {
   ///     had got to.
   /// 7 — `persons.baseFields` and `persons.theirsFields`: the version two
   ///     edits started from, and the one that could not be merged into them.
+  /// 8 — `persons.theirsDeleted`, so a removal that meets an edit can be asked
+  ///     about rather than silently winning or silently losing.
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -383,11 +396,31 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(relationships, relationships.unsent);
         await m.addColumn(families, families.lastSeen);
 
-        // False and zero for everything already here, and both are the safe
-        // reading. Unsent would make a pull skip every row it ever met; a
-        // lastSeen above zero would make it skip everything below that number.
-        // Starting at "nothing is mine, I have seen nothing" costs one full
-        // pull and cannot lose anything.
+        // False and zero for everything already here. Zero is right: a
+        // lastSeen above zero would make a pull skip everything below that
+        // number, and starting at "I have seen nothing" costs one full pull
+        // and nothing else.
+        //
+        // False is **not** right, and the sentence that used to stand here —
+        // "cannot lose anything" — was wrong. It weighed the pull only. A row
+        // marked unsent is one a pull will not land on, which is the cost it
+        // named; a row marked *sent* is one a push will never offer, and
+        // before v6 there was no push, so anything edited after the family was
+        // last uploaded had never gone anywhere. Those rows are now sealed on
+        // the one device that holds them.
+        //
+        // Measured, not reasoned: a person added on a v5 device two minutes
+        // after its last upload, found afterwards on that phone and on no
+        // server. The statements are left exactly as they shipped, because a
+        // migration that has run on a device is history and editing it would
+        // give two devices different pasts (README, "Changing the local
+        // schema"). What the flag lost cannot be recovered from the device
+        // either — only the server knows which rows it already holds — so the
+        // repair belongs in a reconciliation against it, not here.
+        //
+        // It cannot recur: from v6 on, `mappers.dart` sets the flag on every
+        // write. Only a device that existed before v6 can be carrying sealed
+        // work.
       }
       if (from < 7) {
         // Null for everything, which is the truth: no row on a device that has
@@ -395,6 +428,11 @@ class AppDatabase extends _$AppDatabase {
         // is in disagreement with anybody.
         await m.addColumn(persons, persons.baseFields);
         await m.addColumn(persons, persons.theirsFields);
+      }
+      if (from < 8) {
+        // False for everything, which is the truth: nothing has been removed
+        // out from under an edit on a device that has not pulled since.
+        await m.addColumn(persons, persons.theirsDeleted);
       }
     },
     beforeOpen: (OpeningDetails details) async {
