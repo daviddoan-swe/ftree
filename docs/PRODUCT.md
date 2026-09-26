@@ -271,13 +271,22 @@ that already exists on the server.
 | Export a file | ✓ | ✓ | — | — |
 | Chia sẻ | ✓ | — | — | — |
 | Thành viên | — | ✓ | — | — |
-| Rename the family | ✓ | ✓ | ✓ | — |
+| Rename the family | ✓ | ✓ | — | — |
 | Delete the family | ✓ | ✓ | — | — |
 | Add a person | ✓ | ✓ | ✓ | — |
 | Edit a person | ✓ | ✓ | ✓ | — |
 | Delete a person | ✓ | ✓ | ✓ | — |
 | Add or remove a relationship | ✓ | ✓ | ✓ | — |
 | Import a file into it | ✓ | ✓ | ✓ | — |
+
+**What the gia phả is called is the owner's, like whether it exists.** An
+editor's work is the people inside: a great-grandmother added, a birthplace
+corrected, a duplicate removed. Each of those is one record, and a mistake in
+one costs one record. Renaming the family changes what the whole household sees
+it called, on every device, with no per-record bound on the damage — which puts
+it beside deleting the family rather than beside editing a person. The server
+says the same: `20260926000001_family_naming.sql` takes the editor's UPDATE on
+`families` away entirely, leaving the owner's as the only one.
 
 **A family that was never shared has no role and every right.** There is
 nobody else it could belong to. The same is true of one that arrived as a
@@ -299,8 +308,8 @@ front. Between those the answer may be stale, and the server refusing is what
 keeps that safe rather than merely untidy.
 
 **This mirrors the server; it does not replace it.** Every row above except
-Export corresponds to a policy in `20260924000003_policies.sql`, and the
-policies are what actually decide. Hiding a control is a courtesy — it stops
+Export corresponds to a policy in `20260924000003_policies.sql` or a migration
+that later narrowed one, and the policies are what actually decide. Hiding a control is a courtesy — it stops
 somebody doing work that would be refused — and CLAUDE §8 is explicit that
 client-side authorization is never the thing being relied on.
 

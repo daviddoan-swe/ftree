@@ -245,6 +245,59 @@ void main() {
     expect(owner.email, isNotEmpty);
   });
 
+  test('an editor renaming a family is refused, in silence', () async {
+    // `families_update_editor` used to allow exactly this, forbidding only
+    // `deleted_at`. It is gone (`20260926000001_family_naming.sql`): what the
+    // gia phả is called is the owner's, because one editor renaming it renames
+    // it for the whole household on every device.
+    //
+    // The silent shape, unlike deleting the family: a plain UPDATE whose
+    // `USING` excludes every row changes nothing and raises nothing. So the
+    // push does not throw — it comes back without the family in it, which is
+    // the answer the read-back exists to produce.
+    final owner = await anAccount();
+    final family = await aFamily();
+    final invitation = await FamilyInvitations(
+      client(),
+    ).create(familyId: family, role: 'editor');
+    await signOut();
+
+    await anAccount();
+    await FamilyInvitations(client()).accept(invitation.code!);
+
+    final held = await sink().send(
+      family,
+      Outgoing(
+        stampedAt: DateTime.now().toUtc(),
+        family: Family(id: family, name: 'editor đổi tên'),
+      ),
+    );
+
+    expect(held, isEmpty, reason: 'nothing landed, so nothing is marked sent');
+
+    await signOut();
+    await signIn(email: owner.email, password: password);
+    final answer = await CloudChanges(client()).since(family, 0);
+    expect(answer.family?.name, 'Họ Nguyễn');
+  });
+
+  test('but an owner renaming one lands', () async {
+    await anAccount();
+    final family = await aFamily();
+
+    final held = await sink().send(
+      family,
+      Outgoing(
+        stampedAt: DateTime.now().toUtc(),
+        family: Family(id: family, name: 'Họ Nguyễn – Phù Ninh'),
+      ),
+    );
+
+    expect(held, contains(family));
+    final answer = await CloudChanges(client()).since(family, 0);
+    expect(answer.family?.name, 'Họ Nguyễn – Phù Ninh');
+  });
+
   test('an owner deleting a family takes its people with it', () async {
     // One call for the three tables (ROADMAP M9, step 4). What has to be true
     // is that nothing is left standing: a family row alive with every person

@@ -465,13 +465,17 @@ void main() {
       );
     });
 
-    testWidgets('an editor may rename it and nothing else', (tester) async {
-      // No export, which is the rule with no policy behind it; no delete,
-      // which `families_update_editor` refuses; no member list, which
-      // `family_members` answers nobody but an owner.
+    testWidgets('an editor is offered nothing on the family itself', (
+      tester,
+    ) async {
+      // Their work is the people inside, reached by opening the family. None
+      // of these acts is about a person: Export sends the whole gia phả out,
+      // Members and Delete are the owner's, and renaming it renames it for the
+      // whole household on every device — which puts it beside deleting rather
+      // than beside correcting a birthplace (PRODUCT §5.0).
       await openActions(tester, FamilyRole.editor);
 
-      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Edit'), findsNothing);
       expect(find.text('Export'), findsNothing);
       expect(find.text('Delete'), findsNothing);
       expect(find.text('Members'), findsNothing);

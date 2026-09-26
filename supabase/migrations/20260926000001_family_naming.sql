@@ -1,0 +1,26 @@
+-- What a family is called belongs to its owner.
+--
+-- `families_update_editor` let an editor change the family's name, notes and
+-- calendar, forbidding only `deleted_at`. Taking it away entirely leaves the
+-- owner's policy as the only UPDATE on the table.
+--
+-- The reasoning is that the two acts are not the same size. An editor's work is
+-- the people inside: adding a great-grandmother, correcting a birthplace,
+-- removing a duplicate. Each of those is one record. Renaming the gia phả
+-- changes what the whole household sees it called, on every device, and there
+-- is no per-record blast radius to bound it — which puts it beside deleting the
+-- family rather than beside editing a person.
+--
+-- Nothing an editor legitimately does needs this. `save_family_all` wraps the
+-- families statements in `IF family IS NOT NULL`, and the client only sends a
+-- family when its local row is unsent — which now happens on this device only
+-- for a family it owns or one nobody else has a claim on. Importing *into* an
+-- existing family passes `family => NULL`, and the sharing mark is written to
+-- `shared_at` alone, which never leaves the device.
+--
+-- An editor who still sends one is refused in the silent shape: a plain UPDATE
+-- whose `USING` excludes every row changes nothing and reports success. That is
+-- what the push's read-back is for — the row does not come back carrying the
+-- batch's timestamp, so `unsent` stays set and nothing is quietly dropped
+-- (ROADMAP M9, step 2).
+DROP POLICY IF EXISTS families_update_editor ON families;

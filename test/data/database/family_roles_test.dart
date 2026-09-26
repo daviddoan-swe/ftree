@@ -47,11 +47,13 @@ void main() {
       ]);
     });
 
-    test('renaming the family — an editor may (families_update_editor)', () {
+    test('renaming the family — the owner’s, like deleting it', () {
+      // What a family is called is not a record an editor is filling in. One
+      // editor renaming it renames it for the whole household, and their
+      // business is the people inside rather than what the gia phả is called.
       expect(granted((r) => r.mayRenameFamily), <FamilyRole?>[
         null,
         FamilyRole.owner,
-        FamilyRole.editor,
       ]);
     });
 

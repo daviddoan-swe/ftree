@@ -90,8 +90,18 @@ extension FamilyRights on FamilyRole? {
   /// Opening the member list. `family_members` answers only an owner anyway.
   bool get mayManageMembers => this == FamilyRole.owner;
 
-  /// Changing the family's own name and notes (`families_update_editor`).
-  bool get mayRenameFamily => stillMine && _mayWrite;
+  /// Changing the family's own name and notes.
+  ///
+  /// The owner's, like deleting it. What a family is called is not a record an
+  /// editor is filling in — it is the name the whole household knows it by, and
+  /// one editor renaming it renames it for everybody. An editor's business is
+  /// the people inside (`persons_update`), which is a different thing from what
+  /// the gia phả itself is called.
+  ///
+  /// The server says the same: `20260926000001_family_naming.sql` takes the
+  /// editor's UPDATE on `families` away entirely, so hiding the control here
+  /// closes the easy path rather than being the whole of the enforcement.
+  bool get mayRenameFamily => stillMine && _isOwnerOrNone;
 
   /// Tombstoning the family. An editor is refused this by the server, which
   /// is written into the policy as "and `deleted_at IS NULL`" on both sides.
