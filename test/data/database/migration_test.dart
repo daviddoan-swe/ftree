@@ -7,6 +7,7 @@ import 'package:ftree/data/database/app_database.dart';
 import 'schema_versions/schema.dart';
 import 'schema_versions/schema_v1.dart' as v1;
 import 'schema_versions/schema_v4.dart' as v4;
+import 'schema_versions/schema_v7.dart' as v7;
 
 /// Every migration, verified against the real shipped schemas rather than
 /// against hand-written approximations of them.
@@ -236,6 +237,47 @@ void main() {
       await db.close();
     },
   );
+
+  test('an upgrade never clears a flag that means "not sent yet"', () async {
+    // The fence around a mistake already made. v6 added `unsent` and gave
+    // every existing row the column default, false — "the server has this" —
+    // when before v6 there was no push at all, so anything written after the
+    // family was last uploaded had gone nowhere. Those rows became invisible
+    // to synchronisation on the one device holding them. Measured on a real
+    // phone: a person added two minutes after the last upload, present there
+    // and on no server.
+    //
+    // It cannot be undone. The flag was the only record of what had been
+    // sent, and only the server knows now. No recovery is being written,
+    // because a fresh install runs `onCreate` and never these steps, so no
+    // device that has not already upgraded can reach it — and the ones that
+    // can are this project's own (ROADMAP M9, step 4).
+    //
+    // What this stops is the next step doing it again.
+    final schema = await verifier.schemaAt(7);
+    final old = v7.DatabaseAtV7(schema.newConnection());
+    final stamp = DateTime.utc(2026, 9, 25).toIso8601String();
+    await old.customStatement(
+      'INSERT INTO families (id, name, uses_lunar_calendar, updated_at, '
+      "unsent, last_seen) VALUES ('f-1', 'Họ Nguyễn', 0, '$stamp', 1, 0)",
+    );
+    await old.customStatement(
+      'INSERT INTO persons (id, family_id, display_name, sex, updated_at, '
+      "unsent, base_fields) VALUES ('p-1', 'f-1', 'Cụ Tổ', 'unknown', '$stamp', 1, "
+      "'{}')",
+    );
+    await old.close();
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, currentSchema);
+
+    final person = (await db.select(db.persons).get()).single;
+    expect(person.unsent, isTrue, reason: 'it still has not gone anywhere');
+    expect(person.baseFields, '{}', reason: 'nor has what it started from');
+    expect((await db.select(db.families).get()).single.unsent, isTrue);
+
+    await db.close();
+  });
 
   test('a fresh install gets the same indexes as an upgraded one', () async {
     // The classic migration defect is onCreate and onUpgrade drifting apart,

@@ -1224,13 +1224,29 @@ local migration path and both older than step 4:
   offer, and before v6 there was no push, so anything edited after the family
   was last uploaded had gone nowhere. Measured, not reasoned — a person added
   on a v5 device two minutes after its last upload, present on that phone and
-  on no server, still invisible to synchronisation after the upgrade. It cannot
-  recur past v6, so only devices older than it can be carrying sealed work, and
-  the repair belongs in a reconciliation against the server: the device cannot
-  tell which of its rows were already sent, and the server can.
+  on no server, still invisible to synchronisation after the upgrade.
 
-Neither is fixed here. The migrations are left exactly as they shipped, because
-one that has run on a device is history.
+  **Decided: no recovery is written.** A fresh install runs `onCreate`, which
+  builds the current schema directly and never runs these steps, so no device
+  that has not already upgraded can reach this — and the ones that can are this
+  project's own. The population of affected users is zero and stays zero, which
+  is the whole of the argument (CLAUDE §12).
+
+  Had it been worth writing, it would have been a reconciliation against the
+  server rather than a migration: the flag was the only record of what had been
+  sent, so only the server can now say. And it would have been a *partial*
+  recovery — rows the server has never seen can be found by their absence, but
+  telling "my copy is an unsent edit" from "my copy is a stale download" needs
+  either the base version, which is gone, or a comparison of two devices'
+  clocks, which §15.3 forbids as a decider.
+
+  What is written instead is a fence: a test that a row carrying unsent work
+  still carries it after an upgrade. The comment on v6 says why; a comment is
+  read when somebody writes a migration, and a test is read when they get it
+  wrong.
+
+The interrupted upgrade is fixed above. The migrations themselves are left
+exactly as they shipped, because one that has run on a device is history.
 
 Found on the way: `drift_schema_v7.json` was missing the `persons_by_family`
 index. It was dumped while the `_MergeColumns` mixin still sat between
