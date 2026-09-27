@@ -67,6 +67,26 @@ dependencies:
   # other.
   supabase_flutter: ^2.17.2
   crypto: ^3.0.7
+  # Argon2id and AES-256-GCM, for the backup file (PRODUCT §9.2). Pure Dart
+  # with no plugin, so it builds for both platforms unchanged — checked by
+  # building each with a real key derivation in `main()`.
+  #
+  # `cryptography_flutter` is deliberately **not** here. It accelerates
+  # AES-GCM, ChaCha20, HMAC and PBKDF2 through the operating system, and none
+  # of those is the slow part: Argon2id has no native path in it, so the cost
+  # that matters would be unchanged and the plugin would be carried for
+  # nothing.
+  cryptography: ^2.9.0
+
+  # Unicode normalisation, which Dart's core library does not have.
+  #
+  # A Vietnamese passphrase can be typed into two different byte sequences
+  # that look identical — `phả` precomposed, or `pha` followed by a combining
+  # hook. Hash the bytes as they arrive and a password typed on one keyboard
+  # will not open a file sealed with the same password typed on another, and
+  # the failure is indistinguishable from getting it wrong. Every password is
+  # put into NFC first.
+  unorm_dart: ^0.3.2
 
 dev_dependencies:
   flutter_test:

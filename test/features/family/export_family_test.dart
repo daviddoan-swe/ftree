@@ -39,7 +39,7 @@ void main() {
     Family named(String name) => Family(id: familyId, name: name);
 
     test('carries the family and the day', () {
-      expect(fileNameFor(named('Nguyen'), at), 'nguyen-2026-09-24.json');
+      expect(fileNameFor(named('Nguyen'), at), 'nguyen-2026-09-24.ftree');
     });
 
     test('Vietnamese is reduced to letters a filename can carry', () {
@@ -47,7 +47,7 @@ void main() {
       // to a relative. Accents are the first thing one of them mangles.
       expect(
         fileNameFor(named('Họ Nguyễn Đình'), at),
-        'ho-nguyen-dinh-2026-09-24.json',
+        'ho-nguyen-dinh-2026-09-24.ftree',
       );
     });
 
@@ -57,20 +57,20 @@ void main() {
       // after one.
       expect(
         fileNameFor(named('àáạảã èéẹẻẽ ìíịỉĩ òóọỏõ ùúụủũ ỳýỵỷỹ đ'), at),
-        'aaaaa-eeeee-iiiii-ooooo-uuuuu-yyyyy-d-2026-09-24.json',
+        'aaaaa-eeeee-iiiii-ooooo-uuuuu-yyyyy-d-2026-09-24.ftree',
       );
     });
 
     test('punctuation and spaces become one separator, not many', () {
       expect(
         fileNameFor(named('Họ  Nguyễn   (chi 2)'), at),
-        'ho-nguyen-chi-2-2026-09-24.json',
+        'ho-nguyen-chi-2-2026-09-24.ftree',
       );
     });
 
     test('a name that reduces to nothing still names the file', () {
-      // "-2026-09-24.json" tells a reader nothing about what is inside.
-      expect(fileNameFor(named('※'), at), 'gia-pha-2026-09-24.json');
+      // "-2026-09-24.ftree" tells a reader nothing about what is inside.
+      expect(fileNameFor(named('※'), at), 'gia-pha-2026-09-24.ftree');
     });
 
     test('the day is enough; the clock belongs to another device', () {

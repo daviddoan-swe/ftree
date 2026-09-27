@@ -7,7 +7,10 @@
 /// and nothing is written until they have seen what will happen and said yes.
 library;
 
+import 'dart:convert';
+
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +24,9 @@ import 'package:ftree/domain/family.dart';
 import 'package:ftree/domain/genealogical_date.dart';
 import 'package:ftree/domain/person.dart';
 import 'package:ftree/domain/relationship.dart';
+import 'package:ftree/data/transfer/family_vault.dart';
 import 'package:ftree/features/family/import_family.dart';
+import 'package:ftree/features/family/vault_password.dart';
 import 'package:ftree/l10n/app_localizations.dart';
 
 void main() {
@@ -244,10 +249,7 @@ void main() {
     testWidgets('is refused with the decoder’s own reason', (tester) async {
       // Not a generic "invalid file": the decoder knows which version it met,
       // and that is what tells somebody what to do about it.
-      await runImport(
-        tester,
-        '{"format": "ftree.family", "version": 99}',
-      );
+      await runImport(tester, '{"format": "ftree.family", "version": 99}');
 
       expect(find.text('The file could not be read'), findsOneWidget);
       expect(find.textContaining('99'), findsOneWidget);
@@ -340,5 +342,119 @@ void main() {
     final stored = await repository.loadFamily(familyId);
     expect(stored!.graph.persons, hasLength(2));
     expect(stored.graph.children(personId(1)), hasLength(1));
+  });
+
+  group('a backup that arrives sealed', () {
+    // The sealing itself is `test/data/transfer/family_vault_test.dart`: nine
+    // tests, no widgets, a second of Argon2id each. What lives *here* is the
+    // decision — is this file sealed, and what happens to the reader if it is.
+    //
+    // So the opening is answered for rather than performed. Argon2id under a
+    // widget test's fake clock does not finish, and driving it through
+    // `runAsync` turns a test of one `if` into a fight with the scheduler.
+    late String Function(String) opening;
+
+    setUp(() {
+      runOffThread = <M, R>(work, message) async {
+        // A beat, so the busy message can be seen. Answering instantly makes
+        // the dialog appear and vanish inside one microtask, and a test
+        // cannot tell that from it never appearing at all.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        final sealed = (message! as ({String sealed, String password})).sealed;
+        return opening(sealed) as R;
+      };
+      opening = (_) =>
+          throw const VaultException(VaultRefusal.wrongPasswordOrDamaged);
+    });
+    tearDown(() {
+      runOffThread = compute;
+    });
+
+    /// Shaped like a sealed file, without being one. [looksSealed] is all the
+    /// import asks before deciding to put up a password screen.
+    String anEnvelope() => jsonEncode(<String, Object?>{
+      'ftree': 1,
+      'kdf': <String, Object?>{'name': 'argon2id', 'salt': 'AAAA'},
+      'cipher': <String, Object?>{'name': 'aes-256-gcm', 'nonce': 'AAAA'},
+      'body': 'AAAA',
+    });
+
+    Future<void> typePassword(WidgetTester tester) async {
+      await tester.enterText(find.byType(TextField), 'gia phả 2026');
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is asked about before anything is read', (tester) async {
+      await runImport(tester, anEnvelope());
+
+      expect(find.text('Password'), findsWidgets);
+    });
+
+    testWidgets('and a plain file is not', (tester) async {
+      // An old export, or one from elsewhere. Meeting it with a password box
+      // for a lock it does not have would be the screen inventing one.
+      await runImport(tester, aFile());
+
+      expect(find.text('Password'), findsNothing);
+    });
+
+    testWidgets('opened, it goes on to the ordinary preview', (tester) async {
+      opening = (_) => aFile();
+
+      await runImport(tester, anEnvelope());
+      await typePassword(tester);
+
+      expect(find.widgetWithText(FilledButton, 'Import'), findsOneWidget);
+    });
+
+    testWidgets('refused, it says so and writes nothing', (tester) async {
+      // Wrong password and damaged file are one message, because from here
+      // they are one thing: authentication fails identically, and guessing
+      // between them would be the screen inventing a diagnosis.
+      final outcome = await runImport(tester, anEnvelope());
+      await typePassword(tester);
+
+      expect(find.textContaining('Wrong password'), findsOneWidget);
+      expect(outcome, isNull);
+      expect(await repository.listFamilies(), isEmpty);
+    });
+
+    testWidgets('says it is working, and stops saying so', (tester) async {
+      // Argon2id costs a second here and several on a phone. The isolate
+      // keeps the interface drawing, which is the difference between busy and
+      // hung — but a screen that draws and does nothing looks exactly like a
+      // missed tap.
+      opening = (_) => aFile();
+
+      await runImport(tester, anEnvelope());
+      await tester.enterText(find.byType(TextField), 'gia phả 2026');
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pump();
+
+      expect(find.text('Opening…'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text('Opening…'), findsNothing);
+    });
+
+    testWidgets('and stops saying so when it fails, too', (tester) async {
+      // The branch that traps somebody. A dialog left standing after a wrong
+      // password is a screen with no way out and nothing to read.
+      await runImport(tester, anEnvelope());
+      await typePassword(tester);
+
+      expect(find.text('Opening…'), findsNothing);
+      expect(find.textContaining('Wrong password'), findsOneWidget);
+    });
+
+    testWidgets('one from a later version says that instead', (tester) async {
+      opening = (_) => throw const VaultException(VaultRefusal.tooNew);
+
+      await runImport(tester, anEnvelope());
+      await typePassword(tester);
+
+      expect(find.textContaining('newer version'), findsOneWidget);
+    });
   });
 }

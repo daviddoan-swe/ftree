@@ -29,7 +29,9 @@ import '../../app/providers.dart';
 import '../../data/database/family_roles.dart';
 import '../../data/transfer/family_file.dart';
 import '../../data/transfer/family_import.dart';
+import '../../data/transfer/family_vault.dart';
 import '../../l10n/app_localizations.dart';
+import 'vault_password.dart';
 
 /// Reads [text] as a family file and, if the reader agrees, writes it in.
 ///
@@ -40,6 +42,18 @@ Future<ImportPlan?> importFamilyFromText(
   WidgetRef ref,
   String text,
 ) async {
+  // Sealed files come in by the same door. Asked for the password only when
+  // the file actually is one: an old plain export, or one somebody is
+  // bringing in from elsewhere, should not be met with a password box for a
+  // lock it does not have.
+  if (looksSealed(text)) {
+    final opened = await _openSealed(context, text);
+    if (opened == null) return null;
+    text = opened;
+  }
+
+  if (!context.mounted) return null;
+
   final FamilyFile file;
   try {
     file = decodeFamilyFile(text);
@@ -326,3 +340,41 @@ class _Line extends StatelessWidget {
     ),
   );
 }
+
+/// Asks for the password and opens [sealed], or null if it was not opened.
+///
+/// Asked once, not twice. The file is the check: right opens it, wrong says
+/// so — and asking for a sixteen-character passphrase a second time every
+/// time somebody restores a backup buys nothing the file does not give.
+///
+/// Wrong and damaged are reported as one thing because they are one thing
+/// from here: authentication fails identically, and guessing between them
+/// would be the screen inventing a diagnosis.
+Future<String?> _openSealed(BuildContext context, String sealed) async {
+  final text = AppText.of(context);
+  final password = await askForPassword(context);
+  if (password == null) return null;
+
+  try {
+    // In an isolate, for the reason the export gives: Argon2id runs in Dart
+    // and costs seconds on a phone.
+    if (!context.mounted) return null;
+    return await whileWorking(
+      context,
+      text.vaultOpening,
+      () => runOffThread(_unsealIt, (sealed: sealed, password: password)),
+    );
+  } on VaultException catch (e) {
+    if (!context.mounted) return null;
+    await showImportFailure(context, switch (e.refusal) {
+      VaultRefusal.tooNew => text.vaultTooNew,
+      VaultRefusal.notAVault => text.vaultWrong,
+      VaultRefusal.wrongPasswordOrDamaged => text.vaultWrong,
+    });
+    return null;
+  }
+}
+
+/// Opening, in whatever isolate `compute` gives it.
+Future<String> _unsealIt(({String sealed, String password}) work) =>
+    unseal(sealed: work.sealed, password: work.password);

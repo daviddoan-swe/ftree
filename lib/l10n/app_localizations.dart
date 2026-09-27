@@ -427,6 +427,96 @@ abstract class AppText {
   /// **'{count, plural, =1{Gửi 1 người ra khỏi máy} other{Gửi toàn bộ {count} người ra khỏi máy}}, kèm ngày tháng, nơi chốn và ghi chú — gồm cả người còn sống. File gửi đi rồi thì không thu lại được.'**
   String exportConfirmBody(int count);
 
+  /// No description provided for @vaultSetTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đặt mật khẩu'**
+  String get vaultSetTitle;
+
+  /// No description provided for @vaultSetWhy.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tệp xuất ra chỉ mở được bằng mật khẩu này. Mất mật khẩu là không ai mở được tệp nữa, kể cả người tạo ra nó.'**
+  String get vaultSetWhy;
+
+  /// No description provided for @vaultSetLabel.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mật khẩu'**
+  String get vaultSetLabel;
+
+  /// No description provided for @vaultSetAgain.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nhập lại'**
+  String get vaultSetAgain;
+
+  /// No description provided for @vaultSetAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xuất dữ liệu'**
+  String get vaultSetAction;
+
+  /// No description provided for @vaultTooShort.
+  ///
+  /// In vi, this message translates to:
+  /// **'Ít nhất {count} ký tự. Vài từ thường ghép lại là đủ tốt.'**
+  String vaultTooShort(int count);
+
+  /// No description provided for @vaultMismatch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hai lần nhập không giống nhau'**
+  String get vaultMismatch;
+
+  /// No description provided for @vaultSendApart.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gửi mật khẩu bằng đường khác — gọi điện, hoặc nói trực tiếp. Gửi chung một tin nhắn với tệp thì coi như không có mật khẩu.'**
+  String get vaultSendApart;
+
+  /// No description provided for @vaultOpenTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mật khẩu'**
+  String get vaultOpenTitle;
+
+  /// No description provided for @vaultOpenWhy.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tệp này cần mật khẩu. Hãy hỏi người đã gửi.'**
+  String get vaultOpenWhy;
+
+  /// No description provided for @vaultOpenAction.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mở'**
+  String get vaultOpenAction;
+
+  /// No description provided for @vaultWrong.
+  ///
+  /// In vi, this message translates to:
+  /// **'Sai mật khẩu, hoặc tệp đã hỏng'**
+  String get vaultWrong;
+
+  /// No description provided for @vaultTooNew.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bản sao lưu này do phiên bản mới hơn tạo ra'**
+  String get vaultTooNew;
+
+  /// No description provided for @vaultWorking.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đang xuất file…'**
+  String get vaultWorking;
+
+  /// No description provided for @vaultOpening.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đang mở…'**
+  String get vaultOpening;
+
   /// No description provided for @exportAction.
   ///
   /// In vi, this message translates to:

@@ -226,6 +226,56 @@ class AppTextEn extends AppText {
   }
 
   @override
+  String get vaultSetTitle => 'Set a password';
+
+  @override
+  String get vaultSetWhy =>
+      'The file can only be opened with this password. Without it nobody can open it — including you.';
+
+  @override
+  String get vaultSetLabel => 'Password';
+
+  @override
+  String get vaultSetAgain => 'Type it again';
+
+  @override
+  String get vaultSetAction => 'Export';
+
+  @override
+  String vaultTooShort(int count) {
+    return 'At least $count characters. A few ordinary words work well.';
+  }
+
+  @override
+  String get vaultMismatch => 'The two do not match';
+
+  @override
+  String get vaultSendApart =>
+      'Send the password some other way — a call, or in person. In the same message as the file it protects nothing.';
+
+  @override
+  String get vaultOpenTitle => 'Password';
+
+  @override
+  String get vaultOpenWhy => 'This file needs a password. Ask whoever sent it.';
+
+  @override
+  String get vaultOpenAction => 'Open';
+
+  @override
+  String get vaultWrong => 'Wrong password, or the file is damaged';
+
+  @override
+  String get vaultTooNew =>
+      'This backup was made by a newer version of the application';
+
+  @override
+  String get vaultWorking => 'Exporting the file…';
+
+  @override
+  String get vaultOpening => 'Opening…';
+
+  @override
   String get exportAction => 'Export';
 
   @override

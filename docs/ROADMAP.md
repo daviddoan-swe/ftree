@@ -19,7 +19,7 @@ Exit criteria:
 
 Application builds and runs on both development platforms.
 
-**Complete** — tagged `m0`. Verified on iPhone 17 Pro (iOS 26.5) and
+__Complete__ — tagged `m0`. Verified on iPhone 17 Pro (iOS 26.5) and
 Pixel_7_API_36 (Android 16, x86_64): the app renders and responds to input on
 both, not merely builds.
 
@@ -38,9 +38,9 @@ Implement:
 * Relationship
 * relationship types
 * `GenealogicalDate` — partial dates with optional month/day and an approximate
-  flag (DOMAIN.md §4)
+   flag (DOMAIN.md §4)
 * `ValidationResult` / `ValidationIssue` with error and warning severities
-  (DOMAIN.md §9)
+   (DOMAIN.md §9)
 * UUID v7 identifier generation
 * canonical id ordering for symmetric relationship types
 * entity-level and pair-level validation
@@ -55,7 +55,7 @@ Tests:
 * empty `displayName` and empty `Family.name` rejection
 * partial-date construction, ordering, and indeterminate comparison
 * date warnings are non-blocking, and are suppressed when the comparison is
-  indeterminate (DOMAIN.md §4.3)
+   indeterminate (DOMAIN.md §4.3)
 
 Exit criteria:
 
@@ -75,14 +75,14 @@ Implement:
 
 * Vietnamese lunar ↔ Gregorian conversion
 * can-chi (Đinh Hợi, Giáp Tý…) derived from a lunar year, and the reverse
-  lookup given a century
+   lookup given a century
 * the next Gregorian date on which a given lunar date falls — the calculation
-  giỗ rests on
+   giỗ rests on
 
 Tests:
 
 * conversion verified against a published table of Tết dates across several
-  decades
+   decades
 * leap months (tháng nhuận) in both directions
 * round trip Gregorian → lunar → Gregorian
 * dates either side of Tết, where the lunar year changes mid-Gregorian-year
@@ -111,7 +111,7 @@ than checked against a published almanac. Replace them before anyone relies
 on a computed giỗ date.
 
 Both now live in `test/support/lunar_reference.dart`, so the replacement is
-one file. They are the **only** place the lunar code is measured against the
+one file. They are the __only__ place the lunar code is measured against the
 outside world — everything else in those tests is a self-consistency or
 structural property that holds whatever the algorithm computes. A wrong value
 there confirms a wrong implementation instead of catching it.
@@ -126,7 +126,7 @@ Implement graph operations:
 * children
 * spouses
 * siblings — per the contract in DOMAIN.md §8.1: excludes self, deduplicated,
-  carries `sharedParentCount`, excludes step-siblings
+   carries `sharedParentCount`, excludes step-siblings
 * ancestors
 * descendants
 
@@ -173,7 +173,7 @@ The initial schema must already include (ARCHITECTURE §8):
 
 * partial dates as ISO-prefix text plus `isApproximate`
 * `updatedAt` and nullable `deletedAt` on every synchronizable table, filtered on
-  read by the repository
+   read by the repository
 * `ON DELETE CASCADE` from relationships to both person endpoints
 * `UNIQUE (familyId, type, personAId, personBId)`
 * UUID v7 primary keys, never composite with `familyId`
@@ -233,13 +233,13 @@ chart contained both a couple and a branch.
 Known limitations, recorded rather than fixed:
 
 * A family graph is not a tree. Someone with parents in two branches is drawn
-  once, under whichever branch reaches them first.
+   once, under whichever branch reaches them first.
 * Children keep the order the data records, so connectors can cross when two
-  marriages genuinely interleave. Birth order was judged the more important of
-  the two — a gia phả is read by it.
+   marriages genuinely interleave. Birth order was judged the more important of
+   the two — a gia phả is read by it.
 * A graph containing a cycle draws as an ordinary chart with the closing edge
-  simply absent. Detecting and reporting such data belongs to synchronisation
-  (DOMAIN.md §6.2), not to the layout.
+   simply absent. Detecting and reporting such data belongs to synchronisation
+   (DOMAIN.md §6.2), not to the layout.
 
 ---
 
@@ -279,11 +279,11 @@ a simulator and looking at it, exactly as ARCHITECTURE §14.1 anticipated, and
 neither was visible to the layout's unit tests:
 
 * a second wife's children hung from the midpoint between the husband and that
-  wife, which for a second marriage is the *first* wife's box — so the chart
-  said the children were hers. Each marriage now drops into the gap before its
-  own spouse, and a test asserts no connector passes through a box.
+   wife, which for a second marriage is the *first* wife's box — so the chart
+   said the children were hers. Each marriage now drops into the gap before its
+   own spouse, and a test asserts no connector passes through a box.
 * the two marriages' horizontal bars sat at one depth and read as a single
-  bar. Each marriage now gets its own depth.
+   bar. Each marriage now gets its own depth.
 
 The throwaway layout renderer at `lib/dev/layout_preview.dart` is deleted: the
 real tree screen replaces it.
@@ -299,14 +299,14 @@ Before cloud work:
 * ~~profile tree rendering~~ — measured, below
 * ~~fix UX issues~~ — the tree screen's, below; more will arrive with use
 * ~~improve tests~~ — the three files in `lib` that had none: `date_display`,
-  `issue_text`, `validation_prompts`. Bounded deliberately at those rather
-  than chased as coverage
+   `issue_text`, `validation_prompts`. Bounded deliberately at those rather
+   than chased as coverage
 * ~~validate larger synthetic family trees~~ — `lib/dev/`, below
 * ~~decide the living/deceased policy~~ — **decided**: a death date *or* a
-  place of death means the person has died (DOMAIN.md §3.5). Derived, not
-  stored, and one-way — it proves a death, never a life. The person form now
-  refuses to record a death it cannot hold. What remains for Viewer-facing
-  privacy is per-person filtering, not the predicate (ARCHITECTURE §11.1)
+   place of death means the person has died (DOMAIN.md §3.5). Derived, not
+   stored, and one-way — it proves a death, never a life. The person form now
+   refuses to record a death it cannot hold. What remains for Viewer-facing
+   privacy is per-person filtering, not the predicate (ARCHITECTURE §11.1)
 
 Exit criteria:
 
@@ -321,26 +321,26 @@ one that can only add turns every typo into permanent damage — so this was
 closed first (PRODUCT.md §3).
 
 * A person is deleted from the foot of their own profile, below everything
-  recorded about them.
+   recorded about them.
 * A family is edited or deleted by swiping its row in the list. Managing an
-  entry from inside itself reads oddly, and an empty family — the one most
-  likely to have been created by mistake — has no list of people to scroll to
-  the bottom of.
+   entry from inside itself reads oddly, and an empty family — the one most
+   likely to have been created by mistake — has no list of people to scroll to
+   the bottom of.
 * The swipe only reveals the buttons. There is no full-swipe shortcut: a
-  gesture that easy must never be the last step before losing a family.
+   gesture that easy must never be the last step before losing a family.
 * `flutter_slidable` was adopted for this (ARCHITECTURE.md §4.1).
 
 Two defects found by running it rather than by testing it:
 
 * The form sheet fed the reported keyboard inset straight into `EdgeInsets`,
-  which asserts it is not negative. iOS reports a negative bottom inset for a
-  frame, and the sheet took the screen behind it down with it. A platform
-  measurement is not a value to trust unexamined. The regression test injects
-  the negative inset directly rather than trying to reproduce a gesture.
+   which asserts it is not negative. iOS reports a negative bottom inset for a
+   frame, and the sheet took the screen behind it down with it. A platform
+   measurement is not a value to trust unexamined. The regression test injects
+   the negative inset directly rather than trying to reproduce a gesture.
 * Two widget tests passed without testing anything — one swipe missed its
-  target, and one assertion could not distinguish which of two identical
-  buttons was showing. Both were rewritten and then checked by breaking the
-  code they cover.
+   target, and one assertion could not distinguish which of two identical
+   buttons was showing. Both were rewritten and then checked by breaking the
+   code they cover.
 
 From the schema review: **nothing was indexed but the primary keys.** Loading a
 family scanned the whole `persons` and `relationships` tables, and deleting a
@@ -376,14 +376,14 @@ only the data replaced.
 Two properties were worth more than realism:
 
 * **Deterministic.** The same seed gives the same family, so a screenshot can be
-  compared with a later one and a measurement with a later measurement. Ids come
-  from `newId` with an injected clock, and the family's id is drawn before the
-  current year is read — otherwise a second copy would install itself on 1
-  January.
+   compared with a later one and a measurement with a later measurement. Ids come
+   from `newId` with an injected clock, and the family's id is drawn before the
+   current year is read — otherwise a second copy would install itself on 1
+   January.
 * **Clean.** Every person and every relationship passes the domain rules with no
-  issue of any severity, not merely no blocking error. Data the application
-  itself objects to says nothing about the interface. A test asserts it, and a
-  second test reverses a parent-child edge to prove the first one would notice.
+   issue of any severity, not merely no blocking error. Data the application
+   itself objects to says nothing about the interface. A test asserts it, and a
+   second test reverses a parent-child edge to prove the first one would notice.
 
 The shape is allocated rather than grown: three children a couple puts sixty
 thousand people in generation ten. Each generation is aimed at a share
@@ -456,11 +456,11 @@ next time somebody was added.
 one was the same fault: two rules where there should have been one.
 
 * The gap above the ancestor was in chart units and so shrank with the zoom,
-  and a chart that fitted was centred whole while one that did not was anchored
-  on its root — so no two families opened alike, and crossing that threshold
-  moved everything.
+   and a chart that fitted was centred whole while one that did not was anchored
+   on its root — so no two families opened alike, and crossing that threshold
+   moved everything.
 * Opening and fitting were separate arithmetic, so the chart opened against the
-  top and jumped to the middle the moment the fit button was pressed.
+   top and jumped to the middle the moment the fit button was pressed.
 
 One function now, used by both: a chart that fits is centred, one that does not
 opens on its ancestor a fixed inset in, and the two agree exactly where they
@@ -510,7 +510,7 @@ as rows:
 | `generations()` on a fresh graph    |  3.0 ms  |
 | `loadFamily`                        | 29.2 ms  |
 
-**A suspicion recorded here was wrong.** `_barsByParent` walks every edge on
+__A suspicion recorded here was wrong.__ `_barsByParent` walks every edge on
 every paint and was named as a likely cost; it is five hundredths of a
 millisecond, 0.05% of a paint. Nothing there is worth touching, and the note
 that said otherwise is now this paragraph.
@@ -547,7 +547,7 @@ does not read whole.
 
 `relationships_by_person_a` and `relationships_by_person_b` are worth what was
 hoped: finding one person's edges is a handful of rows out of thousands, which
-is the shape an index wins, and deleting a person is **2.8× faster** for having
+is the shape an index wins, and deleting a person is __2.8× faster__ for having
 them.
 
 So the decision to index was right and the reasoning written down for it was
@@ -647,12 +647,58 @@ which is the argument for ARCHITECTURE §14.1 made again: run it and look.
 ### Left for later, deliberately
 
 * **Exporting a subset** — only the deceased, say. ARCHITECTURE §11.1 requires
-  the protocol to be *able* to carry part of a family; it does not require V1
-  to offer it.
+   the protocol to be *able* to carry part of a family; it does not require V1
+   to offer it.
 * **Opening a file straight from a chat application.** Needs document types
-  registered on both platforms.
+   registered on both platforms.
 * **Recognising that two records are the same person.** DOMAIN §14.1 calls this
-  the hardest problem in genealogy software, and V1 does not attempt it.
+   the hardest problem in genealogy software, and V1 does not attempt it.
+
+### The file is sealed with a password (PRODUCT §9.2)
+
+Plain JSON was the whole gia phả in the clear — names, dates, birthplaces and
+the lives of living relatives — and a file that reaches one wrong person
+reaches everybody they send it to. Every export now asks for a password and
+writes `.ftree`, and it is not optional: a lock somebody has to remember to
+turn is a lock nobody turns.
+
+**Argon2id derives the key, AES-256-GCM does the rest.** Argon2id because a
+found file is attacked offline as fast as the attacker's hardware allows, and
+memory-hardness is what stops that hardware helping much. GCM because it
+authenticates as well as hides: a tampered file fails to open rather than
+decrypting into rubbish that then gets merged into somebody's gia phả. The
+plain header goes in as associated data, so the work factor written there
+cannot be lowered and the result attacked against the easier sum.
+
+**Measured, and the first numbers were wrong.** 64 MiB was proposed and cost
+2.5 seconds on a development Mac — several times that on a mid-range phone.
+32 MiB costs one second and is what ships. PBKDF2 was measured beside it and
+is worse on both counts: 600,000 rounds took 5.8 seconds *and* it is not
+memory-hard. The cost is written into every file rather than assumed, so
+raising it later cannot make today's backups unreadable.
+
+`cryptography_flutter` is deliberately absent. It accelerates AES-GCM,
+ChaCha20, HMAC and PBKDF2 through the operating system and has no Argon2id, so
+the slow part would be unchanged and the plugin carried for nothing. Both
+platforms were built with a real key derivation in `main()` to prove the pure
+Dart package compiles and links for each.
+
+**Passwords are put into NFC first.** `phả` is one code point or two, identical
+on every screen and different in bytes. Hashed as they arrive, a backup sealed
+on one keyboard would refuse the same password typed on another — and the
+refusal would be indistinguishable from getting it wrong. That is what
+`unorm_dart` is for; Dart's core library has no normalisation.
+
+**Two seams came out of it.** `runOffThread` replaces a direct `compute`,
+because a widget test's clock is fake and a second isolate never reports back:
+the test hung for its full three minutes rather than failing. And the widget
+test that tried to do real Argon2id was written at the wrong level — the
+sealing has nine tests of its own with no widgets in them, and what belongs in
+the feature layer is the one decision it actually makes: is this file sealed,
+and what does the reader see if it is.
+
+**Still to do:** measure on the oldest supported Android. Everything above is
+a floor taken on a development machine, and that is not a phone.
 
 ---
 
@@ -690,9 +736,9 @@ Implement:
 * ~~PostgreSQL schema~~ — `supabase/migrations/…_schema.sql`
 * ~~authentication~~ — `lib/data/cloud/cloud_session.dart`
 * ~~FamilyMembership~~ — the entity arrives here, with the first real `userId`
-  (DOMAIN.md §12.1)
+   (DOMAIN.md §12.1)
 * ~~remote repositories~~ — `SupabaseFamilyRepository`, held to the same
-  contract as the SQLite one
+   contract as the SQLite one
 * ~~database migrations~~ — four, replayable with `supabase db reset`
 * ~~initial security configuration~~ — RLS on every table, policies per role
 
@@ -706,7 +752,7 @@ project of its own is not needed to develop against and is not set up.
 
 `test/support/repository_contract.dart` holds sixteen checks written against
 `FamilyRepository` rather than against either store. SQLite answers them in the
-ordinary suite; Postgres answers the same ones, **unchanged**, in `test/cloud/`.
+ordinary suite; Postgres answers the same ones, __unchanged__, in `test/cloud/`.
 
 That the file is imported rather than adapted is the point. Two implementations
 each passing tests of their own prove nothing about swapping one for the other,
@@ -767,29 +813,29 @@ status.
 Implement:
 
 * **signing in, reached from Chia sẻ** — the first screen in the application
-  that knows an account exists (PRODUCT §4.1). Done
+   that knows an account exists (PRODUCT §4.1). Done
 * **Chia sẻ** — one family up, on one action in one row, beside Xuất. Done
 * **marking a family as shared** — one column in the local schema, because the
-  device cannot ask the server while offline (PRODUCT §4.2)
+   device cannot ask the server while offline (PRODUCT §4.2)
 * **asking whether a family is already claimed** — the one question the device
-  cannot answer, because the mark records what *this* device did and a file
-  puts the same family on two of them (PRODUCT §4.3)
+   cannot answer, because the mark records what *this* device did and a file
+   puts the same family on two of them (PRODUCT §4.3)
 * Owner
 * Editor
 * Viewer
 * **invitations** — only an owner may send one; any role may be received,
-  owner included, behind a confirmation (PRODUCT §5.1). A secret code the owner
-  passes on by hand, stored only as a hash. Done
+   owner included, behind a confirmation (PRODUCT §5.1). A secret code the owner
+   passes on by hand, stored only as a hash. Done
 * **members, changing a role and removing one** — the other half of there
-  being no approval step (PRODUCT §5.3, §5.6). Owner-only, behind a swipe.
-  Done
+   being no approval step (PRODUCT §5.3, §5.6). Owner-only, behind a swipe.
+   Done
 * **signing out** — and the local marks and codes that go with it
-  (PRODUCT §5.9). Done
+   (PRODUCT §5.9). Done
 * **what each role may do on the device** — the controls the interface offers,
-  mirroring the server policies rather than replacing them (PRODUCT §5.0). Done
+   mirroring the server policies rather than replacing them (PRODUCT §5.0). Done
 * **keeping those roles in step** — one request for every role this account
-  holds, asked when the application opens. The only thing that reaches a device
-  before M9. Done
+   holds, asked when the application opens. The only thing that reaches a device
+   before M9. Done
 * Row Level Security
 
 ### Where signing in lives, and why it is here rather than at M7
@@ -805,7 +851,7 @@ person, which is the only thing an account buys.
 M7 did not need it. Authentication is four functions in
 `lib/data/cloud/cloud_session.dart`, exercised against a real auth server; a
 screen is a way for a person to call three of them. What a screen adds is the
-human path and **a session that survives closing the application** — and that
+human path and __a session that survives closing the application__ — and that
 second one has never been checked, because the checks mock the device storage
 a session would live in. It is a simulator job, like the share sheet.
 
@@ -832,11 +878,11 @@ Checked against the running stack rather than reasoned about, because the
 question — *what if the family is already up there?* — has three answers and
 only one of them was obvious.
 
-**Sharing the same family twice is harmless.** The second press takes the
+__Sharing the same family twice is harmless.__ The second press takes the
 update branch, and `owner_on_create` fires only on insert, so there is still
 exactly one membership row. Nothing is duplicated.
 
-**Sharing a family somebody else already shared is refused** — and used to be
+__Sharing a family somebody else already shared is refused__ — and used to be
 refused with `23505 duplicate key value violates unique constraint
 "families_pkey"`. The effect was right, in that nobody took over a family that
 was not theirs, but that sentence tells a person nothing and the case is not
@@ -844,7 +890,7 @@ rare: it is the ordinary consequence of the file export. One person sends a
 copy, the other imports it, and both devices now hold a family with the same
 id. Whichever presses second meets this.
 
-**Done, in two halves** (PRODUCT §4.3). The device cannot answer the question
+__Done, in two halves__ (PRODUCT §4.3). The device cannot answer the question
 by itself — a family belonging to somebody else reads as absent, not as
 forbidden, so an `EXISTS` from the client says "no" and the insert that follows
 meets the primary key. So `family_is_claimed` answers it, SECURITY DEFINER
@@ -857,7 +903,7 @@ Saying so leaks nothing: whoever meets it already holds the whole family, which
 is how they came to have its id. Ids are UUID v7, so nothing can be found by
 guessing.
 
-**The measured surprise: revoking PUBLIC does not revoke `anon`.** The function
+__The measured surprise: revoking PUBLIC does not revoke `anon`.__ The function
 was written with `REVOKE EXECUTE ... FROM PUBLIC`, which looks sufficient and
 is not. Supabase sets default privileges granting EXECUTE on new functions in
 `public` to anon, authenticated and service_role, so each role holds a grant of
@@ -909,13 +955,13 @@ survive a failure and hide the button that would have tried again.
 
 ### Three things the screen was told by the server, not by documentation
 
-**A wrong password and an unknown address come back identically**, both
+__A wrong password and an unknown address come back identically__, both
 `invalid_credentials`. That is the server declining to say who is registered, so
 the wording has to keep the secret: "that email and password do not match",
 never "wrong password". Had the codes been guessed rather than read off the
 running stack, the interface would have leaked what the server withheld.
 
-**Signing up can succeed with no session.** Where addresses are confirmed, the
+__Signing up can succeed with no session.__ Where addresses are confirmed, the
 account exists and there is no token until a link is followed. So "did it work"
 and "are we signed in" are different questions, and the screen has to answer the
 second. The local stack runs with `enable_confirmations = false` and therefore
@@ -929,21 +975,21 @@ was never theirs.
 
 ### What building invitations turned up
 
-**Three of the four checks inside the hole are the whole feature.**
+__Three of the four checks inside the hole are the whole feature.__
 `accept_invitation` is SECURITY DEFINER, so nothing inside it is protected by a
 policy and every guard is one somebody wrote by hand. Removing the revoked
 check makes the owner's Huỷ button decoration; removing the accepted check
 turns one code into a crowd; removing the expiry check revives last year's
 codes. Each was broken deliberately and each turns a check red.
 
-**Two pieces of the feature needed no server code at all.** Listing members and
+__Two pieces of the feature needed no server code at all.__ Listing members and
 removing one were already possible: `memberships_read` lets members see each
 other, `memberships_update` lets an owner change a row, and `keep_an_owner`
 already refuses to let the last owner go. Only the screen was missing. Worth
 noticing before writing a migration — the policies had been sized for this
 without anybody planning it.
 
-**But listing members needed one thing nobody had thought of.** A membership
+__But listing members needed one thing nobody had thought of.__ A membership
 row holds a `user_id`, and no client may read `auth.users` — rightly, since
 that is every account on the server. So the member list would have shown
 uuids, which answers none of what §5 says the list is for. Hence
@@ -1012,7 +1058,7 @@ recipient.
 Built in steps, because each one stands on its own and the first delivers most
 of what is currently missing.
 
-**Step 1 — pulling. Done.** `WHERE change_seq > lastSeen`, one number per
+__Step 1 — pulling. Done.__ `WHERE change_seq > lastSeen`, one number per
 family, asked when somebody opens that family. `0` means nothing has been
 taken, so the first download and every later pull are the same request and
 there is no second path to keep in step with the first.
@@ -1054,9 +1100,9 @@ row leaves carrying one timestamp, and afterwards the server is asked which
 rows it holds with exactly that timestamp. Those are the ones that landed.
 
 The two refusals do not look alike, which is worth knowing: a viewer pushing a
-*person* is refused loudly, because `save_family_all` reaches that table
+_person_ is refused loudly, because `save_family_all` reaches that table
 through an INSERT and `persons_insert` raises 42501. A viewer removing a
-*relationship* is refused in silence, because that is a plain UPDATE. Both are
+_relationship_ is refused in silence, because that is a plain UPDATE. Both are
 checked, and the second is the one the confirmation exists for.
 
 **Step 3 — conflict. Done, for people.** Two relatives filling in different
@@ -1071,7 +1117,7 @@ compare this device's work against itself, find no change where there was one,
 and hand the field back to the other side.
 
 Per field: neither moved it, it stays; one moved it, that side wins; both moved
-it the same way, they agree; both moved it differently, **conflict**, and
+it the same way, they agree; both moved it differently, __conflict__, and
 nothing is chosen. Nothing is chosen because there is nothing to choose by — a
 later `change_seq` says which write reached the server second, not which
 reading of a hundred-year-old record is right.
@@ -1126,16 +1172,16 @@ was missing in a way that undid deletions silently in both directions.
 
 Measured before it was changed, not assumed:
 
-* **They removed somebody this device was editing.** The pull held the row and
-  reported it. The row stayed live and unsent, so the *next push* sent the
-  person up alive through `save_family_all`, which clears `deleted_at` on
-  everything it writes — and the person came back for everybody. The relative
-  who removed them saw them return with no explanation.
-* **This device removed somebody the server was changing.** `_merge` wrote the
-  row through `personToRow`, which also clears `deleted_at`, so a clean merge
-  revived them locally. Only a clean merge: where both sides touched the same
-  field the conflict branch wrote nothing and the tombstone survived by luck.
-  That is why the first test written for it passed with the guard removed.
+* __They removed somebody this device was editing.__ The pull held the row and
+   reported it. The row stayed live and unsent, so the _next push_ sent the
+   person up alive through `save_family_all`, which clears `deleted_at` on
+   everything it writes — and the person came back for everybody. The relative
+   who removed them saw them return with no explanation.
+* __This device removed somebody the server was changing.__ `_merge` wrote the
+   row through `personToRow`, which also clears `deleted_at`, so a clean merge
+   revived them locally. Only a clean merge: where both sides touched the same
+   field the conflict branch wrote nothing and the tombstone survived by luck.
+   That is why the first test written for it passed with the guard removed.
 
 Neither answer may be taken quietly — applying the tombstone destroys work that
 cannot be recovered, ignoring it reverses a deletion nobody was told about — so
@@ -1159,7 +1205,7 @@ which two people it joins, and changing that makes it a different edge, so a
 tombstone for one is applied even over an unsent edge. Holding it was the bug:
 held forever, and then pushed back as a living edge.
 
-**A whole family now goes for everybody, and the server had a hole in it.**
+__A whole family now goes for everybody, and the server had a hole in it.__
 `delete_family_deep` runs as the caller, and the three tables' policies are not
 uniform: `families_update_editor` forbids an editor setting `deleted_at`, but
 `persons_update` says only "owner or editor" because removing one person is
@@ -1174,7 +1220,7 @@ anything sent before would be undone by it and anything after left alive in a
 family that is gone, and a three-hundred-person gia phả costs one round trip
 instead of three hundred.
 
-Its refusal is the **loud** shape, which is worth writing down because step 2's
+Its refusal is the __loud__ shape, which is worth writing down because step 2's
 whole confirmation machinery exists for the silent one. `delete_family_deep`
 raises, so the push throws and the caller leaves everything flagged without
 reaching the read-back. `test/cloud/push.dart` signs an editor in against a
@@ -1190,60 +1236,61 @@ some eleven kilobytes of `id=in.(...)` into a request line.
 Two defects found by running it on a device rather than in a test, both in the
 local migration path and both older than step 4:
 
-* **An interrupted upgrade seals the device. Fixed.** A phone was found at
-  `user_version` 4 whose `families` table already carried v5's `my_role`: a
-  step had committed and the version had not. Every launch after that replayed
-  from 4 and died on `duplicate column name`, with no way out from inside the
-  application. Reachable in the ordinary way — the upgrade runs at launch, and
-  swiping the application away or being jetsammed is enough.
+* __An interrupted upgrade seals the device. Fixed.__ A phone was found at
+   `user_version` 4 whose `families` table already carried v5's `my_role`: a
+   step had committed and the version had not. Every launch after that replayed
+   from 4 and died on `duplicate column name`, with no way out from inside the
+   application. Reachable in the ordinary way — the upgrade runs at launch, and
+   swiping the application away or being jetsammed is enough.
 
-  Confirmed at the source rather than from the symptom: drift runs the steps
-  outside any transaction and writes the version only once they have all
-  finished (`engines.dart`, "set version now, after migrations ran
-  successfully"), so each `ALTER TABLE` commits on its own.
+   Confirmed at the source rather than from the symptom: drift runs the steps
+   outside any transaction and writes the version only once they have all
+   finished (`engines.dart`, "set version now, after migrations ran
+   successfully"), so each `ALTER TABLE` commits on its own.
 
-  Two halves, and each covers what the other cannot. Every step now runs in one
-  transaction **with its own version bump inside it**, so an interruption
-  leaves the database exactly as the last finished step left it — measured:
-  SQLite rolls back `ALTER TABLE` and `PRAGMA user_version` together. And
-  every step steps over work it finds already done, because a transaction
-  cannot reach back and undo what a previous process committed, which is the
-  state the devices already broken are in.
+   Two halves, and each covers what the other cannot. Every step now runs in one
+   transaction __with its own version bump inside it__, so an interruption
+   leaves the database exactly as the last finished step left it — measured:
+   SQLite rolls back `ALTER TABLE` and `PRAGMA user_version` together. And
+   every step steps over work it finds already done, because a transaction
+   cannot reach back and undo what a previous process committed, which is the
+   state the devices already broken are in.
 
-  Tested by rebuilding that device: a v4 database carrying v5's column opens,
-  finishes, and keeps what it held. One stopped among step 2's indexes recovers
-  the same way. A step made to fail after its first statement leaves neither
-  the column nor a moved version behind.
+   Tested by rebuilding that device: a v4 database carrying v5's column opens,
+   finishes, and keeps what it held. One stopped among step 2's indexes recovers
+   the same way. A step made to fail after its first statement leaves neither
+   the column nor a moved version behind.
 
-  Still untested: the window between a step's `COMMIT` and its version write,
-  which is now zero statements wide and which the step-over would recover from
-  anyway. Interrupting between two statements needs a seam no test has.
+   Still untested: the window between a step's `COMMIT` and its version write,
+   which is now zero statements wide and which the step-over would recover from
+   anyway. Interrupting between two statements needs a seam no test has.
+
 * **v6 sealed work it called sent.** Adding `unsent` gave every existing row
-  the column default, false. The comment claimed that "cannot lose anything",
-  weighing the pull alone: a row marked *sent* is one the push will never
-  offer, and before v6 there was no push, so anything edited after the family
-  was last uploaded had gone nowhere. Measured, not reasoned — a person added
-  on a v5 device two minutes after its last upload, present on that phone and
-  on no server, still invisible to synchronisation after the upgrade.
+   the column default, false. The comment claimed that "cannot lose anything",
+   weighing the pull alone: a row marked *sent* is one the push will never
+   offer, and before v6 there was no push, so anything edited after the family
+   was last uploaded had gone nowhere. Measured, not reasoned — a person added
+   on a v5 device two minutes after its last upload, present on that phone and
+   on no server, still invisible to synchronisation after the upgrade.
 
-  **Decided: no recovery is written.** A fresh install runs `onCreate`, which
-  builds the current schema directly and never runs these steps, so no device
-  that has not already upgraded can reach this — and the ones that can are this
-  project's own. The population of affected users is zero and stays zero, which
-  is the whole of the argument (CLAUDE §12).
+   **Decided: no recovery is written.** A fresh install runs `onCreate`, which
+   builds the current schema directly and never runs these steps, so no device
+   that has not already upgraded can reach this — and the ones that can are this
+   project's own. The population of affected users is zero and stays zero, which
+   is the whole of the argument (CLAUDE §12).
 
-  Had it been worth writing, it would have been a reconciliation against the
-  server rather than a migration: the flag was the only record of what had been
-  sent, so only the server can now say. And it would have been a *partial*
-  recovery — rows the server has never seen can be found by their absence, but
-  telling "my copy is an unsent edit" from "my copy is a stale download" needs
-  either the base version, which is gone, or a comparison of two devices'
-  clocks, which §15.3 forbids as a decider.
+   Had it been worth writing, it would have been a reconciliation against the
+   server rather than a migration: the flag was the only record of what had been
+   sent, so only the server can now say. And it would have been a *partial*
+   recovery — rows the server has never seen can be found by their absence, but
+   telling "my copy is an unsent edit" from "my copy is a stale download" needs
+   either the base version, which is gone, or a comparison of two devices'
+   clocks, which §15.3 forbids as a decider.
 
-  What is written instead is a fence: a test that a row carrying unsent work
-  still carries it after an upgrade. The comment on v6 says why; a comment is
-  read when somebody writes a migration, and a test is read when they get it
-  wrong.
+   What is written instead is a fence: a test that a row carrying unsent work
+   still carries it after an upgrade. The comment on v6 says why; a comment is
+   read when somebody writes a migration, and a test is read when they get it
+   wrong.
 
 The interrupted upgrade is fixed above. The migrations themselves are left
 exactly as they shipped, because one that has run on a device is history.
@@ -1266,7 +1313,11 @@ with it. No merge ran, no disagreement was recorded, nobody was asked. Every
 test of steps 3 and 3b called the pull directly, so all of them passed while
 the path through the application could not reach them.
 
-The same defect sat at the other boundary once sending moved to *leaving* the
+```sh
+
+```
+
+The same defect sat at the other boundary once sending moved to _leaving_ the
 screen: a send with no fetch in front of it writes over whatever arrived while
 the screen was open, and the device that wrote that version has already cleared
 the flag that would send it again. Both are now fetch-then-send, and
@@ -1284,16 +1335,16 @@ should go.
 Still to do:
 
 * **Step 5 — synchronisation status**, so it is not a black box: last brought
-  down, and what is still waiting to go up. It should carry a synchronise-now
-  control: whatever moments are chosen, somebody sometimes wants to press it.
+   down, and what is still waiting to go up. It should carry a synchronise-now
+   control: whatever moments are chosen, somebody sometimes wants to press it.
 
 Constraints already fixed (ARCHITECTURE §12):
 
 * conflict ordering uses a server-assigned sequence or hybrid logical clock,
-  never device wall-clocks
+   never device wall-clocks
 * the protocol transmits a subset of a family, not necessarily the whole family
 * ancestry cycles produced by merging are detected and reported for user
-  resolution, never silently repaired by deleting an edge
+   resolution, never silently repaired by deleting an edge
 
 Avoid unnecessary synchronization complexity.
 
@@ -1335,7 +1386,7 @@ Implement/review:
 * security
 * performance
 * database indexes — the read and delete paths were indexed at M6
-  (ARCHITECTURE.md §8.1); what remains is whatever measurement turns up
+   (ARCHITECTURE.md §8.1); what remains is whatever measurement turns up
 * backup strategy
 * logging
 * crash reporting as appropriate
@@ -1370,9 +1421,9 @@ Collect feedback before adding major new features.
 Possible future features:
 
 * GEDCOM import/export — so a family is never locked into this application.
-  The application's own file format is done (M6.5) and does a different job
+   The application's own file format is done (M6.5) and does a different job
 * date ranges, non-Gregorian calendars, and BC dates
-  (partial and approximate dates are already in V1 — DOMAIN.md §4)
+   (partial and approximate dates are already in V1 — DOMAIN.md §4)
 * name variants and alternate spellings
 * linking a User to a Person
 * merging duplicate Persons across families

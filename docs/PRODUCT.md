@@ -864,6 +864,52 @@ relative's device does not travel.
 Built, in the application's own JSON format — see ROADMAP M6.5 for why not
 GEDCOM and not a copy of the database file.
 
+### 9.2 A file that leaves is a file that cannot be recalled
+
+The export used to be plain JSON: names, dates, birthplaces and the lives of
+living relatives, readable by anybody holding the file. One reaching one wrong
+person reaches everybody they forward it to, and there is no taking it back.
+
+**Every export is sealed with a password.** Not an option somebody can turn on,
+because a lock that has to be remembered is a lock nobody turns. The file is
+`.ftree` and its contents are noise without the password.
+
+**What it protects, and what it does not.** It protects a file that is
+*found* — left in a chat application's cache, in a Downloads folder, on a
+phone somebody lost. Against that it is complete. It does **not** protect
+against the person it was sent to passing on the file *and* the password. No
+file encryption can. Access that can be withdrawn from one person is the cloud
+invitation (§5.5), not a file, and anybody choosing between the two should
+know that is the difference.
+
+**Setting one asks twice; entering one asks once.** A typo when setting cannot
+be found out later — there is nothing to check against, and the file is the
+only copy of a hundred years of transcription. When entering, the file itself
+is the check, and asking for a passphrase twice on every restore buys nothing
+it does not already give.
+
+**Twelve characters at least, and a passphrase is welcome.** Spaces and
+Vietnamese letters included: four ordinary words somebody can remember resist
+an offline attack better than eight characters of punctuation nobody can
+recall, and are what people will actually use.
+
+**The sentence the whole thing depends on** is on the screen that sets the
+password: send it by another route. A password pasted into the same message as
+the file protects nothing, and it is what most people will do unless told
+otherwise. It is the one line here that is not about cryptography and the one
+that decides whether the cryptography matters.
+
+**Losing the password loses the backup.** There is no way back in, by design —
+and it is a real cost for a record meant to outlive the person keeping it
+(§5.1). The screen says so where the password is chosen, not in a note
+afterwards.
+
+**The interface says none of this in mechanism.** The button is "Xuất dữ
+liệu"; the wait is "Đang xuất file…". How the file is protected is the
+application's business. What somebody must *act* on — that losing the password
+loses the file, and that the password travels separately — is not mechanism,
+and is said plainly.
+
 ---
 
 ## 10. Privacy

@@ -222,6 +222,55 @@ class AppTextVi extends AppText {
   }
 
   @override
+  String get vaultSetTitle => 'Đặt mật khẩu';
+
+  @override
+  String get vaultSetWhy =>
+      'Tệp xuất ra chỉ mở được bằng mật khẩu này. Mất mật khẩu là không ai mở được tệp nữa, kể cả người tạo ra nó.';
+
+  @override
+  String get vaultSetLabel => 'Mật khẩu';
+
+  @override
+  String get vaultSetAgain => 'Nhập lại';
+
+  @override
+  String get vaultSetAction => 'Xuất dữ liệu';
+
+  @override
+  String vaultTooShort(int count) {
+    return 'Ít nhất $count ký tự. Vài từ thường ghép lại là đủ tốt.';
+  }
+
+  @override
+  String get vaultMismatch => 'Hai lần nhập không giống nhau';
+
+  @override
+  String get vaultSendApart =>
+      'Gửi mật khẩu bằng đường khác — gọi điện, hoặc nói trực tiếp. Gửi chung một tin nhắn với tệp thì coi như không có mật khẩu.';
+
+  @override
+  String get vaultOpenTitle => 'Mật khẩu';
+
+  @override
+  String get vaultOpenWhy => 'Tệp này cần mật khẩu. Hãy hỏi người đã gửi.';
+
+  @override
+  String get vaultOpenAction => 'Mở';
+
+  @override
+  String get vaultWrong => 'Sai mật khẩu, hoặc tệp đã hỏng';
+
+  @override
+  String get vaultTooNew => 'Bản sao lưu này do phiên bản mới hơn tạo ra';
+
+  @override
+  String get vaultWorking => 'Đang xuất file…';
+
+  @override
+  String get vaultOpening => 'Đang mở…';
+
+  @override
   String get exportAction => 'Xuất';
 
   @override

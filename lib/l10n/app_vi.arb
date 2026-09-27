@@ -122,6 +122,23 @@
     "description": "Xuất là đưa dữ liệu riêng tư ra ngoài, không thu lại được (PRODUCT §10)",
     "placeholders": { "count": { "type": "int" } }
   },
+  "vaultSetTitle": "Đặt mật khẩu",
+  "vaultSetWhy": "Tệp xuất ra chỉ mở được bằng mật khẩu này. Mất mật khẩu là không ai mở được tệp nữa, kể cả người tạo ra nó.",
+  "vaultSetLabel": "Mật khẩu",
+  "vaultSetAgain": "Nhập lại",
+  "vaultSetAction": "Xuất dữ liệu",
+  "vaultTooShort": "Ít nhất {count} ký tự. Vài từ thường ghép lại là đủ tốt.",
+  "@vaultTooShort": { "placeholders": { "count": { "type": "int" } } },
+  "vaultMismatch": "Hai lần nhập không giống nhau",
+  "vaultSendApart": "Gửi mật khẩu bằng đường khác — gọi điện, hoặc nói trực tiếp. Gửi chung một tin nhắn với tệp thì coi như không có mật khẩu.",
+  "vaultOpenTitle": "Mật khẩu",
+  "vaultOpenWhy": "Tệp này cần mật khẩu. Hãy hỏi người đã gửi.",
+  "vaultOpenAction": "Mở",
+  "vaultWrong": "Sai mật khẩu, hoặc tệp đã hỏng",
+  "vaultTooNew": "Bản sao lưu này do phiên bản mới hơn tạo ra",
+  "vaultWorking": "Đang xuất file…",
+  "vaultOpening": "Đang mở…",
+
   "exportAction": "Xuất",
   "exportNothing": "Dòng họ này không còn gì để xuất",
 

@@ -287,13 +287,21 @@ class _FamilyList extends ConsumerWidget {
 /// The picker is the only part that needs the operating system; everything
 /// after it runs on the text and is covered by `import_family_test`.
 Future<void> _pickAndImport(BuildContext context, WidgetRef ref) async {
-  const json = XTypeGroup(
-    label: 'JSON',
-    extensions: <String>['json'],
+  const backup = XTypeGroup(
+    label: 'ftree',
+    // `.ftree` is what this application writes now; `.json` is what it wrote
+    // before backups were sealed, and a file somebody already has should not
+    // stop being openable because the extension changed.
+    extensions: <String>['ftree', 'json'],
     // iOS filters by uniform type rather than by extension, and a file that
-    // arrived through a chat application often carries no useful type at all —
-    // so the export's own type and plain text are both allowed through.
-    uniformTypeIdentifiers: <String>['public.json', 'public.plain-text'],
+    // arrived through a chat application often carries no useful type at all.
+    // `public.data` is the catch-all a `.ftree` falls under, since the system
+    // knows nothing else about it.
+    uniformTypeIdentifiers: <String>[
+      'public.data',
+      'public.json',
+      'public.plain-text',
+    ],
   );
 
   // Everything here is guarded, because nothing awaits this function: it is
@@ -304,7 +312,7 @@ Future<void> _pickAndImport(BuildContext context, WidgetRef ref) async {
   // readAsString is the likely one: pick something that is not UTF-8 text —
   // a photo, a PDF — and it throws rather than returning nonsense.
   try {
-    final picked = await openFile(acceptedTypeGroups: <XTypeGroup>[json]);
+    final picked = await openFile(acceptedTypeGroups: <XTypeGroup>[backup]);
     if (picked == null) return;
 
     // Read before the check, not inside the call: reading is itself an await,

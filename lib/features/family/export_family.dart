@@ -30,7 +30,9 @@ import '../../app/confirm.dart';
 import '../../app/providers.dart';
 import '../../data/transfer/family_file.dart';
 import '../../domain/family.dart';
+import '../../data/transfer/family_vault.dart';
 import '../../l10n/app_localizations.dart';
+import 'vault_password.dart';
 
 /// What to call the file holding [family], exported on [at].
 ///
@@ -45,7 +47,7 @@ String fileNameFor(Family family, DateTime at) {
       '${local.year}-${local.month.toString().padLeft(2, '0')}'
       '-${local.day.toString().padLeft(2, '0')}';
 
-  return '${_plain(family.name)}-$day.json';
+  return '${_plain(family.name)}-$day.ftree';
 }
 
 /// Vietnamese reduced to letters a filename can carry.
@@ -55,9 +57,11 @@ String fileNameFor(Family family, DateTime at) {
 /// that reduces to nothing falls back to `gia-pha`, because a file called
 /// `-2026-09-24.json` says nothing to anybody.
 String _plain(String name) {
-  const marked = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩ'
+  const marked =
+      'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩ'
       'òóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-  const plain = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiii'
+  const plain =
+      'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiii'
       'ooooooooooooooooouuuuuuuuuuuyyyyyd';
 
   final folded = StringBuffer();
@@ -112,6 +116,13 @@ Future<bool> exportFamily(
   );
   if (!agreed) return true; // Something was there; it stays here.
 
+  // Asked before anything is written. A file on disk that then has no
+  // password is a plain copy of the gia phả sitting in the temporary
+  // directory, and nothing later would take it back.
+  if (!context.mounted) return false;
+  final password = await askForNewPassword(context);
+  if (password == null) return true; // Something was there; it stays here.
+
   final at = now();
   final contents = encodeFamilyFile(
     family: snapshot.family,
@@ -120,14 +131,27 @@ Future<bool> exportFamily(
     at: at,
   );
 
+  // In an isolate. Argon2id has no native path on either platform and costs
+  // about a second on a development machine, several on a phone — on the
+  // interface thread that is the application frozen, with no frame drawn to
+  // say it is working (PRODUCT §9.2).
+  if (!context.mounted) return false;
+  final sealed = await whileWorking(
+    context,
+    AppText.of(context).vaultWorking,
+    () => runOffThread(_sealIt, (contents: contents, password: password)),
+  );
+
   final directory = await getTemporaryDirectory();
   final file = File('${directory.path}/${fileNameFor(snapshot.family, at)}');
-  await file.writeAsString(contents);
+  await file.writeAsString(sealed);
 
   if (!context.mounted) return false;
   await SharePlus.instance.share(
     ShareParams(
-      files: <XFile>[XFile(file.path, mimeType: 'application/json')],
+      // Not `application/json`: what leaves here is not readable JSON, and a
+      // type that says it is invites something to try opening it as text.
+      files: <XFile>[XFile(file.path, mimeType: 'application/octet-stream')],
       subject: snapshot.family.name,
       // Where the sheet appears from on a tablet. Without it iPad throws
       // rather than guessing.
@@ -147,3 +171,10 @@ Rect _originIn(BuildContext context) {
 /// What to say when a family cannot be exported because it holds nothing.
 String exportEmptyMessage(BuildContext context) =>
     AppText.of(context).exportNothing;
+
+/// Sealing, in whatever isolate `compute` gives it.
+///
+/// Top level because that is what `compute` can reach — it sends the function
+/// itself across, and a closure or a method cannot go.
+Future<String> _sealIt(({String contents, String password}) work) =>
+    seal(contents: work.contents, password: work.password);
