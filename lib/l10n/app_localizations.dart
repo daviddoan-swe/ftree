@@ -118,7 +118,7 @@ abstract class AppText {
   /// No description provided for @familyRemovedNotice.
   ///
   /// In vi, this message translates to:
-  /// **'Bác không còn quyền trên dòng họ này. Đây là bản đã tải về máy, chỉ đọc được.'**
+  /// **'Không có quyền. Đây là bản đã tải về máy, chỉ đọc được.'**
   String get familyRemovedNotice;
 
   /// No description provided for @familiesEmptyHint.
@@ -508,7 +508,7 @@ abstract class AppText {
   /// No description provided for @importNotAllowed.
   ///
   /// In vi, this message translates to:
-  /// **'Bác chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.'**
+  /// **'Chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.'**
   String get importNotAllowed;
 
   /// No description provided for @importFailed.
@@ -940,7 +940,7 @@ abstract class AppText {
   /// No description provided for @accountNameHint.
   ///
   /// In vi, this message translates to:
-  /// **'Tên bác muốn người trong dòng họ nhìn thấy'**
+  /// **'Tên hiển thị'**
   String get accountNameHint;
 
   /// No description provided for @accountNameMissing.
@@ -1030,7 +1030,7 @@ abstract class AppText {
   /// No description provided for @shareConfirmBody.
   ///
   /// In vi, this message translates to:
-  /// **'Dòng họ này sẽ được gửi lên máy chủ và bác trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.'**
+  /// **'Dòng họ này sẽ được gửi lên máy chủ và tài khoản này trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.'**
   String get shareConfirmBody;
 
   /// Tên dòng họ nằm trong câu: chia sẻ vài dòng họ liền nhau thì bốn câu giống hệt nhau không phân biệt được
@@ -1048,7 +1048,7 @@ abstract class AppText {
   /// No description provided for @shareClaimedByOther.
   ///
   /// In vi, this message translates to:
-  /// **'Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời bác vào để cùng sửa.'**
+  /// **'Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời vào để cùng sửa.'**
   String get shareClaimedByOther;
 
   /// No description provided for @shareFailed.
@@ -1180,7 +1180,7 @@ abstract class AppText {
   /// No description provided for @inviteOwnerWarningBody.
   ///
   /// In vi, this message translates to:
-  /// **'Người này sẽ làm được mọi thứ bác làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.'**
+  /// **'Người này sẽ làm được mọi thứ chủ dòng họ làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.'**
   String get inviteOwnerWarningBody;
 
   /// No description provided for @inviteRevokeTitle.
@@ -1192,7 +1192,7 @@ abstract class AppText {
   /// No description provided for @inviteRevokeBody.
   ///
   /// In vi, this message translates to:
-  /// **'Mã này sẽ không dùng được nữa. Người bác đã gửi cho sẽ không vào được. Bác tạo mã mới bất cứ lúc nào.'**
+  /// **'Mã này sẽ không dùng được nữa. Người đã nhận mã sẽ không vào được. Có thể tạo mã mới bất cứ lúc nào.'**
   String get inviteRevokeBody;
 
   /// Nội dung tin nhắn chủ gửi đi, qua bảng chia sẻ của máy
@@ -1210,7 +1210,7 @@ abstract class AppText {
   /// No description provided for @inviteEnterWhy.
   ///
   /// In vi, this message translates to:
-  /// **'Mã do chủ dòng họ gửi cho bác. Nhập xong, gia phả sẽ được tải về máy này.'**
+  /// **'Mã do chủ dòng họ gửi. Nhập xong, gia phả sẽ được tải về máy này.'**
   String get inviteEnterWhy;
 
   /// No description provided for @inviteEnterLabel.
@@ -1240,13 +1240,13 @@ abstract class AppText {
   /// No description provided for @inviteAlreadyUsed.
   ///
   /// In vi, this message translates to:
-  /// **'Mã này đã được dùng rồi. Hãy hỏi lại người đã mời bác.'**
+  /// **'Mã này đã được dùng rồi. Hãy hỏi lại người đã mời.'**
   String get inviteAlreadyUsed;
 
   /// No description provided for @inviteWasRevoked.
   ///
   /// In vi, this message translates to:
-  /// **'Mã này đã bị huỷ. Hãy hỏi lại người đã mời bác.'**
+  /// **'Mã này đã bị huỷ. Hãy hỏi lại người đã mời.'**
   String get inviteWasRevoked;
 
   /// No description provided for @inviteHasExpired.
@@ -1342,25 +1342,25 @@ abstract class AppText {
   /// No description provided for @conflictsTitle.
   ///
   /// In vi, this message translates to:
-  /// **'Cần bác quyết'**
+  /// **'Chọn bản giữ lại'**
   String get conflictsTitle;
 
   /// No description provided for @conflictsWaiting.
   ///
   /// In vi, this message translates to:
-  /// **'{count, plural, =1{1 người đang chờ bác quyết} other{{count} người đang chờ bác quyết}}'**
+  /// **'{count, plural, =1{Có 1 người cần chọn bản} other{Có {count} người cần chọn bản}}'**
   String conflictsWaiting(int count);
 
   /// No description provided for @conflictsNone.
   ///
   /// In vi, this message translates to:
-  /// **'Không còn gì phải quyết'**
+  /// **'Đã chọn xong'**
   String get conflictsNone;
 
   /// No description provided for @conflictMine.
   ///
   /// In vi, this message translates to:
-  /// **'Bản của bác'**
+  /// **'Bản ở máy này'**
   String get conflictMine;
 
   /// No description provided for @conflictTheirs.
@@ -1402,13 +1402,13 @@ abstract class AppText {
   /// No description provided for @conflictRemovedByThem.
   ///
   /// In vi, this message translates to:
-  /// **'Đã bị xoá ở máy khác, trong lúc bác đang sửa.'**
+  /// **'Đã bị xoá ở máy khác, trong lúc máy này đang sửa.'**
   String get conflictRemovedByThem;
 
   /// No description provided for @conflictRemovedByMe.
   ///
   /// In vi, this message translates to:
-  /// **'Bác đã xoá người này ở máy này, trong lúc máy khác đang sửa.'**
+  /// **'Người này bị xoá ở máy này, trong lúc máy khác đang sửa.'**
   String get conflictRemovedByMe;
 
   /// No description provided for @conflictKeepPerson.
@@ -1438,7 +1438,7 @@ abstract class AppText {
   /// No description provided for @conflictDropsMine.
   ///
   /// In vi, this message translates to:
-  /// **'Bỏ phần bác sửa mà chưa gửi'**
+  /// **'Bỏ phần sửa chưa gửi'**
   String get conflictDropsMine;
 
   /// No description provided for @conflictDecide.
@@ -1492,7 +1492,7 @@ abstract class AppText {
   /// No description provided for @membersSearch.
   ///
   /// In vi, this message translates to:
-  /// **'Tìm theo tên hoặc email'**
+  /// **'Tìm tên hoặc email'**
   String get membersSearch;
 
   /// No description provided for @filterAll.
@@ -1516,7 +1516,7 @@ abstract class AppText {
   /// No description provided for @membersYou.
   ///
   /// In vi, this message translates to:
-  /// **'bác'**
+  /// **'bạn'**
   String get membersYou;
 
   /// No description provided for @memberRemove.

@@ -853,27 +853,27 @@ class AppTextEn extends AppText {
       'The server would not take it — check what you may do here';
 
   @override
-  String get conflictsTitle => 'Your decision';
+  String get conflictsTitle => 'Which to keep';
 
   @override
   String conflictsWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count people are waiting on your decision',
-      one: '1 person is waiting on your decision',
+      other: '$count people to choose for',
+      one: '1 person to choose for',
     );
     return '$_temp0';
   }
 
   @override
-  String get conflictsNone => 'Nothing left to decide';
+  String get conflictsNone => 'All chosen';
 
   @override
-  String get conflictMine => 'Your version';
+  String get conflictMine => 'On this device';
 
   @override
-  String get conflictTheirs => 'The version on the server';
+  String get conflictTheirs => 'On the server';
 
   @override
   String conflictWas(String value) {
@@ -894,11 +894,11 @@ class AppTextEn extends AppText {
 
   @override
   String get conflictRemovedByThem =>
-      'Removed on another device, while you were editing them.';
+      'Removed on another device, while this one was editing.';
 
   @override
   String get conflictRemovedByMe =>
-      'You removed them here, while another device was editing them.';
+      'Removed on this device, while another was editing.';
 
   @override
   String get conflictKeepPerson => 'Keep them in the gia phả';
@@ -916,7 +916,7 @@ class AppTextEn extends AppText {
   }
 
   @override
-  String get conflictDropsMine => 'Your unsent changes to them are dropped';
+  String get conflictDropsMine => 'Unsent changes here are dropped';
 
   @override
   String get conflictDecide => 'Save this decision';
@@ -943,7 +943,7 @@ class AppTextEn extends AppText {
   String get conflictMedia => 'Portrait';
 
   @override
-  String get membersSearch => 'Search by name or address';
+  String get membersSearch => 'Name or address';
 
   @override
   String get filterAll => 'All';

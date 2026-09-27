@@ -118,7 +118,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('phía sau'), findsOneWidget, reason: 'back where we were');
-    expect(find.text('Nothing left to decide'), findsNothing);
+    expect(find.text('All chosen'), findsNothing);
   });
 
   testWidgets('answering one of two stays, because one is left', (
@@ -153,7 +153,7 @@ void main() {
   testWidgets('nothing waiting says so', (tester) async {
     await open(tester);
 
-    expect(find.text('Nothing left to decide'), findsOneWidget);
+    expect(find.text('All chosen'), findsOneWidget);
   });
 
   testWidgets('both versions are shown, with what they started from', (
@@ -190,7 +190,7 @@ void main() {
     await disagree(mine: 'Cụ Tổ (tôi)', theirs: 'Cụ Tổ (họ)');
     await open(tester);
 
-    await tester.tap(find.text('The version on the server'));
+    await tester.tap(find.text('On the server'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Keep these'));
     await tester.pumpAndSettle();
@@ -205,7 +205,7 @@ void main() {
     await tester.tap(find.text('Keep these'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nothing left to decide'), findsOneWidget);
+    expect(find.text('All chosen'), findsOneWidget);
   });
 
   testWidgets('the family screen stops saying one is waiting', (tester) async {
@@ -335,7 +335,7 @@ void main() {
     await iRemoved();
     await open(tester);
 
-    expect(find.textContaining('You removed them here'), findsOneWidget);
+    expect(find.textContaining('Removed on this device'), findsOneWidget);
 
     await tester.tap(find.text('Save this decision'));
     await tester.pumpAndSettle();

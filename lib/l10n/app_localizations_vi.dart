@@ -19,7 +19,7 @@ class AppTextVi extends AppText {
 
   @override
   String get familyRemovedNotice =>
-      'Bác không còn quyền trên dòng họ này. Đây là bản đã tải về máy, chỉ đọc được.';
+      'Không có quyền. Đây là bản đã tải về máy, chỉ đọc được.';
 
   @override
   String get familiesEmptyHint => 'Tạo một gia đình để bắt đầu ghi gia phả';
@@ -307,7 +307,7 @@ class AppTextVi extends AppText {
 
   @override
   String get importNotAllowed =>
-      'Bác chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.';
+      'Chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.';
 
   @override
   String get importFailed => 'Không đọc được file';
@@ -562,7 +562,7 @@ class AppTextVi extends AppText {
   String get accountName => 'Tên';
 
   @override
-  String get accountNameHint => 'Tên bác muốn người trong dòng họ nhìn thấy';
+  String get accountNameHint => 'Tên hiển thị';
 
   @override
   String get accountNameMissing => 'Hãy nhập tên';
@@ -616,7 +616,7 @@ class AppTextVi extends AppText {
 
   @override
   String get shareConfirmBody =>
-      'Dòng họ này sẽ được gửi lên máy chủ và bác trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.';
+      'Dòng họ này sẽ được gửi lên máy chủ và tài khoản này trở thành chủ của nó. Các dòng họ khác trên máy vẫn ở lại máy. Đã gửi rồi thì không rút về được.';
 
   @override
   String shareDone(String name) {
@@ -630,7 +630,7 @@ class AppTextVi extends AppText {
 
   @override
   String get shareClaimedByOther =>
-      'Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời bác vào để cùng sửa.';
+      'Dòng họ này đã có người khác chia sẻ. Hãy nhờ họ mời vào để cùng sửa.';
 
   @override
   String get shareFailed => 'Không chia sẻ được';
@@ -708,14 +708,14 @@ class AppTextVi extends AppText {
 
   @override
   String get inviteOwnerWarningBody =>
-      'Người này sẽ làm được mọi thứ bác làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.';
+      'Người này sẽ làm được mọi thứ chủ dòng họ làm được: mời người khác, mời thêm chủ, và xoá cả dòng họ. Không có cách nào lấy lại quyền đó.';
 
   @override
   String get inviteRevokeTitle => 'Huỷ mã mời?';
 
   @override
   String get inviteRevokeBody =>
-      'Mã này sẽ không dùng được nữa. Người bác đã gửi cho sẽ không vào được. Bác tạo mã mới bất cứ lúc nào.';
+      'Mã này sẽ không dùng được nữa. Người đã nhận mã sẽ không vào được. Có thể tạo mã mới bất cứ lúc nào.';
 
   @override
   String inviteMessage(String family, String code) {
@@ -727,7 +727,7 @@ class AppTextVi extends AppText {
 
   @override
   String get inviteEnterWhy =>
-      'Mã do chủ dòng họ gửi cho bác. Nhập xong, gia phả sẽ được tải về máy này.';
+      'Mã do chủ dòng họ gửi. Nhập xong, gia phả sẽ được tải về máy này.';
 
   @override
   String get inviteEnterLabel => 'Mã mời';
@@ -743,11 +743,10 @@ class AppTextVi extends AppText {
 
   @override
   String get inviteAlreadyUsed =>
-      'Mã này đã được dùng rồi. Hãy hỏi lại người đã mời bác.';
+      'Mã này đã được dùng rồi. Hãy hỏi lại người đã mời.';
 
   @override
-  String get inviteWasRevoked =>
-      'Mã này đã bị huỷ. Hãy hỏi lại người đã mời bác.';
+  String get inviteWasRevoked => 'Mã này đã bị huỷ. Hãy hỏi lại người đã mời.';
 
   @override
   String get inviteHasExpired => 'Mã này đã hết hạn. Hãy xin một mã mới.';
@@ -844,24 +843,24 @@ class AppTextVi extends AppText {
   String get syncRefused => 'Máy chủ không nhận — hãy xem lại quyền ở đây';
 
   @override
-  String get conflictsTitle => 'Cần bác quyết';
+  String get conflictsTitle => 'Chọn bản giữ lại';
 
   @override
   String conflictsWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count người đang chờ bác quyết',
-      one: '1 người đang chờ bác quyết',
+      other: 'Có $count người cần chọn bản',
+      one: 'Có 1 người cần chọn bản',
     );
     return '$_temp0';
   }
 
   @override
-  String get conflictsNone => 'Không còn gì phải quyết';
+  String get conflictsNone => 'Đã chọn xong';
 
   @override
-  String get conflictMine => 'Bản của bác';
+  String get conflictMine => 'Bản ở máy này';
 
   @override
   String get conflictTheirs => 'Bản trên máy chủ';
@@ -885,11 +884,11 @@ class AppTextVi extends AppText {
 
   @override
   String get conflictRemovedByThem =>
-      'Đã bị xoá ở máy khác, trong lúc bác đang sửa.';
+      'Đã bị xoá ở máy khác, trong lúc máy này đang sửa.';
 
   @override
   String get conflictRemovedByMe =>
-      'Bác đã xoá người này ở máy này, trong lúc máy khác đang sửa.';
+      'Người này bị xoá ở máy này, trong lúc máy khác đang sửa.';
 
   @override
   String get conflictKeepPerson => 'Giữ lại trong gia phả';
@@ -906,7 +905,7 @@ class AppTextVi extends AppText {
   }
 
   @override
-  String get conflictDropsMine => 'Bỏ phần bác sửa mà chưa gửi';
+  String get conflictDropsMine => 'Bỏ phần sửa chưa gửi';
 
   @override
   String get conflictDecide => 'Lưu quyết định này';
@@ -933,7 +932,7 @@ class AppTextVi extends AppText {
   String get conflictMedia => 'Ảnh đại diện';
 
   @override
-  String get membersSearch => 'Tìm theo tên hoặc email';
+  String get membersSearch => 'Tìm tên hoặc email';
 
   @override
   String get filterAll => 'Tất cả';
@@ -945,7 +944,7 @@ class AppTextVi extends AppText {
   String get membersTitle => 'Thành viên';
 
   @override
-  String get membersYou => 'bác';
+  String get membersYou => 'bạn';
 
   @override
   String get memberRemove => 'Gỡ khỏi dòng họ';
