@@ -355,6 +355,10 @@ class AppTextVi extends AppText {
   String get importAction => 'Nhập';
 
   @override
+  String get importDeletedByOwner =>
+      'Chủ dòng họ đã xoá dòng họ này. Chỉ chủ mới khôi phục lại được.';
+
+  @override
   String get importNotAllowed =>
       'Chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.';
 
@@ -798,6 +802,10 @@ class AppTextVi extends AppText {
   String get inviteWasRevoked => 'Mã này đã bị huỷ. Hãy hỏi lại người đã mời.';
 
   @override
+  String get inviteFamilyDeleted =>
+      'Dòng họ này đã bị xoá. Hãy hỏi lại người đã mời.';
+
+  @override
   String get inviteHasExpired => 'Mã này đã hết hạn. Hãy xin một mã mới.';
 
   @override
@@ -1007,4 +1015,19 @@ class AppTextVi extends AppText {
 
   @override
   String get memberRemoveLastOwner => 'Dòng họ phải luôn có ít nhất một chủ';
+
+  @override
+  String familyGoneDeleted(String name) {
+    return '$name đã bị xoá';
+  }
+
+  @override
+  String familyGoneRemoved(String name) {
+    return 'Bạn không còn trong $name';
+  }
+
+  @override
+  String familiesGone(int count) {
+    return '$count dòng họ không còn';
+  }
 }

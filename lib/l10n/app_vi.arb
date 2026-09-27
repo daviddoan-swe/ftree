@@ -175,6 +175,7 @@
 
   "importNothingNew": "File này không có gì mới so với máy",
   "importAction": "Nhập",
+  "importDeletedByOwner": "Chủ dòng họ đã xoá dòng họ này. Chỉ chủ mới khôi phục lại được.",
   "importNotAllowed": "Chỉ có quyền xem dòng họ này, nên không nhập thêm vào được.",
   "importFailed": "Không đọc được file",
   "importDonePeople": "{count, plural, =0{Không thêm người nào} =1{Đã thêm 1 người} other{Đã thêm {count} người}}",
@@ -400,6 +401,7 @@
   "inviteNotFound": "Không có mã này. Hãy kiểm tra lại từng ký tự.",
   "inviteAlreadyUsed": "Mã này đã được dùng rồi. Hãy hỏi lại người đã mời.",
   "inviteWasRevoked": "Mã này đã bị huỷ. Hãy hỏi lại người đã mời.",
+  "inviteFamilyDeleted": "Dòng họ này đã bị xoá. Hãy hỏi lại người đã mời.",
   "inviteHasExpired": "Mã này đã hết hạn. Hãy xin một mã mới.",
 
   "membersOwnerOnly": "Chỉ chủ dòng họ mới quản lý được thành viên và lời mời.",
@@ -462,5 +464,23 @@
   "memberRemove": "Gỡ khỏi dòng họ",
   "memberRemoveTitle": "Gỡ người này?",
   "memberRemoveBody": "Họ sẽ không đọc hay sửa dòng họ này trên máy chủ được nữa. Bản đã tải về máy họ thì vẫn còn.",
-  "memberRemoveLastOwner": "Dòng họ phải luôn có ít nhất một chủ"
+  "memberRemoveLastOwner": "Dòng họ phải luôn có ít nhất một chủ",
+  "familyGoneDeleted": "{name} đã bị xoá",
+  "@familyGoneDeleted": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "familyGoneRemoved": "Bạn không còn trong {name}",
+  "@familyGoneRemoved": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "familiesGone": "{count} dòng họ không còn",
+  "@familiesGone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

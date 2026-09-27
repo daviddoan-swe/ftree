@@ -423,8 +423,9 @@ A link that opens the application directly was considered and deferred: it
 needs a domain and a file hosted on it for the phone to verify, which is
 infrastructure rather than code.
 
-A code meant for a whole branch, reusable and gated by approval, is proposed in
-§5.8 and deferred to M9. It does not replace this one; it sits beside it.
+A code meant for a whole branch, reusable and gated by approval, was weighed
+and decided against. §5.8 says why, and the short of it is that it would have
+traded away exactly the property this section is built on.
 
 ### 5.3 No approval, and what stands in its place
 
@@ -446,9 +447,10 @@ later refinement; it is the other half of this decision.
 The last owner cannot be removed. A family nobody can manage is a family nobody
 can ever be invited into.
 
-This holds for a code sent to **one person**. §5.8 proposes a code sent to a
-group, where the owner never chooses a recipient at all — and there approval
-becomes the only per-person decision there is, rather than a second one.
+This holds for a code sent to **one person**, and that is now the only kind
+there is. A code sent to a group would have moved the second decision to
+approval, since its owner never chooses a recipient; that case was examined and
+closed rather than left open (§5.8).
 
 ### 5.4 The owner's device keeps the codes it issued
 
@@ -608,64 +610,44 @@ from this device again; revoking it and making another is the way back.
 The gia phả itself is untouched, and still works with nobody signed in. That
 is the whole of §4.1 and signing out must not quietly walk it back.
 
-### 5.8 A code for a whole branch, with approval — deferred to M9
+### 5.8 A code for a whole branch, with approval — decided against
 
-**Proposed and written down rather than built.** One code an owner can hand to
-a family group, reusable for a while, giving **viewer** access only — so that
-nobody has to make a code per relative. Everybody who uses it lands in a
-pending list, and the owner lets them in one at a time.
+**Not building it.** The proposal was one code an owner could hand to a family
+group, reusable for a while, giving **viewer** access only, with everybody who
+used it landing in a pending list for the owner to admit one at a time. It was
+written out, weighed against §5.2 and §5.3, and dropped. Those two stand as they
+are: one code, one person, no queue.
 
-This revisits §5.2 and §5.3 rather than adding to them, so the reasoning is
-kept here in full.
-
-**Reusable and approval need each other.** Single use earns its place by making
-theft *visible* (§5.2): whoever intercepts a code and uses it leaves the
-intended reader looking at "already used". A reusable code gives that up — a
-stranger walks in silently. Approval restores it by another route: a stranger
-appears in a list, with a name the owner does not know. So the pair is coherent
-and **either half alone is not**. A reusable code with no approval is the
-dangerous shape.
-
-**And the argument against approval does not reach this case.** §5.3 rejects a
-queue because the owner already decided twice — making the code, and choosing
-who to send it to. With a code meant for a group, the owner never made the
-second decision at all. Approval is then the only place a decision about a
-particular person is ever taken, which is the opposite of a gate clicked
-through.
-
-It also only became workable when accounts started carrying names (§5.6).
-Approving `nguyenvana1983@gmail.com` is guessing; approving *Nguyễn Văn Hải* is
-deciding.
-
-**"Without even registering" contradicts approval, with one way out.** To
-approve somebody you must be able to name them and grant access to *them*. With
-no account there is no them. Dropping approval and letting whoever holds the
-code download is the bearer-key design §4.4 already rejected: nothing can be
+**It needs anonymous accounts, which is a second identity system.** The appeal
+was joining "without even registering", and that contradicts approval outright:
+to approve somebody you must be able to name them and grant access to *them*,
+and with no account there is no them. Letting whoever holds the code download
+instead is the bearer-key design §4.4 already rejected — nothing can be
 withdrawn from one person, nobody can be told apart, and RLS is written against
-`auth.uid()`, so it would mean issuing tokens ourselves.
+`auth.uid()`. The only way through was anonymous sign-in, and the name it
+carries is one **nobody verifies**: approving would mean trusting a typed name
+together with the fact that whoever typed it had the code. That is a new kind of
+identity in the system, earning its complexity nowhere else.
 
-The way out is **anonymous sign-in** — a real `auth.uid()` with no email and no
-password. §4.4 rejects it, but rejects it *for owners*: losing the phone loses
-the identity and the family with it. A viewer owns nothing, so losing it costs
-them a second look at the code. The objection does not cover them.
+**It gives up the property single use was chosen for.** Single use makes theft
+*visible* (§5.2): whoever intercepts a code and uses it leaves the intended
+reader looking at "already used". A reusable code gives that up — a stranger
+walks in silently. Approval restores it by another route, so the pair is
+coherent and **either half alone is not** — and the half that is easy to build
+is the dangerous one.
 
-What that buys is a name the person types themselves, which **nobody
-verifies**. An owner approving is trusting the name together with the fact that
-whoever typed it had the code. For a code passed around a family's own group
-chat that is a reasonable thing to trust — but it should be understood as
-trust, not as proof.
+**And a file already delivers what it would deliver.** A viewer let in this way
+gets what somebody sent the exported file gets: the gia phả, to read. §9.1
+offers that today, sealed with a password (§9.2), with no pending list for one
+person to remember to open. With no push notifications a request can sit for
+weeks — a standing obligation on the one person who did not ask for one, to hand
+out what a file hands out already.
 
-**Why it waits for M9.** Until synchronisation exists, a viewer who downloads
-through the cloud has exactly what somebody sent the exported file has: one
-snapshot, never updated. §4.1 already offers that, and it costs nothing. What
-the cloud path adds is that the server remembers them, ready for the day two
-copies can speak — which is M9. Building the pending list now would be building
-a queue to hand out something a file already hands out.
-
-**The cost to weigh when it is built:** a pending list is an inbox the owner
-has to remember to open. With no push notifications a request can sit for
-weeks. Somebody who asked with a group code expects to wait, which softens it,
-but it is still a new obligation on the one person who did not ask for one.
+**What stands in its place** is what exists: a code per person (§5.2), the member
+list (§5.6), removal, and the sealed file for anybody who only needs to read. If
+making a code per relative ever becomes the real complaint, the thing to
+reconsider first is making *that* cheaper — several codes issued from one screen
+— not one code many people share.
 
 ### 5.10 Deleting, and who it reaches
 
@@ -713,6 +695,65 @@ somebody here took deliberately, in either direction.
 **Relationships are not asked about.** An edge carries no recorded detail, only
 which two people it joins, and changing that makes it a different edge. A
 tombstone for one is applied. Asking would be asking about nothing.
+
+**A deleted family is closed on the server, not merely hidden.** Nobody may write
+into it and nobody may be invited into it. `family_is_live` is added to the
+`WITH CHECK` half of the person and relationship policies and to invitation
+creation — the `USING` half is deliberately left alone, because the deletion
+itself is an update of those same rows and guarding both halves would forbid the
+act it is there to protect. A code issued before the deletion is refused at the
+moment somebody uses it, and is **not** marked used: the code was never spent, it
+was aimed at something that no longer exists.
+
+**Only the owner may bring a deleted family back from a file.** An exported file
+carries no rights with it (§5.7), which means anybody holding one could otherwise
+undo the owner's decision for the whole household — and the copy that came back
+would carry full rights, because a family with no role reads as a family nobody
+else has a claim on. So a device that remembers being an editor or a viewer of
+this family is refused the import. **Decided over the alternatives** of letting
+anybody re-import and having the next synchronisation quietly delete it again,
+which teaches people that deleting does not work, and of refusing every import,
+which would leave an owner who deleted by mistake with no way back at all. This
+is the one undo there is.
+
+**Offline the refusal still holds, and that is on purpose.** The role is a column
+on the local family row, so the device can answer without a server. An editor
+with no signal is told no, rather than told yes and corrected later.
+
+**Being removed from a family takes the copy with it.** A relative the owner
+removes loses their download at the next role refresh, not just their access to
+the cloud. **Decided over leaving them a read-only snapshot**: the alternative
+looks kinder and is harder to explain, since the copy left behind would drift
+from the real gia phả for ever while still looking like it. The tombstone written
+in this case is marked as *not* needing to be sent — this account has no say over
+that family any more, and a device must never offer to delete for everybody
+something it was merely shut out of.
+
+**Where a deletion is sent from.** Pressing delete sends it immediately. Because
+that press can happen with no signal, three more moments sweep for a deletion
+still waiting: opening the family list, the application returning to the front,
+and pulling down on the family list. Opening or leaving a *family* screen
+synchronises too, but cannot help here — a deleted family can no longer be
+opened, which is the reason the sweep exists.
+
+**A device learns of somebody else's deletion without opening the family.**
+Opening it works — the pull brings the tombstone down — but that is the one route
+somebody standing on the family list cannot take, and it was the only route
+there was. The question this device already asks about *roles* now asks about the
+family in the same request, so pulling down on the list is enough, and so is
+putting the phone down and picking it up again.
+
+Reported apart from a removal rather than folded into it, because the two differ
+in exactly one way that matters: being put out takes the role, and a deletion
+leaves it. The role is what permits the owner's one undo, so folding them
+together would be an owner deleting on one device and being refused their own
+backup on the other.
+
+**And the person is told which family went.** A list that is simply one shorter
+than it was is not an explanation. The message names the family and says which
+of the two happened — deleted, or no longer yours — because from the outside
+those look identical and mean different things: a gia phả deleted is gone for
+everybody, while being put out leaves it standing without you.
 
 ---
 

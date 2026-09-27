@@ -50,8 +50,23 @@ class _FamilyListScreenState extends ConsumerState<FamilyListScreen> {
   void initState() {
     super.initState();
     final container = ProviderScope.containerOf(context, listen: false);
+
+    // This screen is the only one a deleted family's owner will ever be on
+    // again, so it is the only place a tombstone that failed to send can be
+    // picked up. Usually there is nothing waiting.
+    unawaited(pushStuckDeletions(container));
+
     _lifecycle = AppLifecycleListener(
-      onResume: () => unawaited(refreshedRoles(container)),
+      onResume: () {
+        // Told here too, for the same reason as on the pull: this screen is up,
+        // so somebody is looking at the list a family is about to leave.
+        unawaited(
+          refreshedRoles(container).then((answer) {
+            if (mounted) _sayWhatWent(context, answer.gone);
+          }),
+        );
+        unawaited(pushStuckDeletions(container));
+      },
     );
   }
 
@@ -146,19 +161,31 @@ class _FamilyList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SlidableAutoCloseBehavior(
-      // One card holding every family, not a card each, and built row by row
-      // as it scrolls — the same treatment the people list gets, so the two
-      // do not diverge as this one grows.
-      child: CustomScrollView(
-        slivers: <Widget>[
-          const SliverToBoxAdapter(child: AvatarHeader(initials: 'FTree')),
-          GroupedSliverSection(
-            itemCount: families.length,
-            itemBuilder: (context, index) =>
-                _familyRow(context, ref, families[index]),
+      // Pulling the list down sends what is still waiting to go.
+      //
+      // It runs on opening the application too, but that is once a session.
+      // This screen is the only one a deleted family's owner ever comes back
+      // to, so it is the only place a tombstone that failed to send can be
+      // picked up — and somebody who has just deleted something and wants to
+      // know it went reaches for exactly this gesture.
+      child: RefreshIndicator(
+        onRefresh: () => _refresh(context, ref),
+        child: CustomScrollView(
+          // Or a device with two families is one the gesture does not work
+          // on, the list being shorter than the screen.
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
-        ],
+          slivers: <Widget>[
+            const SliverToBoxAdapter(child: AvatarHeader(initials: 'FTree')),
+            GroupedSliverSection(
+              itemCount: families.length,
+              itemBuilder: (context, index) =>
+                  _familyRow(context, ref, families[index]),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          ],
+        ),
       ),
     );
   }
@@ -342,6 +369,42 @@ Future<void> _export(BuildContext context, WidgetRef ref, Family family) async {
 /// of transcription and the application has no way to restore it; a dialog with
 /// two buttons is not proportional to that. An empty family — the create-by-
 /// mistake case — asks once, because there is nothing to lose.
+/// Sends whatever is still waiting, and asks again what this account may do.
+///
+/// What the pull gesture does on this screen. Both are cheap and both are
+/// things somebody standing here might be waiting on: a deletion that has not
+/// reached the server, and a role somebody changed elsewhere.
+///
+/// The second answers a third question as well. A family somebody else deleted,
+/// or one this account was put out of, goes from the list here — so the gesture
+/// is the way to find out, and the only way that does not involve opening the
+/// family and watching it vanish underneath.
+Future<void> _refresh(BuildContext context, WidgetRef ref) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  await pushStuckDeletions(container);
+  final gone = (await refreshedRoles(container)).gone;
+  if (context.mounted) _sayWhatWent(context, gone);
+}
+
+/// Says which family disappeared, because the list simply being shorter is not
+/// an explanation.
+///
+/// Nothing is said when nothing went, which is almost every refresh.
+void _sayWhatWent(BuildContext context, List<GoneFamily> gone) {
+  if (gone.isEmpty) return;
+  final text = AppText.of(context);
+
+  // Named one at a time, counted beyond that: a toast is one line, and the
+  // usual case is one family.
+  final message = gone.length == 1
+      ? (gone.single.deleted
+            ? text.familyGoneDeleted(gone.single.name)
+            : text.familyGoneRemoved(gone.single.name))
+      : text.familiesGone(gone.length);
+
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
 Future<void> _confirmAndDelete(
   BuildContext context,
   WidgetRef ref,
@@ -379,6 +442,18 @@ Future<void> _confirmAndDelete(
   if (!confirmed) return;
 
   await ref.read(familyListProvider.notifier).removeFamily(family.id);
+
+  // Sent from here, because nothing else ever will. A synchronisation runs
+  // when a family is opened and when it is left, and a family that has just
+  // been deleted cannot be opened again — so the tombstone would sit on this
+  // device for ever while every other copy went on showing the gia phả.
+  //
+  // Not awaited: the row is gone from the list already, and what this does is
+  // tell the server. Anything it fails to get away stays flagged.
+  if (!context.mounted) return;
+  unawaited(
+    pushFamily(ProviderScope.containerOf(context, listen: false), family.id),
+  );
 }
 
 class _NoFamiliesYet extends StatelessWidget {

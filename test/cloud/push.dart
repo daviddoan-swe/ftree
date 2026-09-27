@@ -298,6 +298,85 @@ void main() {
     expect(answer.family?.name, 'Họ Nguyễn – Phù Ninh');
   });
 
+  test('an editor cannot bring a deleted family back', () async {
+    // The file is outside everything the server can recall: an export taken
+    // before the owner deleted the family still opens, and importing it used
+    // to put the family back — here, then on the server at the next push,
+    // then on everybody's phone. An editor holding an old backup could undo
+    // the owner's decision for the whole household (PRODUCT §5.10).
+    final owner = await anAccount();
+    final family = await aFamily();
+    final invitation = await FamilyInvitations(
+      client(),
+    ).create(familyId: family, role: 'editor');
+
+    await sink().send(
+      family,
+      Outgoing(stampedAt: DateTime.now().toUtc(), deletedFamily: family),
+    );
+    await signOut();
+
+    await anAccount();
+    await FamilyInvitations(client()).accept(invitation.code!);
+
+    // What an import would push: the family row, and its people, alive.
+    await expectLater(
+      sink().send(
+        family,
+        Outgoing(
+          stampedAt: DateTime.now().toUtc(),
+          family: Family(id: family, name: 'Họ Nguyễn'),
+          persons: <Person>[
+            Person(
+              id: personIn(family, 1),
+              familyId: family,
+              displayName: 'Cụ Tổ',
+            ),
+          ],
+        ),
+      ),
+      throwsA(isA<PostgrestException>()),
+    );
+
+    await signOut();
+    await signIn(email: owner.email, password: password);
+    final answer = await CloudChanges(client()).since(family, 0);
+    expect(answer.familyDeleted, isTrue, reason: 'still deleted');
+    expect(answer.persons, isEmpty, reason: 'and still empty');
+  });
+
+  test('but its owner can', () async {
+    // Importing a backup is how a family comes back, and the owner is the one
+    // whose decision it was. `save_family_all` writes the family row first, so
+    // by the time it reaches the people the tombstone is already gone.
+    await anAccount();
+    final family = await aFamily();
+
+    await sink().send(
+      family,
+      Outgoing(stampedAt: DateTime.now().toUtc(), deletedFamily: family),
+    );
+
+    await sink().send(
+      family,
+      Outgoing(
+        stampedAt: DateTime.now().toUtc(),
+        family: Family(id: family, name: 'Họ Nguyễn'),
+        persons: <Person>[
+          Person(
+            id: personIn(family, 1),
+            familyId: family,
+            displayName: 'Cụ Tổ',
+          ),
+        ],
+      ),
+    );
+
+    final answer = await CloudChanges(client()).since(family, 0);
+    expect(answer.familyDeleted, isFalse);
+    expect(answer.persons.single.displayName, 'Cụ Tổ');
+  });
+
   test('an owner deleting a family takes its people with it', () async {
     // One call for the three tables (ROADMAP M9, step 4). What has to be true
     // is that nothing is left standing: a family row alive with every person

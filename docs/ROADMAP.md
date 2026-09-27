@@ -1047,14 +1047,6 @@ Unauthorized users cannot access another family's private data.
 
 ## M9 — Synchronization
 
-Also waiting here, because until two copies can speak it delivers nothing a
-file does not: **a reusable code for a whole branch, gated by approval**
-(PRODUCT §5.8). It revisits two M8 decisions rather than extending them —
-single use, and no approval — and the reasoning for revisiting them is written
-out there. The short of it: reusable and approval need each other, and the
-argument against a queue does not reach a code whose owner never chose a
-recipient.
-
 Built in steps, because each one stands on its own and the first delivers most
 of what is currently missing.
 
@@ -1332,11 +1324,100 @@ a person added to a family nobody returned to reached nobody. Leaving is the
 moment somebody has finished writing, which makes it the moment the writing
 should go.
 
+**Step 5 — saying where things stand. Done.** One line on the family screen:
+brought down, waiting to go up, or nothing to do. **Decided against a banner**,
+which was the recommendation, in favour of **pulling down to refresh** as the
+control — the gesture everybody already knows, and it costs no space on a screen
+that is mostly gia phả. A toast reports the result, and only on the pull: that is
+the one moment somebody asked, and the moments they did not ask about are the
+ones a message would interrupt.
+
+Its first shape put the line in the middle of the screen, which was wrong and was
+said so plainly. It sits with the family's other facts now.
+
+**Every message was cut to the shortest thing that is still true.** Seventeen of
+them, reviewed as a list before any was changed. Two rules came out of that
+review and both are worth keeping:
+
+* **The application does not know who is an uncle and who is a nephew.** A draft
+   addressed the reader as *bác* — respectful, and wrong for exactly the same
+   reason §1.1 gives for everything else about kinship terms: the relation is not
+   recorded and cannot be guessed from a family tree. Where a message must name
+   somebody, it says *bạn*.
+* **No mechanism vocabulary.** "Encrypting", "sealing", "sending" describe what
+   the code is doing, which is not what the person asked for. The button says
+   *Xuất dữ liệu* and the wait says *Đang xuất file*; that the file is encrypted
+   is not a choice anybody makes, so it is not a thing anybody is told.
+
+**The invitation list at a hundred members.** Chips filter by state, defaulting
+to the ones that still work; the search is by email, since that is the only thing
+the owner knows about somebody they invited. A used invitation shows **who
+invited** — needed for the day somebody asks how a person got in, and shown only
+where it answers something, which is on the ones that were used. Two functions
+carry it (`family_invitation_list`, `family_members`), because
+`auth.users.email` cannot be reached from PostgREST at all.
+
+**Renaming is the owner's, like deleting.** `families_update_editor` was dropped.
+What a family is called is not a record an editor is filling in: one editor
+renaming it renames it for the whole household.
+
+__A deleted family is now closed, and the closing had to be done in three
+places.__ Deleting reached the server and stopped there — the rest of the system
+went on treating the family as somewhere work could go.
+
+* **Nothing may be written into it.** `family_is_live` is added to the `WITH
+   CHECK` half of the person and relationship policies, and to nothing else. The
+   `USING` half is deliberately untouched: the deletion *is* an update of those
+   rows, so guarding both halves would forbid the act being protected.
+* **Nobody may be invited into it**, and a code issued before the deletion is
+   refused when somebody uses it — refused **before** the membership is written,
+   and without marking the code used. The code was never spent; what it pointed
+   at stopped existing.
+* **Only the owner may put it back from a file.** An export carries no rights
+   (PRODUCT §5.7), so anybody holding one could otherwise undo the owner's
+   decision for the whole household — and the copy coming back would carry *full*
+   rights, because a family with no role reads as a family nobody has a claim on.
+   Decided over letting anybody re-import and having the next synchronisation
+   quietly delete it again, which teaches people that deleting does not work.
+
+__And three instances of one bug, which is why it is written down as a family
+rather than three fixes.__ `SharingMarks.shared()`, `FamilyRoles.all()` and a
+`.valueOrNull` on `sharedFamiliesProvider` each turned *deleted* or *not known
+yet* into `null` — and `null` means "a family nobody else has a claim on", which
+means **every right**. Found on real devices, one at a time: the tombstone that
+could never leave the device that made it; the editor who could revive a deleted
+family from a file; and the push that skipped a family because its answer had not
+arrived. The rule now stated in the tests: a query that answers *what may this
+account do* must never filter out a row for being deleted. Only the screens that
+draw families may do that.
+
+__Being put out takes the copy with it, and so does the family being deleted.__
+**Decided over leaving a read-only snapshot behind**: the copy left behind would
+drift from the real gia phả for ever while still looking like it. Those
+tombstones are written **as already sent** — the family is not being deleted,
+this device is losing its copy, and a device must never offer to delete for
+everybody something it was merely shut out of.
+
+Learning of it needed one more question. `delete_family_deep` does not touch
+memberships, so every member's row stands after a deletion and the question this
+device asks about roles saw nothing wrong. It now asks about the family in the
+same request (`families!inner(deleted_at)`), which means **pulling down on the
+family list is enough** — the route somebody standing on that list can actually
+take, where before the only route was opening the family and watching it vanish.
+The two answers are kept apart rather than folded together: a removal takes the
+role, a deletion leaves it, and the role is what permits the owner's one undo.
+
+And the person is told, by name, which family went and which of the two happened.
+A list one shorter than it was is not an explanation.
+
 Still to do:
 
-* **Step 5 — synchronisation status**, so it is not a black box: last brought
-   down, and what is still waiting to go up. It should carry a synchronise-now
-   control: whatever moments are chosen, somebody sometimes wants to press it.
+* **Two devices renaming the same family** — the last push wins, in silence. It
+   is the one field on the family row, and the conflict machinery built for
+   people does not cover it.
+* **Argon2id has been measured on a Mac, not on a phone.** 32 MiB was chosen
+   from measurements on this machine. The oldest Android device in scope has to
+   be timed before that number can be called settled.
 
 Constraints already fixed (ARCHITECTURE §12):
 

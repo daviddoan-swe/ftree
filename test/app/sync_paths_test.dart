@@ -41,15 +41,19 @@ final class SignedIn implements CloudSession {
 
 /// Says what the server says this account may do.
 final class StandInRoles implements RolesSource {
-  StandInRoles(this.answer);
+  StandInRoles(this.answer, {this.deleted = const <String>{}});
 
   Map<String, String> answer;
+
+  /// Families this account is still a member of, and which no longer exist.
+  Set<String> deleted;
+
   int asked = 0;
 
   @override
-  Future<Map<String, String>> myRoles() async {
+  Future<({Map<String, String> live, Set<String> deleted})> myRoles() async {
     asked++;
-    return answer;
+    return (live: answer, deleted: deleted);
   }
 }
 
@@ -119,8 +123,13 @@ void main() {
     addTearDown(container.dispose);
 
     // Shared, or there is nothing on a server to talk to.
+    //
+    // The provider is deliberately **not** warmed here. It used to be, and
+    // that hid a defect: the push read it with `valueOrNull`, which is null
+    // while the answer is still coming, and read that as "never shared". At
+    // start-up — the one moment stuck deletions are swept — nothing was ever
+    // sent, and every test passed because every test had warmed it first.
     await SharingMarks(db).markShared(familyId);
-    await container.read(sharedFamiliesProvider.future);
     return container;
   }
 
@@ -302,6 +311,103 @@ void main() {
       expect(result.trouble, SyncTrouble.refused);
       expect(result.waiting, greaterThan(0));
       expect(await SyncMarks(db).forFamily(familyId), isNull);
+    });
+  });
+
+  group('deleting a family for everybody', () {
+    test('the tombstone is offered to the server', () async {
+      // The path nothing joined. Deleting is done from the *list*, and a
+      // synchronisation runs when a family is opened or left — so the one
+      // family that can never be opened again was the one whose deletion
+      // could never be sent. Found on a real pair of phones: machine 1 had
+      // deleted it, the server still held it, machine 2 still showed it.
+      await SyncMarks(db).mark(familyId);
+      await repository.deleteFamily(familyId);
+      final device = await aDevice();
+
+      await pushFamily(device, familyId);
+
+      expect(sink.sent.single.deletedFamily, familyId);
+    });
+
+    test('a family it has deleted still counts as one it shared', () async {
+      // The other half, and either alone is fatal. The mark says this device
+      // put the family on a server; a local tombstone does not make that
+      // untrue, and filtering tombstones out of the set made the push decide
+      // there was nothing up there to tell.
+      await SharingMarks(db).markShared(familyId);
+      await repository.deleteFamily(familyId);
+
+      expect(await SharingMarks(db).shared(), contains(familyId));
+    });
+
+    test('one that failed to send is picked up later', () async {
+      // The hole in the first fix. Sending happens at the moment of deleting,
+      // and deleting is most often done while tidying up offline — so the
+      // push that carries the tombstone is exactly the one most likely to
+      // fail, and nothing could try it again: the family is gone from the
+      // list and cannot be opened, and opening is what synchronises.
+      await SharingMarks(db).markShared(familyId);
+      await repository.deleteFamily(familyId);
+      final device = await aDevice();
+
+      await pushStuckDeletions(device);
+
+      expect(sink.sent.single.deletedFamily, familyId);
+    });
+
+    test('and a family still here is left alone by the sweep', () async {
+      // It can be opened, and opening is what sends it. Sweeping it here
+      // would send every unsent family on the device every time the list is
+      // drawn.
+      // Renamed, not edited: it is the *family* row that has to be unsent
+      // and alive, which is what the sweep must step over. Saving a person
+      // leaves the family row untouched, so a weaker version of this test
+      // passed against a sweep that took everything.
+      final device = await aDevice();
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn – Phù Ninh'),
+      );
+
+      await pushStuckDeletions(device);
+
+      expect(sink.sent, isEmpty);
+    });
+
+    test('and one never shared is still not offered', () async {
+      await db.customStatement('UPDATE families SET shared_at = NULL');
+
+      expect(await SharingMarks(db).shared(), isEmpty);
+    });
+  });
+
+  group('being put out of a family', () {
+    test('takes the copy on this device with it', () async {
+      // Decided the other way round from how it started: the copy used to
+      // stay, readable and unchangeable, with a line saying so (PRODUCT §5.0).
+      await SharingMarks(db).markShared(familyId);
+      final device = await aDevice();
+
+      // Named once, so the device writes down what it is. `reconcile` only
+      // takes a role away from a family that had one — a family with no role
+      // is one nobody else has a claim on, and the server never naming it
+      // says nothing about it.
+      await refreshedRoles(device);
+      expect(await repository.listFamilies(), hasLength(1));
+
+      roles.answer = const <String, String>{}; // now the server names nobody
+      await refreshedRoles(device);
+
+      expect(await repository.listFamilies(), isEmpty);
+    });
+
+    test('and a family still named is left where it is', () async {
+      await SharingMarks(db).markShared(familyId);
+      final device = await aDevice(role: 'viewer');
+
+      await refreshedRoles(device);
+
+      expect(await repository.listFamilies(), hasLength(1));
     });
   });
 }

@@ -361,6 +361,10 @@ class AppTextEn extends AppText {
   String get importAction => 'Import';
 
   @override
+  String get importDeletedByOwner =>
+      'The owner of this family deleted it. Only they can bring it back.';
+
+  @override
   String get importNotAllowed =>
       'You may only read this family, so nothing can be merged into it.';
 
@@ -808,6 +812,10 @@ class AppTextEn extends AppText {
       'This code was revoked. Ask whoever invited you.';
 
   @override
+  String get inviteFamilyDeleted =>
+      'That family has been deleted. Ask whoever invited you.';
+
+  @override
   String get inviteHasExpired => 'This code has expired. Ask for a new one.';
 
   @override
@@ -1020,4 +1028,19 @@ class AppTextEn extends AppText {
   @override
   String get memberRemoveLastOwner =>
       'A family must always have at least one owner';
+
+  @override
+  String familyGoneDeleted(String name) {
+    return '$name was deleted';
+  }
+
+  @override
+  String familyGoneRemoved(String name) {
+    return 'You are no longer in $name';
+  }
+
+  @override
+  String familiesGone(int count) {
+    return '$count families are gone';
+  }
 }

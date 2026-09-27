@@ -310,25 +310,51 @@ final class FamilyInvitations {
     ];
   }
 
-  /// Every role the signed-in account holds, by family id.
+  /// Every role the signed-in account holds, by family id — and which of those
+  /// families no longer exists.
   ///
   /// One request for all of them. `memberships_read` lets anybody read their
   /// own row in any family, which is what makes this a single question rather
   /// than one per family — and it is how a device finds out it was promoted,
   /// demoted or put out without being told.
-  Future<Map<String, String>> myRoles() async {
+  ///
+  /// The family is asked about in the same request, because `delete_family_deep`
+  /// does not touch memberships: a family somebody deleted leaves every member's
+  /// row standing, so asking about memberships alone cannot see it. The two are
+  /// reported apart rather than folded together. Both end the same way — the
+  /// copy on this device goes — but only one of them takes the role away, and
+  /// the role is what decides whether an owner may put the family back from a
+  /// file (PRODUCT §5.10).
+  ///
+  /// `!inner` rather than a plain embed: it is a join, so a membership whose
+  /// family cannot be read at all drops out here and reads as a removal, which
+  /// is the safe way round. `families_read` is `my_role(id) IS NOT NULL` and
+  /// says nothing about `deleted_at`, so a member can still see the row.
+  Future<({Map<String, String> live, Set<String> deleted})> myRoles() async {
     final me = _db.auth.currentUser?.id;
-    if (me == null) return const <String, String>{};
+    if (me == null) {
+      return (live: const <String, String>{}, deleted: const <String>{});
+    }
 
     final rows = await _db
         .from('family_memberships')
-        .select('family_id, role')
+        .select('family_id, role, families!inner(deleted_at)')
         .eq('user_id', me)
         .isFilter('deleted_at', null);
 
-    return <String, String>{
-      for (final row in rows) row['family_id'] as String: row['role'] as String,
-    };
+    final live = <String, String>{};
+    final deleted = <String>{};
+    for (final row in rows) {
+      final familyId = row['family_id'] as String;
+      final family = row['families'] as Map<String, dynamic>?;
+      if (family != null && family['deleted_at'] != null) {
+        deleted.add(familyId);
+        continue;
+      }
+      live[familyId] = row['role'] as String;
+    }
+
+    return (live: live, deleted: deleted);
   }
 
   /// Changes what somebody may do in a family.
@@ -416,7 +442,16 @@ enum InvitationRefusal {
 
   revoked('invitation_revoked'),
   expired('invitation_expired'),
-  needsAnAccount('invitation_needs_an_account');
+  needsAnAccount('invitation_needs_an_account'),
+
+  /// The gia phả itself is gone — its owner deleted it (PRODUCT §5.10).
+  ///
+  /// Checked before the membership is written, so a refused join leaves
+  /// nothing behind. Without it the join *succeeded*, the download that
+  /// follows returned nothing because reading a family skips tombstones, and
+  /// the screen fell through to its catch-all: "It did not go through:", with
+  /// no reason after the colon.
+  familyDeleted('invitation_family_deleted');
 
   const InvitationRefusal(this.word);
 

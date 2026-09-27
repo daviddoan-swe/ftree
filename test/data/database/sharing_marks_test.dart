@@ -81,13 +81,22 @@ void main() {
     expect(after, before);
   });
 
-  test('a deleted family is not offered as shared', () async {
+  test('a deleted family is still one this device shared', () async {
+    // It used to be left out, and that was the rule behind a defect found on
+    // a real pair of phones: machine 1 deleted a family, machine 2 went on
+    // showing it, and the server never heard. The push asks this set before
+    // sending anything, so a tombstone filtered out here is a deletion that
+    // can never leave the device that made it.
+    //
+    // The mark says this device *put* the family on a server. Deleting it
+    // does not make that untrue — and the deletion is the one thing left that
+    // still has to reach that server.
     await seed();
     await marks.markShared(one);
 
     await repository.deleteFamily(one);
 
-    expect(await marks.shared(), isEmpty);
+    expect(await marks.shared(), contains(one));
   });
 
   test('a family brought back keeps its mark', () async {

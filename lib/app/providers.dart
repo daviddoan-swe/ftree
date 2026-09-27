@@ -21,6 +21,7 @@ import '../data/cloud/cloud_session.dart';
 import '../data/cloud/family_invitations.dart';
 import '../data/database/family_roles.dart';
 import '../data/database/invitation_codes.dart';
+import '../data/database/removed_families.dart';
 import '../data/sync/cloud_changes.dart';
 import '../data/sync/cloud_push.dart';
 import '../data/sync/conflicts.dart';
@@ -62,6 +63,11 @@ final sharingMarksProvider = Provider<SharingMarks>(
 
 /// When each family was last brought level with the server (ROADMAP M9,
 /// step 5).
+/// Drops the copies this account has been put out of (PRODUCT §5.0).
+final removedFamiliesProvider = Provider<RemovedFamilies>(
+  (ref) => RemovedFamilies(ref.watch(databaseProvider)),
+);
+
 final syncMarksProvider = Provider<SyncMarks>(
   (ref) => SyncMarks(ref.watch(databaseProvider)),
 );
@@ -136,16 +142,43 @@ final cloudSessionProvider = Provider<CloudSession>(
 /// one layer up: `lib/features` depends on `lib/app`, and importing it back
 /// the other way would turn that dependency into a circle (ARCHITECTURE §3).
 abstract interface class RolesSource {
-  /// Every family this account is in, by id, with the role it holds there.
-  Future<Map<String, String>> myRoles();
+  /// Every family this account is in: the live ones by id with the role held
+  /// there, and the ids of those that no longer exist.
+  ///
+  /// Reported apart because they end differently. Both take the copy off this
+  /// device; only being *put out* takes the role with it (PRODUCT §5.10).
+  Future<({Map<String, String> live, Set<String> deleted})> myRoles();
 }
 
 final class CloudRoles implements RolesSource {
   const CloudRoles();
 
   @override
-  Future<Map<String, String>> myRoles() =>
+  Future<({Map<String, String> live, Set<String> deleted})> myRoles() =>
       FamilyInvitations(Supabase.instance.client).myRoles();
+}
+
+/// A family this device has just let go of, and why.
+///
+/// The two reasons end the same way and read differently to the person holding
+/// the phone: a gia phả somebody deleted is gone for everybody, while being put
+/// out of one leaves it standing without them (PRODUCT §5.10).
+final class GoneFamily {
+  const GoneFamily({
+    required this.id,
+    required this.name,
+    required this.deleted,
+  });
+
+  final String id;
+
+  /// The name it had. Read before the copy went, because afterwards there is
+  /// nothing left to read it from.
+  final String name;
+
+  /// True when the family itself was deleted; false when this account was put
+  /// out of a family that still exists.
+  final bool deleted;
 }
 
 final rolesSourceProvider = Provider<RolesSource>((ref) => const CloudRoles());
@@ -194,11 +227,15 @@ final familyRoleMapProvider = FutureProvider<Map<String, FamilyRole>>((
   var disposed = false;
   ref.onDispose(() => disposed = true);
 
+  // Roles only. This one learns which families are gone and deliberately does
+  // not drop them: a copy disappearing is worth telling somebody about, and a
+  // provider being built has nowhere to say it. `refreshedRoles` does the
+  // dropping, and it is called from screens that can (PRODUCT §5.10).
   unawaited(
     _refreshRoles(roles, const CloudRoles(), const LiveCloudSession()).then((
-      changed,
+      answer,
     ) {
-      if (changed && !disposed) ref.invalidateSelf();
+      if (answer.changed && !disposed) ref.invalidateSelf();
     }),
   );
 
@@ -222,17 +259,47 @@ final familyRoleMapProvider = FutureProvider<Map<String, FamilyRole>>((
 /// a screen on its way out: a `WidgetRef` stops working the moment its widget
 /// is disposed, and the container belongs to the scope above it, which
 /// outlives every screen.
-Future<Map<String, FamilyRole>> refreshedRoles(
+/// Returns the roles as they now stand, and any family that disappeared while
+/// this ran, so a caller with a screen in front of somebody can say so.
+Future<({Map<String, FamilyRole> roles, List<GoneFamily> gone})> refreshedRoles(
   ProviderContainer container,
 ) async {
   final roles = container.read(familyRolesProvider);
   final source = container.read(rolesSourceProvider);
   final session = container.read(cloudSessionProvider);
 
-  if (await _refreshRoles(roles, source, session)) {
+  final answer = await _refreshRoles(roles, source, session);
+  if (answer.changed) {
     container.invalidate(familyRoleMapProvider);
   }
-  return roles.all();
+
+  // Losing the family takes the copy with it, whether this account was put out
+  // or the family itself was deleted. Run every time rather than only on a
+  // change: a drop interrupted half way — the application killed, the database
+  // busy — would otherwise leave a family marked removed and still sitting
+  // there, with nothing that ever looks again.
+  final gone = await container
+      .read(removedFamiliesProvider)
+      .drop(alsoGone: answer.deleted);
+  if (gone.isNotEmpty) {
+    container.invalidate(familyListProvider);
+    container.invalidate(sharedFamiliesProvider);
+    for (final familyId in gone.keys) {
+      container.invalidate(familySnapshotProvider(familyId));
+    }
+  }
+
+  return (
+    roles: await roles.all(),
+    gone: <GoneFamily>[
+      for (final entry in gone.entries)
+        GoneFamily(
+          id: entry.key,
+          name: entry.value,
+          deleted: answer.deleted.contains(entry.key),
+        ),
+    ],
+  );
 }
 
 /// Asks the server what this account may do, and writes it down.
@@ -241,25 +308,31 @@ Future<Map<String, FamilyRole>> refreshedRoles(
 /// all in a test process. That is deliberate and it is the important part —
 /// "the server named nothing" and "the server could not be reached" look
 /// identical from here, and one of them would mark every family removed.
-Future<bool> _refreshRoles(
+Future<({bool changed, Set<String> deleted})> _refreshRoles(
   FamilyRoles roles,
   RolesSource source,
   CloudSession session,
 ) async {
+  const nothing = (changed: false, deleted: <String>{});
   try {
-    if (!session.isSignedIn) return false;
+    if (!session.isSignedIn) return nothing;
 
     final named = await source.myRoles();
 
     final fromServer = <String, FamilyRole>{};
-    for (final entry in named.entries) {
+    for (final entry in named.live.entries) {
       final role = FamilyRole.from(entry.value);
       if (role != null) fromServer[entry.key] = role;
     }
 
-    return roles.reconcile(fromServer);
+    return (
+      changed: await roles.reconcile(fromServer, deleted: named.deleted),
+      deleted: named.deleted,
+    );
   } catch (_) {
-    return false;
+    // Nothing was learnt, so nothing is dropped. An empty answer and a failed
+    // request look the same from here, and one of them would clear the device.
+    return nothing;
   }
 }
 
@@ -437,6 +510,27 @@ Future<SyncResult> syncFamily(
   );
 }
 
+/// Sends any deletion that never got away.
+///
+/// Deleting is done from the list of families, and the push that carries the
+/// tombstone happens at that moment. If it fails — no network, most likely,
+/// which is exactly when somebody tidies up — nothing tries again: the family
+/// is gone from the list and cannot be opened, and opening is what
+/// synchronises.
+///
+/// So the list itself sweeps. Usually there is nothing to sweep, and the cost
+/// is one local query against an indexed column.
+Future<void> pushStuckDeletions(ProviderContainer container) async {
+  try {
+    final waiting = await container.read(familyPushProvider).deletedAndUnsent();
+    for (final familyId in waiting) {
+      await pushFamily(container, familyId);
+    }
+  } catch (_) {
+    // Offline, or the scope has gone. They stay flagged, which is the point.
+  }
+}
+
 /// Sends what [familyId] is holding, and brings nothing back.
 ///
 /// Called when somebody leaves a family, which is the moment they have
@@ -457,8 +551,12 @@ Future<SyncResult> pushFamily(
       return SyncResult.idle;
     }
 
-    final shared = container.read(sharedFamiliesProvider).valueOrNull;
-    if (shared == null || !shared.contains(familyId)) return SyncResult.idle;
+    // Awaited, not peeked at. `valueOrNull` is null while the answer is still
+    // being read from the database, and treating that as "this family was
+    // never shared" meant anything asked for at start-up quietly did nothing
+    // — which is exactly when the sweep for stuck deletions runs.
+    final shared = await container.read(sharedFamiliesProvider.future);
+    if (!shared.contains(familyId)) return SyncResult.idle;
 
     // Only where this copy is allowed to write at all. A viewer's push would
     // be refused row by row and silently, and the read-back would come back
@@ -470,7 +568,7 @@ Future<SyncResult> pushFamily(
     // is the thing most likely to have changed since the last one: somebody
     // demoted on another device would otherwise go on being offered the
     // controls of the role they used to have.
-    final role = (await refreshedRoles(container))[familyId];
+    final role = (await refreshedRoles(container)).roles[familyId];
     if (role.mayEditPeople) {
       final push = container.read(familyPushProvider);
       final outgoing = await push.pending(familyId);
@@ -524,8 +622,12 @@ Future<SyncResult> pullFamily(
 
     // A family this device never sent up has nothing on the server to ask
     // about, and asking would spend a request to be told so.
-    final shared = container.read(sharedFamiliesProvider).valueOrNull;
-    if (shared == null || !shared.contains(familyId)) return SyncResult.idle;
+    // Awaited, not peeked at. `valueOrNull` is null while the answer is still
+    // being read from the database, and treating that as "this family was
+    // never shared" meant anything asked for at start-up quietly did nothing
+    // — which is exactly when the sweep for stuck deletions runs.
+    final shared = await container.read(sharedFamiliesProvider.future);
+    if (!shared.contains(familyId)) return SyncResult.idle;
 
     final pull = container.read(familyPullProvider);
     final changes = await container

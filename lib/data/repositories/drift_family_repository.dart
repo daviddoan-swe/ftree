@@ -204,6 +204,15 @@ final class DriftFamilyRepository implements FamilyRepository {
   }
 
   @override
+  Future<bool> wasDeleted(String familyId) async {
+    final row = await (_db.select(
+      _db.families,
+    )..where((f) => f.id.equals(familyId))).getSingleOrNull();
+
+    return row != null && row.deletedAt != null;
+  }
+
+  @override
   Future<void> deleteFamily(String familyId) async {
     final at = _timestamp;
 

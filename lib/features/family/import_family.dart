@@ -92,12 +92,43 @@ Future<ImportPlan?> bringInFamily(
   // A viewer's copy is one to read. Merging into it would add people that can
   // never travel anywhere and would quietly put their copy out of step with
   // the one everybody else is reading (PRODUCT §5.0).
-  final role = ref.read(familyRoleMapProvider).valueOrNull?[file.family.id];
+  // Awaited, not peeked at. `valueOrNull` is null while the answer is still
+  // being read, and null here means "a family nobody else has a claim on" —
+  // which is every right. Peeked at too early, a viewer's import was allowed
+  // because the roles had not arrived yet.
+  final roles = await ref.read(familyRoleMapProvider.future);
+  if (!context.mounted) return null;
+  final role = roles[file.family.id];
   if (!role.mayImportInto) {
     if (context.mounted) {
       await showImportFailure(context, AppText.of(context).importNotAllowed);
     }
     return null;
+  }
+
+  // A family the owner deleted stays deleted, and only they can undo it
+  // (PRODUCT §5.10). `here` is null for a tombstoned family as well as an
+  // absent one — `loadFamily` skips tombstones — so the row is looked at
+  // directly: absent means the file arrives whole, tombstoned means somebody
+  // decided this gia phả should not exist.
+  //
+  // The server refuses it either way, and silently: an editor's writes into a
+  // deleted family match nothing. Saying so here is what turns "the button
+  // did nothing" into an answer.
+  if (here == null && !role.mayRestoreDeleted) {
+    final deleted = await ref
+        .read(familyRepositoryProvider)
+        .wasDeleted(file.family.id);
+
+    if (deleted) {
+      if (context.mounted) {
+        await showImportFailure(
+          context,
+          AppText.of(context).importDeletedByOwner,
+        );
+      }
+      return null;
+    }
   }
   final plan = planImport(
     file,

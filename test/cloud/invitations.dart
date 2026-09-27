@@ -582,4 +582,178 @@ void main() {
       expect(await roleIn(family), 'owner');
     });
   });
+
+  group('a family its owner deleted', () {
+    // What happened on a real pair of phones. The owner made a code for a
+    // family the server had already tombstoned, sent it, and the other device
+    // accepted it: `accept_invitation` had nothing to say about the family
+    // being gone, so the membership was written and the join *succeeded* —
+    // and then the download that follows returned nothing, because reading a
+    // family skips tombstones. The screen fell through to its catch-all and
+    // said "It did not go through:" with nothing after the colon.
+
+    test('cannot be invited into', () async {
+      await anAccount();
+      final family = await aFamily();
+      await SupabaseFamilyRepository(client()).deleteFamily(family);
+
+      await expectLater(
+        invitations().create(familyId: family, role: 'editor'),
+        throwsA(isA<PostgrestException>()),
+      );
+    });
+
+    test('and a code made before it refuses on use, by name', () async {
+      // The order that matters: the code is older than the deletion, so no
+      // check at the moment of making it could have caught this.
+      await anAccount();
+      final family = await aFamily();
+      final invitation = await invitations().create(
+        familyId: family,
+        role: 'editor',
+      );
+      await SupabaseFamilyRepository(client()).deleteFamily(family);
+      await signOut();
+
+      final guest = await anAccount();
+      await expectLater(
+        invitations().accept(invitation.code!),
+        throwsA(
+          predicate<Object>(
+            (e) => invitationRefusal(e) == InvitationRefusal.familyDeleted,
+            'refused as familyDeleted',
+          ),
+        ),
+      );
+
+      // Nothing left behind. A membership of a gia phả that does not exist is
+      // something the application can neither show nor undo.
+      expect(await roleIn(family), isNull, reason: 'guest ${guest.email}');
+    });
+
+    test('and the code is not spent by the refusal', () async {
+      // There is nothing to protect it from: the family is gone. If its owner
+      // brings it back, the code should still work.
+      final owner = await anAccount();
+      final family = await aFamily();
+      final invitation = await invitations().create(
+        familyId: family,
+        role: 'editor',
+      );
+      await SupabaseFamilyRepository(client()).deleteFamily(family);
+      await signOut();
+
+      await anAccount();
+      await expectLater(
+        invitations().accept(invitation.code!),
+        throwsA(isA<PostgrestException>()),
+      );
+      await signOut();
+
+      await signIn(email: owner.email, password: password);
+      final still = await invitations().forFamily(family);
+      expect(still.single.isAccepted, isFalse);
+      expect(still.single.isRevoked, isFalse);
+    });
+  });
+
+  group('what the server says this account still holds', () {
+    // One request answers two different questions, and the difference decides
+    // whether a role survives (PRODUCT §5.10).
+
+    test('a live family comes back with the role held there', () async {
+      final owner = await anAccount();
+      final family = await aFamily();
+      final invitation = await invitations().create(
+        familyId: family,
+        role: 'editor',
+      );
+      await signOut();
+
+      await anAccount();
+      await invitations().accept(invitation.code!);
+
+      final answer = await invitations().myRoles();
+
+      expect(answer.live, containsPair(family, 'editor'));
+      expect(answer.deleted, isEmpty);
+      expect(owner.id, isNotEmpty);
+    });
+
+    test('one the owner deleted comes back as deleted, not as gone', () async {
+      // The case that cannot be seen from memberships alone:
+      // `delete_family_deep` never touches them, so the editor's row stands and
+      // a question about memberships alone says the family is still theirs.
+      final owner = await anAccount();
+      final family = await aFamily();
+      final invitation = await invitations().create(
+        familyId: family,
+        role: 'editor',
+      );
+      await signOut();
+
+      final editor = await anAccount();
+      await invitations().accept(invitation.code!);
+      await signOut();
+
+      await signIn(email: owner.email, password: password);
+      await SupabaseFamilyRepository(client()).deleteFamily(family);
+      await signOut();
+
+      await signIn(email: editor.email, password: password);
+      final answer = await invitations().myRoles();
+
+      expect(
+        answer.deleted,
+        contains(family),
+        reason: 'the family is gone, and this device has to be told',
+      );
+      expect(
+        answer.live,
+        isNot(contains(family)),
+        reason: 'naming it live would leave the copy sitting there',
+      );
+    });
+
+    test('and the owner of a deleted family is told the same', () async {
+      // Deleting on one device and reaching for the backup on another is the
+      // one undo there is. The role has to survive it, which it does because
+      // this answer never claims the owner was put out.
+      final owner = await anAccount();
+      final family = await aFamily();
+      await SupabaseFamilyRepository(client()).deleteFamily(family);
+
+      final answer = await invitations().myRoles();
+
+      expect(answer.deleted, contains(family));
+      expect(answer.live, isNot(contains(family)));
+      expect(owner.email, isNotEmpty);
+    });
+
+    test('a membership the owner ended is named neither way', () async {
+      // Put out of a family that still exists: nothing to report at all, which
+      // is what turns into `removed` on the device.
+      final owner = await anAccount();
+      final family = await aFamily();
+      final invitation = await invitations().create(
+        familyId: family,
+        role: 'viewer',
+      );
+      await signOut();
+
+      final viewer = await anAccount();
+      await invitations().accept(invitation.code!);
+      await signOut();
+
+      await signIn(email: owner.email, password: password);
+      await invitations().remove(familyId: family, userId: viewer.id);
+      await signOut();
+
+      await signIn(email: viewer.email, password: password);
+      final answer = await invitations().myRoles();
+
+      expect(answer.live, isNot(contains(family)));
+      expect(answer.deleted, isNot(contains(family)));
+    });
+  });
 }

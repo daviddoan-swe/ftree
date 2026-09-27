@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
+import 'package:ftree/data/database/family_roles.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/data/transfer/family_file.dart';
 import 'package:ftree/data/transfer/family_import.dart';
@@ -455,6 +456,68 @@ void main() {
       await typePassword(tester);
 
       expect(find.textContaining('newer version'), findsOneWidget);
+    });
+  });
+
+  group('a family its owner deleted', () {
+    // The file is outside everything the server can recall. An export taken
+    // before the deletion still opens, and importing it used to put the
+    // family back here, then on the server, then on every other phone —
+    // an editor with an old backup undoing the owner's decision for the whole
+    // household, silently (PRODUCT §5.10).
+
+    /// Deleted here, as the owner's tombstone arriving would leave it.
+    Future<void> deletedHere() async {
+      await repository.saveAll(
+        family: const Family(id: familyId, name: 'Họ Nguyễn'),
+        persons: const <Person>[],
+      );
+      await repository.deleteFamily(familyId);
+    }
+
+    Future<void> asA(String role) =>
+        FamilyRoles(db).remember(familyId, FamilyRole.from(role)!);
+
+    testWidgets('an editor is told why, not left wondering', (tester) async {
+      // The server refuses it either way, and silently: writes into a deleted
+      // family match nothing. Saying so here is what turns "the button did
+      // nothing" into an answer.
+      await deletedHere();
+      await asA('editor');
+
+      final outcome = await runImport(tester, aFile());
+
+      expect(
+        find.textContaining('Only they can bring it back'),
+        findsOneWidget,
+      );
+      expect(outcome, isNull);
+      expect(await repository.listFamilies(), isEmpty);
+    });
+
+    testWidgets('and its owner can bring it back', (tester) async {
+      // Importing a backup is how a family comes back, and the owner is the
+      // one whose decision it was.
+      await deletedHere();
+      await asA('owner');
+
+      await runImport(tester, aFile());
+      await tapImport(tester);
+
+      expect(await repository.listFamilies(), hasLength(1));
+    });
+
+    testWidgets('a family nobody else has a claim on comes back too', (
+      tester,
+    ) async {
+      // No role at all: made here, or brought in as a file. There is nobody
+      // whose decision an import would be overruling.
+      await deletedHere();
+
+      await runImport(tester, aFile());
+      await tapImport(tester);
+
+      expect(await repository.listFamilies(), hasLength(1));
     });
   });
 }

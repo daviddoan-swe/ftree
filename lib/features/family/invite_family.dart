@@ -24,6 +24,8 @@
 /// of the decision.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
@@ -215,6 +217,7 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _search.dispose();
     _codeSearch.dispose();
     super.dispose();
@@ -229,9 +232,17 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
   bool _loading = true;
   String? _problem;
 
+  /// Asks again when the application returns.
+  ///
+  /// Sending an invitation means leaving for a chat application. Coming back
+  /// is the moment somebody wants to know whether it has been used, and it
+  /// costs one request at a moment they were already waiting.
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(onResume: () => unawaited(_load()));
     _load();
   }
 
@@ -439,129 +450,78 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SlidableAutoCloseBehavior(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                children: <Widget>[
-                  if (problem != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Text(
-                        problem,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: GroupedColors.red,
-                        ),
-                      ),
-                    ),
-
-                  if (!iAmOwner)
-                    GroupedSection(
-                      footer: text.membersOwnerOnly,
-                      children: <Widget>[
-                        GroupedRow(
-                          icon: Icons.lock_outline,
-                          title: text.membersTitle,
-                          value: _myRole == null
-                              ? ''
-                              : _roleName(text, _myRole!),
-                          showChevron: false,
-                        ),
-                      ],
-                    ),
-
-                  if (iAmOwner) ...<Widget>[
-                    // Bounded, and scrolling inside itself past that. A family
-                    // with twenty administrators would otherwise push the one
-                    // control on this screen below the fold, and somebody
-                    // looking for it would have to scroll through the whole
-                    // list of relatives twice to find out where it went.
-                    if (_members.length >= _worthSearching) ...<Widget>[
+              // Pulling the list down asks again. The screen loads once when
+              // it opens and nothing has told it since: a code sitting at
+              // "Còn hiệu lực" stays there after somebody has walked through
+              // it, and the owner watching for exactly that learns nothing.
+              //
+              // A pull rather than a timer or a socket. Sending a code means
+              // leaving for Zalo, so coming back is when the answer is wanted
+              // — and that is a gesture, not a thing to keep running.
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  // Or a family with two administrators and one code — most
+                  // of them — is one the gesture does not work on, the list
+                  // being shorter than the screen.
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  children: <Widget>[
+                    if (problem != null)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                        child: SearchPill(
-                          controller: _search,
-                          hint: text.membersSearch,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      _roleFilter(text),
-                    ],
-
-                    // Said rather than left blank. `GroupedSection` collapses
-                    // to nothing when it has no rows, so a filter that matches
-                    // nobody would leave a gap where the list was — which
-                    // reads as the screen having failed to load it.
-                    if (_shown.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         child: Text(
-                          text.membersNoMatch,
-                          textAlign: TextAlign.center,
+                          problem,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: GroupedColors.secondaryLabel(context),
-                          ),
-                        ),
-                      )
-                    else
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-                        ),
-                        child: SingleChildScrollView(
-                          child: GroupedSection(
-                            header: text.membersTitle,
-                            children: <Widget>[
-                              for (final member in _shown)
-                                _memberRow(text, member, me),
-                            ],
+                            color: GroupedColors.red,
                           ),
                         ),
                       ),
 
-                    // Directly under the members and above the invitations,
-                    // because it belongs to neither list: it is the one thing
-                    // to *do* here, and it was the last row of a list that
-                    // grows for ever. A filled button rather than a row, so it
-                    // cannot be mistaken for another invitation.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-                      child: FilledButton.icon(
-                        onPressed: _invite,
-                        icon: const Icon(Icons.person_add_alt, size: 20),
-                        label: Text(text.inviteNew),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                      ),
-                    ),
-
-                    if (_invitations.isEmpty)
+                    if (!iAmOwner)
                       GroupedSection(
-                        header: text.inviteTitle,
-                        footer: text.inviteNone,
-                        children: const <Widget>[SizedBox.shrink()],
-                      )
-                    else ...<Widget>[
-                      // Always, not only once the list is long. The chips are
-                      // the only way to reach a used code, and the list opens
-                      // on the live ones — so hiding the chips would hide
-                      // rows with nothing on screen to say they exist.
-                      _stateFilter(text),
+                        footer: text.membersOwnerOnly,
+                        children: <Widget>[
+                          GroupedRow(
+                            icon: Icons.lock_outline,
+                            title: text.membersTitle,
+                            value: _myRole == null
+                                ? ''
+                                : _roleName(text, _myRole!),
+                            showChevron: false,
+                          ),
+                        ],
+                      ),
 
-                      if (_invitations.length >= _worthSearching)
+                    if (iAmOwner) ...<Widget>[
+                      // Bounded, and scrolling inside itself past that. A family
+                      // with twenty administrators would otherwise push the one
+                      // control on this screen below the fold, and somebody
+                      // looking for it would have to scroll through the whole
+                      // list of relatives twice to find out where it went.
+                      if (_members.length >= _worthSearching) ...<Widget>[
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                           child: SearchPill(
-                            controller: _codeSearch,
-                            hint: text.inviteSearch,
+                            controller: _search,
+                            hint: text.membersSearch,
                             onChanged: (_) => setState(() {}),
                           ),
                         ),
+                        _roleFilter(text),
+                      ],
 
-                      if (_shownInvitations.isEmpty)
+                      // Said rather than left blank. `GroupedSection` collapses
+                      // to nothing when it has no rows, so a filter that matches
+                      // nobody would leave a gap where the list was — which
+                      // reads as the screen having failed to load it.
+                      if (_shown.isEmpty)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
                           child: Text(
-                            text.inviteNoMatch,
+                            text.membersNoMatch,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: GroupedColors.secondaryLabel(context),
@@ -571,20 +531,89 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                       else
                         ConstrainedBox(
                           constraints: BoxConstraints(
-                            maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                            maxHeight: MediaQuery.sizeOf(context).height * 0.4,
                           ),
                           child: SingleChildScrollView(
                             child: GroupedSection(
+                              header: text.membersTitle,
                               children: <Widget>[
-                                for (final invitation in _shownInvitations)
-                                  _invitationRow(text, invitation),
+                                for (final member in _shown)
+                                  _memberRow(text, member, me),
                               ],
                             ),
                           ),
                         ),
+
+                      // Directly under the members and above the invitations,
+                      // because it belongs to neither list: it is the one thing
+                      // to *do* here, and it was the last row of a list that
+                      // grows for ever. A filled button rather than a row, so it
+                      // cannot be mistaken for another invitation.
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                        child: FilledButton.icon(
+                          onPressed: _invite,
+                          icon: const Icon(Icons.person_add_alt, size: 20),
+                          label: Text(text.inviteNew),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                      ),
+
+                      if (_invitations.isEmpty)
+                        GroupedSection(
+                          header: text.inviteTitle,
+                          footer: text.inviteNone,
+                          children: const <Widget>[SizedBox.shrink()],
+                        )
+                      else ...<Widget>[
+                        // Always, not only once the list is long. The chips are
+                        // the only way to reach a used code, and the list opens
+                        // on the live ones — so hiding the chips would hide
+                        // rows with nothing on screen to say they exist.
+                        _stateFilter(text),
+
+                        if (_invitations.length >= _worthSearching)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                            child: SearchPill(
+                              controller: _codeSearch,
+                              hint: text.inviteSearch,
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+
+                        if (_shownInvitations.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                            child: Text(
+                              text.inviteNoMatch,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: GroupedColors.secondaryLabel(context),
+                              ),
+                            ),
+                          )
+                        else
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  MediaQuery.sizeOf(context).height * 0.5,
+                            ),
+                            child: SingleChildScrollView(
+                              child: GroupedSection(
+                                children: <Widget>[
+                                  for (final invitation in _shownInvitations)
+                                    _invitationRow(text, invitation),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ],
                   ],
-                ],
+                ),
               ),
             ),
     );

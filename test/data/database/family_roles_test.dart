@@ -165,12 +165,21 @@ void main() {
       );
     });
 
-    test('a deleted family is not listed', () async {
+    test('a deleted family is still listed, with its role', () async {
+      // It used to be left out, and that was the rule behind two holes. A
+      // deleted family is drawn nowhere, so nothing that *lists* families
+      // noticed — but two things still ask what this account may do to one,
+      // and both were told "nothing is known". Null reads as a family nobody
+      // else has a claim on, which reads as every right.
+      //
+      // The two: pushing the tombstone, and deciding whether an old backup
+      // may put the family back. An editor holding a file could undo the
+      // owner's deletion for the whole household (PRODUCT §5.10).
       await roles.remember(one, FamilyRole.editor);
 
       await repository.deleteFamily(one);
 
-      expect(await roles.all(), isEmpty);
+      expect(await roles.all(), <String, FamilyRole>{one: FamilyRole.editor});
     });
 
     test('an ordinary edit leaves the role alone', () async {
@@ -288,6 +297,31 @@ void main() {
       });
 
       expect(changed, isFalse);
+    });
+
+    test('a family somebody deleted keeps its role', () async {
+      // Deleted is not the same as put out, and folding them together takes the
+      // role away. The role is what lets an owner put the family back from a
+      // file (PRODUCT §5.10) — so an owner who deleted on one device would find
+      // their own backup refused on another. The copy still goes; that is
+      // RemovedFamilies, and it is given this same set.
+      final changed = await roles.reconcile(
+        <String, FamilyRole>{other: FamilyRole.editor},
+        deleted: <String>{invited},
+      );
+
+      expect(changed, isFalse);
+      expect(await roles.all(), containsPair(invited, FamilyRole.viewer));
+    });
+
+    test('and one left out with no reason given is still a removal', () async {
+      // The guard must not swallow the case it sits next to.
+      await roles.reconcile(
+        <String, FamilyRole>{other: FamilyRole.editor},
+        deleted: <String>{'f0000000-0000-7000-8000-0000000000ff'},
+      );
+
+      expect(await roles.all(), containsPair(invited, FamilyRole.removed));
     });
 
     test('once removed, it stays removed', () async {

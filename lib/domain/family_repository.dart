@@ -92,4 +92,12 @@ abstract interface class FamilyRepository {
 
   /// Tombstones a family together with its people and their relationships.
   Future<void> deleteFamily(String familyId);
+
+  /// Whether [familyId] is here but tombstoned.
+  ///
+  /// [loadFamily] cannot answer this: it returns null for a family that was
+  /// deleted and for one that was never here, and those are different facts.
+  /// A file arriving for the first is somebody trying to undo a deletion; for
+  /// the second it is an ordinary import (§15.1).
+  Future<bool> wasDeleted(String familyId);
 }

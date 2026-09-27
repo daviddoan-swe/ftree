@@ -113,6 +113,18 @@ extension FamilyRights on FamilyRole? {
   /// do it.
   bool get mayEditPeople => stillMine && _mayWrite;
 
+  /// Bringing back a family somebody deleted.
+  ///
+  /// A file is outside everything the server can recall: an export taken
+  /// before the deletion still opens, and importing it used to put the family
+  /// back here, then on the server, then on every other phone. Deleting a gia
+  /// phả is the owner's decision (§5.10), and an old backup in somebody else's
+  /// hands must not undo it.
+  ///
+  /// A family with no role is one nobody else has a claim on, so there is
+  /// nobody whose decision it would be overruling.
+  bool get mayRestoreDeleted => stillMine && _isOwnerOrNone;
+
   /// Merging a file into this family. Add-only, but still a write.
   bool get mayImportInto => stillMine && _mayWrite;
 }
@@ -130,9 +142,14 @@ final class FamilyRoles {
   /// asking a map for a missing key gets null anyway, and one entry per
   /// restricted copy is a smaller thing to carry.
   Future<Map<String, FamilyRole>> all() async {
+    // Tombstones included. A deleted family is not drawn anywhere, so nothing
+    // that lists them is affected — but two things still ask what this account
+    // may do to one, and both were being told "nothing is known", which reads
+    // as a family nobody else has a claim on and so as every right: pushing
+    // its tombstone, and deciding whether an old backup may put it back.
     final rows = await (_db.select(
       _db.families,
-    )..where((f) => f.myRole.isNotNull() & f.deletedAt.isNull())).get();
+    )..where((f) => f.myRole.isNotNull())).get();
 
     final roles = <String, FamilyRole>{};
     for (final row in rows) {
@@ -161,9 +178,20 @@ final class FamilyRoles {
   /// A family with no role is left alone either way. It was made here or came
   /// in as a file, and neither gives the server anything to say about it.
   ///
+  /// [deleted] is the third case, and it is why the second rule is not enough
+  /// on its own: a family somebody deleted is not named as live either, and
+  /// calling that "put out" would take the role away with it. The role is what
+  /// decides whether an owner may put the family back from a file, so an owner
+  /// who deletes on one device and then reaches for their backup on another
+  /// would find themselves refused (PRODUCT §5.10). The copy still goes — that
+  /// is [RemovedFamilies] — but the role stays exactly as it was.
+  ///
   /// Returns whether anything changed, so a caller can avoid redrawing — and,
   /// more to the point, avoid looping on itself.
-  Future<bool> reconcile(Map<String, FamilyRole> fromServer) async {
+  Future<bool> reconcile(
+    Map<String, FamilyRole> fromServer, {
+    Set<String> deleted = const <String>{},
+  }) async {
     final here = <String, FamilyRole?>{};
     final rows = await (_db.select(
       _db.families,
@@ -185,6 +213,7 @@ final class FamilyRoles {
       if (entry.value == null) continue;
       if (entry.value == FamilyRole.removed) continue;
       if (fromServer.containsKey(entry.key)) continue;
+      if (deleted.contains(entry.key)) continue;
       await remember(entry.key, FamilyRole.removed);
       changed = true;
     }

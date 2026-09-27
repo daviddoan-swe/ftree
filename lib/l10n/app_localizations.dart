@@ -595,6 +595,12 @@ abstract class AppText {
   /// **'Nhập'**
   String get importAction;
 
+  /// No description provided for @importDeletedByOwner.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chủ dòng họ đã xoá dòng họ này. Chỉ chủ mới khôi phục lại được.'**
+  String get importDeletedByOwner;
+
   /// No description provided for @importNotAllowed.
   ///
   /// In vi, this message translates to:
@@ -1339,6 +1345,12 @@ abstract class AppText {
   /// **'Mã này đã bị huỷ. Hãy hỏi lại người đã mời.'**
   String get inviteWasRevoked;
 
+  /// No description provided for @inviteFamilyDeleted.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng họ này đã bị xoá. Hãy hỏi lại người đã mời.'**
+  String get inviteFamilyDeleted;
+
   /// No description provided for @inviteHasExpired.
   ///
   /// In vi, this message translates to:
@@ -1632,6 +1644,24 @@ abstract class AppText {
   /// In vi, this message translates to:
   /// **'Dòng họ phải luôn có ít nhất một chủ'**
   String get memberRemoveLastOwner;
+
+  /// No description provided for @familyGoneDeleted.
+  ///
+  /// In vi, this message translates to:
+  /// **'{name} đã bị xoá'**
+  String familyGoneDeleted(String name);
+
+  /// No description provided for @familyGoneRemoved.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bạn không còn trong {name}'**
+  String familyGoneRemoved(String name);
+
+  /// No description provided for @familiesGone.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count} dòng họ không còn'**
+  String familiesGone(int count);
 }
 
 class _AppTextDelegate extends LocalizationsDelegate<AppText> {

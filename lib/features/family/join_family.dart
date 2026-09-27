@@ -126,6 +126,7 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen> {
         InvitationRefusal.revoked => text.inviteWasRevoked,
         InvitationRefusal.expired => text.inviteHasExpired,
         InvitationRefusal.needsAnAccount => text.inviteNotFound,
+        InvitationRefusal.familyDeleted => text.inviteFamilyDeleted,
         null => text.accountRefused('$error'),
       };
 
@@ -168,6 +169,9 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen> {
     if (snapshot == null) {
       // Accepted, and nothing came back. Not worth inventing a sentence for:
       // the membership exists, so trying again will work.
+      // Accepted, and nothing came back. The one cause worth naming is now
+      // refused before the membership is written, so what is left here is a
+      // genuine empty answer: the membership exists, and trying again works.
       setState(() {
         _busy = false;
         _problem = text.accountRefused('');

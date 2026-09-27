@@ -177,6 +177,17 @@ final class SupabaseFamilyRepository implements FamilyRepository {
   }
 
   @override
+  Future<bool> wasDeleted(String familyId) async {
+    final rows = await _db
+        .from('families')
+        .select('id')
+        .eq('id', familyId)
+        .not('deleted_at', 'is', null);
+
+    return rows.isNotEmpty;
+  }
+
+  @override
   Future<void> deleteFamily(String familyId) async {
     await _db.rpc<void>(
       'delete_family_deep',

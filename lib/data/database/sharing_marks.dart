@@ -52,10 +52,13 @@ final class SharingMarks {
     final rows =
         await (_db.selectOnly(_db.families)
               ..addColumns(<Expression<Object>>[_db.families.id])
-              ..where(
-                _db.families.sharedAt.isNotNull() &
-                    _db.families.deletedAt.isNull(),
-              ))
+              // Tombstones included. The mark says this device *put* the
+              // family on a server, which stays true after somebody deletes
+              // it — and the deletion is the one thing left that still has to
+              // reach that server. Filtered out, a family deleted here could
+              // never be deleted anywhere else: the push asks this set first
+              // and would be told there was nothing up there to tell.
+              ..where(_db.families.sharedAt.isNotNull()))
             .get();
 
     return rows.map((row) => row.read(_db.families.id)!).toSet();

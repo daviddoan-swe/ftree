@@ -184,6 +184,29 @@ final class FamilyPush {
     });
   }
 
+  /// Families this device deleted, shared, and has not managed to send.
+  ///
+  /// The one set nothing else can reach. A synchronisation runs when a family
+  /// is opened and when it is left, and a family that has been deleted cannot
+  /// be opened again — so a tombstone that failed to send at the moment it was
+  /// made has no second chance, and every other copy goes on showing a gia phả
+  /// its owner deleted.
+  ///
+  /// Usually empty. It is looked at where the list of families is drawn, which
+  /// is the only screen a deleted family's owner will ever be on again.
+  Future<Set<String>> deletedAndUnsent() async {
+    final rows =
+        await (_db.select(_db.families)..where(
+              (f) =>
+                  f.deletedAt.isNotNull() &
+                  f.sharedAt.isNotNull() &
+                  f.unsent.equals(true),
+            ))
+            .get();
+
+    return <String>{for (final row in rows) row.id};
+  }
+
   /// How many rows are still waiting, for a screen that wants to say so.
   Future<int> waiting(String familyId) async {
     final outgoing = await pending(familyId);
