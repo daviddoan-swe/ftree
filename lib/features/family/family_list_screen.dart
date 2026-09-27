@@ -254,7 +254,7 @@ class _FamilyList extends ConsumerWidget {
 
       if (role.mayRenameFamily)
         SlidableAction(
-          onPressed: (_) => showFamilyFormSheet(context, editing: family),
+          onPressed: (_) => _renameAndSend(context, family),
           icon: Icons.edit_outlined,
           label: text.actionEdit,
           backgroundColor: colors.secondaryContainer,
@@ -405,12 +405,36 @@ void _sayWhatWent(BuildContext context, List<GoneFamily> gone) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
+/// Opens the form, and sends what it changed.
+///
+/// Renaming used to wait for somebody to open the family and leave it again,
+/// which is the only other moment anything is sent. A gia phả nobody returns to
+/// therefore kept the old name on every other device indefinitely — and this is
+/// the screen where renaming is done.
+Future<void> _renameAndSend(BuildContext context, Family family) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+
+  await showFamilyFormSheet(context, editing: family);
+
+  // Asked locally first, because the sheet does not say whether it saved or was
+  // dismissed, and a dismissal must not spend a request finding that out.
+  final waiting = await container.read(familyPushProvider).pending(family.id);
+  if (waiting.isEmpty) return;
+
+  unawaited(pushFamily(container, family.id));
+}
+
 Future<void> _confirmAndDelete(
   BuildContext context,
   WidgetRef ref,
   Family family,
 ) async {
   final text = AppText.of(context);
+
+  // Taken now, while there is certainly a widget to take it from. This runs
+  // from a row of the list, and the row is gone the moment the family is — so
+  // by the end of this function `context` may belong to nothing.
+  final container = ProviderScope.containerOf(context, listen: false);
 
   // The list holds families, not graphs, so the sizes are read here. It is a
   // full load to count two numbers — the same load opening the family would do,
@@ -448,12 +472,18 @@ Future<void> _confirmAndDelete(
   // been deleted cannot be opened again — so the tombstone would sit on this
   // device for ever while every other copy went on showing the gia phả.
   //
-  // Not awaited: the row is gone from the list already, and what this does is
-  // tell the server. Anything it fails to get away stays flagged.
-  if (!context.mounted) return;
-  unawaited(
-    pushFamily(ProviderScope.containerOf(context, listen: false), family.id),
-  );
+  // Not gated on `context.mounted`, and that was a real defect rather than a
+  // tidiness point. The context here belongs to the row that drew this family,
+  // and deleting the family unmounts the row — so the check was asking "does
+  // the thing I have just destroyed still exist?" and usually getting no. It
+  // raced: sometimes the check ran before the rebuild and the tombstone went,
+  // sometimes after and it sat here for ever while every other device went on
+  // showing the gia phả. Deleting the *last* family loses the race every time,
+  // because the empty state replaces the whole section.
+  //
+  // Not awaited either: the row is gone from the list already, and what this
+  // does is tell the server. Anything it fails to get away stays flagged.
+  unawaited(pushFamily(container, family.id));
 }
 
 class _NoFamiliesYet extends StatelessWidget {

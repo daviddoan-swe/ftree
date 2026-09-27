@@ -11,6 +11,8 @@ import 'package:ftree/app/providers.dart';
 import 'package:ftree/data/database/app_database.dart';
 import 'package:ftree/data/database/family_roles.dart';
 import 'package:ftree/data/database/sharing_marks.dart';
+import 'package:ftree/data/sync/cloud_push.dart';
+import 'package:ftree/data/sync/family_push.dart';
 import 'package:ftree/data/repositories/drift_family_repository.dart';
 import 'package:ftree/domain/family.dart' as domain;
 import 'package:ftree/domain/genealogical_date.dart';
@@ -18,6 +20,38 @@ import 'package:ftree/domain/person.dart';
 import 'package:ftree/domain/relationship.dart';
 import 'package:ftree/features/family/generation_filter.dart';
 import 'package:ftree/l10n/app_localizations.dart';
+
+/// Signed in, without a cloud to be signed in to.
+final class _SignedIn implements CloudSession {
+  const _SignedIn();
+
+  @override
+  bool get isSignedIn => true;
+}
+
+/// Says the server knows nothing, which leaves a family made here its own.
+///
+/// A family with no role is one nobody else has a claim on, so this neither
+/// grants nor takes anything away — the point is only that the refresh inside
+/// the push has somebody to ask.
+final class _NoRoles implements RolesSource {
+  const _NoRoles();
+
+  @override
+  Future<({Map<String, String> live, Set<String> deleted})> myRoles() async =>
+      (live: const <String, String>{}, deleted: const <String>{});
+}
+
+/// Keeps what was sent, and answers as a server that stored all of it.
+final class _WatchingSink implements ChangeSink {
+  final List<Outgoing> sent = <Outgoing>[];
+
+  @override
+  Future<Set<String>> send(String familyId, Outgoing outgoing) async {
+    sent.add(outgoing);
+    return outgoing.ids;
+  }
+}
 
 void main() {
   late AppDatabase db;
@@ -822,6 +856,121 @@ void main() {
           .firstWhere((chip) => chip.selected);
 
       expect(chosen.selectedColor, scheme.primary);
+    });
+  });
+
+  group('what a swipe action sends', () {
+    // A change made from this screen has to leave the device from this screen.
+    // Everything else is sent when a family is opened and when it is left, and
+    // neither happens here: a family just deleted cannot be opened again, and a
+    // family renamed from the list may not be opened for weeks.
+    late _WatchingSink sink;
+
+    const familyId = 'f0000000-0000-7000-8000-000000000000';
+
+    setUp(() async {
+      sink = _WatchingSink();
+      await repository.saveFamily(
+        const domain.Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      // Only a family this device put on a server is one it has anything to say
+      // to a server about.
+      await SharingMarks(db).markShared(familyId);
+      // And nothing is waiting to go, so what these tests watch is what the
+      // action itself produced rather than the seeding.
+      await db.customStatement('UPDATE families SET unsent = 0');
+    });
+
+    Future<void> pumpShared(WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            databaseProvider.overrideWithValue(db),
+            cloudSessionProvider.overrideWithValue(const _SignedIn()),
+            rolesSourceProvider.overrideWithValue(const _NoRoles()),
+            changeSinkProvider.overrideWithValue(sink),
+          ],
+          child: const FtreeApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> swipeOpen(WidgetTester tester, String name) async {
+      final row = find.ancestor(
+        of: find.text(name),
+        matching: find.byType(ListTile),
+      );
+      await tester.dragFrom(
+        tester.getTopLeft(row) + const Offset(24, 24),
+        const Offset(-300, 0),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('deleting the only family still sends the tombstone', (
+      tester,
+    ) async {
+      // Written for a defect found on two real phones: a family deleted here
+      // stayed live on the server until the application was next opened, when
+      // the sweep for stuck deletions sent it. The push was gated on
+      // `context.mounted`, and that context belonged to the row drawing this
+      // family — so the check asked whether the thing just destroyed still
+      // existed. The sweep has no such gate, which is why it got through.
+      //
+      // **This test does not reproduce that race, and cannot.** Frames advance
+      // only when a test pumps them, so the row is still mounted when the check
+      // runs and the gated version passes here — confirmed by putting the gate
+      // back. What it does pin is the wiring: this screen sends the tombstone
+      // itself, for the family that was deleted, with nothing else in the
+      // application that ever will.
+      await pumpShared(tester);
+      await swipeOpen(tester, 'Họ Nguyễn');
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('No families yet'), findsOneWidget);
+      expect(
+        sink.sent.map((o) => o.deletedFamily),
+        <String>[familyId],
+        reason: 'deleted here, and nowhere else will ever say so',
+      );
+    });
+
+    testWidgets('renaming it sends the new name', (tester) async {
+      // Renaming used to wait for somebody to open the family and leave it
+      // again, which is the only other moment anything is sent.
+      await pumpShared(tester);
+      await swipeOpen(tester, 'Họ Nguyễn');
+
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Family name'),
+        'Họ Nguyễn Phúc',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(sink.sent.single.family?.name, 'Họ Nguyễn Phúc');
+    });
+
+    testWidgets('and dismissing the form sends nothing', (tester) async {
+      // The sheet does not report whether it saved, so the question is asked of
+      // the database instead. Spending a request to discover that somebody
+      // changed their mind is a request spent on nothing.
+      await pumpShared(tester);
+      await swipeOpen(tester, 'Họ Nguyễn');
+
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(sink.sent, isEmpty);
     });
   });
 }
