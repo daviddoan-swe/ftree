@@ -762,6 +762,88 @@ class AppTextEn extends AppText {
   String get memberNoName => 'No name given';
 
   @override
+  String get syncNever => 'Not synced';
+
+  @override
+  String get syncJustNow => 'Synced';
+
+  @override
+  String syncMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes ago',
+      one: 'A minute ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours ago',
+      one: 'An hour ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+      one: 'Yesterday',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes',
+      one: '1 change',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncNothingNew => 'Synced';
+
+  @override
+  String syncBroughtDown(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Updated $count changes',
+      one: 'Updated 1 change',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncSentUp(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sent $count changes',
+      one: 'Sent 1 change',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncOffline => 'No connection';
+
+  @override
+  String get syncRefused =>
+      'The server would not take it — check what you may do here';
+
+  @override
   String get conflictsTitle => 'Your decision';
 
   @override

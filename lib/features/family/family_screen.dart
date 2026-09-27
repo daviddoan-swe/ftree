@@ -12,6 +12,7 @@ import '../../data/database/family_roles.dart';
 import '../../domain/family.dart';
 import '../../domain/name_search.dart';
 import '../sync/conflicts_screen.dart';
+import '../sync/sync_status.dart';
 import 'generation_filter.dart';
 import '../../domain/person.dart';
 import '../../l10n/app_localizations.dart';
@@ -91,6 +92,24 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     });
   }
 
+  /// Synchronises, and says what happened.
+  ///
+  /// Only from the pull, which is the one moment somebody asked. The wheel
+  /// stopping means "it finished", not "it worked" — offline it spun, stopped
+  /// and said nothing at all, which is the shape of failure this whole step
+  /// exists to end.
+  Future<void> _syncAndSay(String familyId) async {
+    // Read before the wait, not after: the screen may be gone by the time the
+    // server answers, and a `BuildContext` does not survive that.
+    final text = AppText.of(context);
+    final report = syncReport(text, await syncFamily(_container, familyId));
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(report)));
+  }
+
   @override
   void dispose() {
     // Leaving is when somebody has finished writing, and so when what they
@@ -130,7 +149,16 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: circleBackButton(context),
-        title: Text(data?.family.name ?? ''),
+        // The name, and under it where this copy stands with the server. Two
+        // short lines rather than one: the bar has the room, and the status
+        // has nowhere else to be that is not in the way of the gia phả.
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(data?.family.name ?? ''),
+            if (data != null) SyncStatusLine(familyId: familyId),
+          ],
+        ),
         actions: <Widget>[
           // A viewer reads; the server refuses their writes anyway
           // (`persons_insert`), so offering the button would be offering work
@@ -235,80 +263,101 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 return Stack(
                   children: <Widget>[
                     Positioned.fill(
-                      child: CustomScrollView(
-                        controller: _scroll,
-                        slivers: <Widget>[
-                          SliverToBoxAdapter(
-                            // Name and notes are not repeated under the portrait:
-                            // the bar above already carries the name, and the notes
-                            // were read on the way in.
-                            child: AvatarHeader(
-                              initials: familyInitial(data.family.name),
-                              badge: CountBadge(
-                                icon: Icons.person,
-                                label: people.length.toString(),
-                              ),
-                            ),
+                      // Pulling the gia phả down synchronises it. Opening a
+                      // family and leaving one already do, so this is for the
+                      // moment in between — somebody waiting on a relative's
+                      // change who does not want to leave the screen and come
+                      // back to see whether it has arrived.
+                      //
+                      // It is a hidden gesture, which is its weakness: the
+                      // people this is for are relatives, not application
+                      // users, and a control nobody discovers is a control
+                      // nobody has. That is a cost taken knowingly, and M9's
+                      // status line is where it will be said out loud.
+                      child: RefreshIndicator(
+                        onRefresh: () => _syncAndSay(familyId),
+                        child: CustomScrollView(
+                          controller: _scroll,
+                          // Always scrollable, or a family short enough to fit
+                          // the screen is one the gesture does not work on —
+                          // and that is most of them at three people.
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
                           ),
-                          if (filter.isWorthShowing)
-                            // Pinned: the row stays under the bar once the portrait
-                            // above it has scrolled away. On three hundred names a
-                            // reader is deep in the list by the time they know which
-                            // đời they wanted, and a filter they have to scroll back
-                            // to the top to reach is one they will not use.
-                            //
-                            // The portrait is not pinned with it. It says which
-                            // family this is, which the bar already says, and it
-                            // would cost half the screen to keep.
-                            SliverPersistentHeader(
-                              pinned: true,
-                              delegate: _PinnedRow(
-                                height: GenerationFilter.height,
-                                background: GroupedColors.page(context),
-                                child: filter,
-                              ),
-                            ),
-                          if (matches.isEmpty)
+                          slivers: <Widget>[
                             SliverToBoxAdapter(
-                              child: GroupedSection(
-                                children: <Widget>[
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      14,
-                                      16,
-                                      14,
-                                    ),
-                                    child: Text(
-                                      text.searchNoMatch,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.copyWith(
-                                            color: GroupedColors.secondaryLabel(
-                                              context,
-                                            ),
-                                          ),
-                                    ),
-                                  ),
-                                ],
+                              // Name and notes are not repeated under the portrait:
+                              // the bar above already carries the name, and the notes
+                              // were read on the way in.
+                              child: AvatarHeader(
+                                initials: familyInitial(data.family.name),
+                                badge: CountBadge(
+                                  icon: Icons.person,
+                                  label: people.length.toString(),
+                                ),
                               ),
-                            )
-                          else
-                            GroupedSliverSection(
-                              // No count above the list: the chip that is chosen
-                              // carries its own, and the same number twice on one
-                              // screen is one of them going stale.
-                              itemCount: matches.length,
-                              itemBuilder: (context, index) =>
-                                  _PersonTile(person: matches[index]),
                             ),
-                          // Enough room to scroll the last row clear of what floats
-                          // over it.
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 150),
-                          ),
-                        ],
+                            if (filter.isWorthShowing)
+                              // Pinned: the row stays under the bar once the portrait
+                              // above it has scrolled away. On three hundred names a
+                              // reader is deep in the list by the time they know which
+                              // đời they wanted, and a filter they have to scroll back
+                              // to the top to reach is one they will not use.
+                              //
+                              // The portrait is not pinned with it. It says which
+                              // family this is, which the bar already says, and it
+                              // would cost half the screen to keep.
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: _PinnedRow(
+                                  height: GenerationFilter.height,
+                                  background: GroupedColors.page(context),
+                                  child: filter,
+                                ),
+                              ),
+                            if (matches.isEmpty)
+                              SliverToBoxAdapter(
+                                child: GroupedSection(
+                                  children: <Widget>[
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        14,
+                                        16,
+                                        14,
+                                      ),
+                                      child: Text(
+                                        text.searchNoMatch,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge
+                                            ?.copyWith(
+                                              color:
+                                                  GroupedColors.secondaryLabel(
+                                                    context,
+                                                  ),
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              GroupedSliverSection(
+                                // No count above the list: the chip that is chosen
+                                // carries its own, and the same number twice on one
+                                // screen is one of them going stale.
+                                itemCount: matches.length,
+                                itemBuilder: (context, index) =>
+                                    _PersonTile(person: matches[index]),
+                              ),
+                            // Enough room to scroll the last row clear of what floats
+                            // over it.
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 150),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 

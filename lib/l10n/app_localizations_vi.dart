@@ -754,6 +754,87 @@ class AppTextVi extends AppText {
   String get memberNoName => 'Chưa đặt tên';
 
   @override
+  String get syncNever => 'Chưa đồng bộ';
+
+  @override
+  String get syncJustNow => 'Đã đồng bộ';
+
+  @override
+  String syncMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count phút trước',
+      one: '1 phút trước',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count giờ trước',
+      one: '1 giờ trước',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ngày trước',
+      one: 'Hôm qua',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Có $count thay đổi',
+      one: 'Có 1 thay đổi',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncNothingNew => 'Đã đồng bộ';
+
+  @override
+  String syncBroughtDown(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cập nhật $count thay đổi',
+      one: 'Cập nhật 1 thay đổi',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncSentUp(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Gửi lên $count thay đổi',
+      one: 'Gửi lên 1 thay đổi',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncOffline => 'Không có mạng';
+
+  @override
+  String get syncRefused => 'Máy chủ không nhận — hãy xem lại quyền ở đây';
+
+  @override
   String get conflictsTitle => 'Cần bác quyết';
 
   @override

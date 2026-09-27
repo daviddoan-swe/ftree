@@ -75,6 +75,14 @@ class Families extends Table with _SyncColumns {
   /// A mark rather than a question asked of the server: offline there is
   /// nobody to ask, and the answer decides what the interface offers.
   ///
+  /// When a synchronisation of this family last finished without trouble.
+  ///
+  /// Not `lastSeen`, which is a position in the server's sequence and says
+  /// nothing about when. Null until the first one succeeds, and left alone by
+  /// one that failed: "three hours ago" has to mean the last time it actually
+  /// worked, or the line is worse than no line (ROADMAP M9, step 5).
+  DateTimeColumn get syncedAt => dateTime().nullable()();
+
   /// A time rather than a flag, matching `deletedAt` beside it. It reads back
   /// as "shared on the 24th" where a boolean reads as "shared, at some point
   /// nobody wrote down".
@@ -330,8 +338,10 @@ class AppDatabase extends _$AppDatabase {
   ///     edits started from, and the one that could not be merged into them.
   /// 8 — `persons.theirsDeleted`, so a removal that meets an edit can be asked
   ///     about rather than silently winning or silently losing.
+  /// 9 — `families.syncedAt`, so the device can say when it last managed to
+  ///     reach the server rather than leaving somebody to guess.
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   /// Timestamps are stored as ISO-8601 UTC text, not as Unix integers.
   ///
@@ -518,6 +528,11 @@ class AppDatabase extends _$AppDatabase {
         // False for everything, which is the truth: nothing has been removed
         // out from under an edit on a device that has not pulled since.
         await _addColumn(m, persons, persons.theirsDeleted);
+      });
+      await _step(from, 9, () async {
+        // Null for everything, which is the truth: a device that has not
+        // synchronised since this column existed cannot say when it last did.
+        await _addColumn(m, families, families.syncedAt);
       });
     },
     beforeOpen: (OpeningDetails details) async {

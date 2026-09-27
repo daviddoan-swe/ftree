@@ -1255,6 +1255,72 @@ abstract class AppText {
   /// **'Chưa đặt tên'**
   String get memberNoName;
 
+  /// No description provided for @syncNever.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chưa đồng bộ'**
+  String get syncNever;
+
+  /// No description provided for @syncJustNow.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã đồng bộ'**
+  String get syncJustNow;
+
+  /// No description provided for @syncMinutes.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{1 phút trước} other{{count} phút trước}}'**
+  String syncMinutes(int count);
+
+  /// No description provided for @syncHours.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{1 giờ trước} other{{count} giờ trước}}'**
+  String syncHours(int count);
+
+  /// No description provided for @syncDays.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{Hôm qua} other{{count} ngày trước}}'**
+  String syncDays(int count);
+
+  /// No description provided for @syncWaiting.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{Có 1 thay đổi} other{Có {count} thay đổi}}'**
+  String syncWaiting(int count);
+
+  /// No description provided for @syncNothingNew.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã đồng bộ'**
+  String get syncNothingNew;
+
+  /// No description provided for @syncBroughtDown.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{Cập nhật 1 thay đổi} other{Cập nhật {count} thay đổi}}'**
+  String syncBroughtDown(int count);
+
+  /// No description provided for @syncSentUp.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count, plural, =1{Gửi lên 1 thay đổi} other{Gửi lên {count} thay đổi}}'**
+  String syncSentUp(int count);
+
+  /// No description provided for @syncOffline.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không có mạng'**
+  String get syncOffline;
+
+  /// No description provided for @syncRefused.
+  ///
+  /// In vi, this message translates to:
+  /// **'Máy chủ không nhận — hãy xem lại quyền ở đây'**
+  String get syncRefused;
+
   /// No description provided for @conflictsTitle.
   ///
   /// In vi, this message translates to:

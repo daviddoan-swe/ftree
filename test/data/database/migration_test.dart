@@ -31,7 +31,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  for (final from in <int>[1, 2, 3, 4, 5, 6, 7]) {
+  for (final from in <int>[1, 2, 3, 4, 5, 6, 7, 8]) {
     test('upgrading from v$from produces the current schema', () async {
       final db = AppDatabase(await verifier.startAt(from));
 

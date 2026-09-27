@@ -64,11 +64,11 @@ void main() {
       );
 
   group('schema', () {
-    test('opens at version 8 and creates every table', () async {
+    test('opens at version 9 and creates every table', () async {
       // Written down rather than read from the database, on purpose. A schema
       // version changes what runs on every installed device, so it may not
       // move without somebody editing this line and noticing why.
-      expect(db.schemaVersion, 8);
+      expect(db.schemaVersion, 9);
 
       // Touching each table proves it exists.
       expect(await db.select(db.families).get(), isEmpty);

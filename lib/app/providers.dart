@@ -13,7 +13,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
-import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show PostgrestException, Supabase;
 
 import '../data/database/app_database.dart';
 import '../data/cloud/cloud_session.dart';
@@ -26,6 +27,7 @@ import '../data/sync/conflicts.dart';
 import '../data/sync/family_pull.dart';
 import '../data/sync/family_push.dart';
 import '../data/database/sharing_marks.dart';
+import '../data/database/sync_marks.dart';
 import '../data/repositories/drift_family_repository.dart';
 import '../domain/family.dart';
 import '../domain/family_repository.dart';
@@ -58,6 +60,22 @@ final sharingMarksProvider = Provider<SharingMarks>(
   (ref) => SharingMarks(ref.watch(databaseProvider)),
 );
 
+/// When each family was last brought level with the server (ROADMAP M9,
+/// step 5).
+final syncMarksProvider = Provider<SyncMarks>(
+  (ref) => SyncMarks(ref.watch(databaseProvider)),
+);
+
+/// When [familyId] was last brought level, or null if it never has been.
+final syncedAtProvider = FutureProvider.family<DateTime?, String>(
+  (ref, familyId) => ref.watch(syncMarksProvider).forFamily(familyId),
+);
+
+/// How many rows in [familyId] are still waiting to go up.
+final waitingProvider = FutureProvider.family<int, String>(
+  (ref, familyId) => ref.watch(familyPushProvider).waiting(familyId),
+);
+
 /// Whether there is a cloud session, and whether there still is.
 ///
 /// A stream rather than one answer, because the question has one: somebody
@@ -75,6 +93,63 @@ final sharingMarksProvider = Provider<SharingMarks>(
 /// False where the cloud was never opened at all. That is every test process,
 /// and an interface that cannot tell whether somebody is signed in should say
 /// no rather than guess yes.
+/// Whether this device holds a session, asked through the provider graph.
+///
+/// The same answer as the global [isSignedIn], reachable by a test. The
+/// global reads `Supabase.instance`, which throws in a process that never
+/// called `openCloud` — so a guard written on it short-circuits, and every
+/// test of the code behind that guard passes whether the code is right or
+/// wrong. Three things fixed in one day had no test for that reason.
+///
+/// It is **not** a network call. `currentUser` is restored from the device's
+/// own storage when Supabase starts, so this answers offline exactly as it
+/// answers on: it says "there is a session here", never "the server agrees".
+abstract interface class CloudSession {
+  bool get isSignedIn;
+}
+
+final class LiveCloudSession implements CloudSession {
+  const LiveCloudSession();
+
+  @override
+  bool get isSignedIn {
+    try {
+      return signedInUserId != null;
+    } catch (_) {
+      // No cloud was ever opened. Not signed in is the honest reading.
+      return false;
+    }
+  }
+}
+
+final cloudSessionProvider = Provider<CloudSession>(
+  (ref) => const LiveCloudSession(),
+);
+
+/// Where this account's roles are read from.
+///
+/// Its own provider for the same reason as [CloudSession]: `_refreshRoles`
+/// reached straight for `Supabase.instance`, so nothing could answer for it
+/// in a test and the demotion path it exists for had no cover at all.
+///
+/// Declared here rather than reusing `FamilyCircle`, which is the same idea
+/// one layer up: `lib/features` depends on `lib/app`, and importing it back
+/// the other way would turn that dependency into a circle (ARCHITECTURE §3).
+abstract interface class RolesSource {
+  /// Every family this account is in, by id, with the role it holds there.
+  Future<Map<String, String>> myRoles();
+}
+
+final class CloudRoles implements RolesSource {
+  const CloudRoles();
+
+  @override
+  Future<Map<String, String>> myRoles() =>
+      FamilyInvitations(Supabase.instance.client).myRoles();
+}
+
+final rolesSourceProvider = Provider<RolesSource>((ref) => const CloudRoles());
+
 final signedInProvider = StreamProvider<bool>((ref) async* {
   try {
     yield isSignedIn;
@@ -120,7 +195,9 @@ final familyRoleMapProvider = FutureProvider<Map<String, FamilyRole>>((
   ref.onDispose(() => disposed = true);
 
   unawaited(
-    _refreshRoles(roles).then((changed) {
+    _refreshRoles(roles, const CloudRoles(), const LiveCloudSession()).then((
+      changed,
+    ) {
       if (changed && !disposed) ref.invalidateSelf();
     }),
   );
@@ -149,7 +226,12 @@ Future<Map<String, FamilyRole>> refreshedRoles(
   ProviderContainer container,
 ) async {
   final roles = container.read(familyRolesProvider);
-  if (await _refreshRoles(roles)) container.invalidate(familyRoleMapProvider);
+  final source = container.read(rolesSourceProvider);
+  final session = container.read(cloudSessionProvider);
+
+  if (await _refreshRoles(roles, source, session)) {
+    container.invalidate(familyRoleMapProvider);
+  }
   return roles.all();
 }
 
@@ -159,11 +241,15 @@ Future<Map<String, FamilyRole>> refreshedRoles(
 /// all in a test process. That is deliberate and it is the important part —
 /// "the server named nothing" and "the server could not be reached" look
 /// identical from here, and one of them would mark every family removed.
-Future<bool> _refreshRoles(FamilyRoles roles) async {
+Future<bool> _refreshRoles(
+  FamilyRoles roles,
+  RolesSource source,
+  CloudSession session,
+) async {
   try {
-    if (!isSignedIn) return false;
+    if (!session.isSignedIn) return false;
 
-    final named = await FamilyInvitations(Supabase.instance.client).myRoles();
+    final named = await source.myRoles();
 
     final fromServer = <String, FamilyRole>{};
     for (final entry in named.entries) {
@@ -226,6 +312,63 @@ final changeSinkProvider = Provider<ChangeSink>(
 ///
 /// Best effort and silent, like the pull. Rows the server did not take stay
 /// flagged and go again next time.
+/// What became of a synchronisation.
+///
+/// Reported rather than swallowed, because until now every failure looked
+/// exactly like a success: the whole of `syncFamily` sat in one `catch (_)`,
+/// so pulling the gia phả down while offline spun a wheel, stopped, and said
+/// nothing. A wheel that stops means "it finished", not "it worked".
+///
+/// The catch itself was never carelessness and is not being removed. "The
+/// server could not be reached" and "the server says you may do nothing" must
+/// never be confused: read the second into the first and every family on a
+/// phone that went into a lift is marked removed. What changes is that the two
+/// are now told apart and named.
+enum SyncTrouble {
+  /// The server was not reachable at all.
+  offline,
+
+  /// It answered, and refused. A viewer's writes, or an editor's in a family
+  /// they have been put out of.
+  refused,
+}
+
+final class SyncResult {
+  const SyncResult({
+    this.broughtDown = 0,
+    this.sentUp = 0,
+    this.conflicted = 0,
+    this.waiting = 0,
+    this.reached = false,
+    this.trouble,
+  });
+
+  /// Nothing was attempted: not signed in, or a family never shared. Not a
+  /// failure — there was no server in the picture to begin with.
+  static const SyncResult idle = SyncResult();
+
+  final int broughtDown;
+  final int sentUp;
+  final int conflicted;
+
+  /// Rows still carrying work this device has not managed to send.
+  final int waiting;
+
+  /// Whether the server was actually spoken to.
+  ///
+  /// False for [idle], and the distinction is load-bearing: no trouble is not
+  /// the same as success. A family nobody ever shared returns no trouble
+  /// because nothing was attempted, and counting that as a synchronisation
+  /// made the status line say "a moment ago" about a server it had never
+  /// touched.
+  final bool reached;
+
+  final SyncTrouble? trouble;
+
+  bool get isQuiet =>
+      trouble == null && broughtDown == 0 && sentUp == 0 && conflicted == 0;
+}
+
 /// Down first, then up.
 ///
 /// The order is load-bearing, not a matter of taste. A merge needs three
@@ -247,9 +390,51 @@ final changeSinkProvider = Provider<ChangeSink>(
 /// is kept as a question and held back from that push, which is what stops it
 /// being settled in this device's favour with nobody asked
 /// (`test/data/sync/sync_order_test.dart`).
-Future<void> syncFamily(ProviderContainer container, String familyId) async {
-  await pullFamily(container, familyId);
-  await pushFamily(container, familyId);
+Future<SyncResult> syncFamily(
+  ProviderContainer container,
+  String familyId,
+) async {
+  final down = await pullFamily(container, familyId);
+  final up = await pushFamily(container, familyId);
+
+  final trouble = down.trouble ?? up.trouble;
+  var waiting = 0;
+
+  // Everything past here runs after two round trips, and the scope this reads
+  // from may be gone by then: leaving a family starts a synchronisation and
+  // then takes the screen down. In the application the container belongs to
+  // the root and outlives it; under a test the whole tree goes at once, and
+  // reading a disposed container throws.
+  //
+  // What is lost by catching is the note and the count, and neither is worth
+  // an error on the way out. The two halves above have already done their
+  // work, and the flags they left are what the next visit reads.
+  try {
+    waiting = await container.read(familyPushProvider).waiting(familyId);
+
+    // Only where it actually worked. "Three hours ago" has to mean the last
+    // time the server was reached, or the line says something untrue at the
+    // one moment somebody is reading it to find out whether to worry.
+    if (trouble == null && down.reached) {
+      await container.read(syncMarksProvider).mark(familyId);
+      container.invalidate(syncedAtProvider(familyId));
+    }
+
+    // Whether it worked or not: a failed send leaves more waiting, and that
+    // number is the whole of what the line has to say when it did not.
+    container.invalidate(waitingProvider(familyId));
+  } catch (_) {
+    // The scope has gone. Nothing above it needed doing twice.
+  }
+
+  return SyncResult(
+    broughtDown: down.broughtDown,
+    sentUp: up.sentUp,
+    conflicted: down.conflicted,
+    waiting: waiting,
+    reached: down.reached || up.reached,
+    trouble: trouble,
+  );
 }
 
 /// Sends what [familyId] is holding, and brings nothing back.
@@ -263,12 +448,17 @@ Future<void> syncFamily(ProviderContainer container, String familyId) async {
 /// Leaving is a boundary rather than a rule. Work not sent — because the
 /// application was killed on the screen, or there was no network — stays
 /// flagged and goes on the next visit, which is the whole point of the flag.
-Future<void> pushFamily(ProviderContainer container, String familyId) async {
+Future<SyncResult> pushFamily(
+  ProviderContainer container,
+  String familyId,
+) async {
   try {
-    if (!isSignedIn) return;
+    if (!container.read(cloudSessionProvider).isSignedIn) {
+      return SyncResult.idle;
+    }
 
     final shared = container.read(sharedFamiliesProvider).valueOrNull;
-    if (shared == null || !shared.contains(familyId)) return;
+    if (shared == null || !shared.contains(familyId)) return SyncResult.idle;
 
     // Only where this copy is allowed to write at all. A viewer's push would
     // be refused row by row and silently, and the read-back would come back
@@ -284,15 +474,34 @@ Future<void> pushFamily(ProviderContainer container, String familyId) async {
     if (role.mayEditPeople) {
       final push = container.read(familyPushProvider);
       final outgoing = await push.pending(familyId);
-      if (!outgoing.isEmpty) {
-        await push.markSent(
-          await container.read(changeSinkProvider).send(familyId, outgoing),
-        );
-      }
+      if (outgoing.isEmpty) return SyncResult.idle;
+
+      final held = await container
+          .read(changeSinkProvider)
+          .send(familyId, outgoing);
+      await push.markSent(held);
+
+      // Fewer back than went is the silent refusal this whole read-back
+      // exists to catch: an UPDATE a policy forbids changes nothing and
+      // reports success. Named here so somebody can be told, rather than left
+      // to wonder why the number waiting never goes down.
+      return SyncResult(
+        sentUp: held.length,
+        reached: true,
+        trouble: held.length < outgoing.ids.length ? SyncTrouble.refused : null,
+      );
     }
+
+    // A viewer, or somebody put out of the family. Nothing was attempted, so
+    // nothing was refused.
+    return SyncResult.idle;
+  } on PostgrestException catch (_) {
+    // The server answered, and said no.
+    return const SyncResult(trouble: SyncTrouble.refused);
   } catch (_) {
-    // Offline, signed out, or a cloud never opened. What was waiting is still
-    // waiting, which is what the flag is for.
+    // It could not be reached at all. What was waiting is still waiting,
+    // which is what the flag is for.
+    return const SyncResult(trouble: SyncTrouble.offline);
   }
 }
 
@@ -304,14 +513,19 @@ Future<void> pushFamily(ProviderContainer container, String familyId) async {
 ///
 /// Rows this device has changed and not sent are held rather than overwritten,
 /// which [FamilyPull] decides and this only passes on.
-Future<void> pullFamily(ProviderContainer container, String familyId) async {
+Future<SyncResult> pullFamily(
+  ProviderContainer container,
+  String familyId,
+) async {
   try {
-    if (!isSignedIn) return;
+    if (!container.read(cloudSessionProvider).isSignedIn) {
+      return SyncResult.idle;
+    }
 
     // A family this device never sent up has nothing on the server to ask
     // about, and asking would spend a request to be told so.
     final shared = container.read(sharedFamiliesProvider).valueOrNull;
-    if (shared == null || !shared.contains(familyId)) return;
+    if (shared == null || !shared.contains(familyId)) return SyncResult.idle;
 
     final pull = container.read(familyPullProvider);
     final changes = await container
@@ -339,9 +553,19 @@ Future<void> pullFamily(ProviderContainer container, String familyId) async {
       container.invalidate(familyListProvider);
       container.invalidate(sharedFamiliesProvider);
     }
+
+    return SyncResult(
+      broughtDown: result.applied + result.merged,
+      conflicted: result.conflicted.length,
+      reached: true,
+    );
+  } on PostgrestException catch (_) {
+    // It answered and refused: a family this account is no longer in.
+    return const SyncResult(trouble: SyncTrouble.refused);
   } catch (_) {
-    // Offline, signed out, or a cloud never opened. The copy on the device is
-    // what it was, which is the whole point of holding one.
+    // It could not be reached. The copy on the device is what it was, which
+    // is the whole point of holding one.
+    return const SyncResult(trouble: SyncTrouble.offline);
   }
 }
 

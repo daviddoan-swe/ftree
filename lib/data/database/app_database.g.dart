@@ -73,6 +73,17 @@ class $FamiliesTable extends Families
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sharedAtMeta = const VerificationMeta(
     'sharedAt',
   );
@@ -128,6 +139,7 @@ class $FamiliesTable extends Families
     id,
     name,
     description,
+    syncedAt,
     sharedAt,
     myRole,
     lastSeen,
@@ -185,6 +197,12 @@ class $FamiliesTable extends Families
           data['description']!,
           _descriptionMeta,
         ),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
       );
     }
     if (data.containsKey('shared_at')) {
@@ -247,6 +265,10 @@ class $FamiliesTable extends Families
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      ),
       sharedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}shared_at'],
@@ -302,6 +324,14 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
   /// A mark rather than a question asked of the server: offline there is
   /// nobody to ask, and the answer decides what the interface offers.
   ///
+  /// When a synchronisation of this family last finished without trouble.
+  ///
+  /// Not `lastSeen`, which is a position in the server's sequence and says
+  /// nothing about when. Null until the first one succeeds, and left alone by
+  /// one that failed: "three hours ago" has to mean the last time it actually
+  /// worked, or the line is worse than no line (ROADMAP M9, step 5).
+  final DateTime? syncedAt;
+
   /// A time rather than a flag, matching `deletedAt` beside it. It reads back
   /// as "shared on the 24th" where a boolean reads as "shared, at some point
   /// nobody wrote down".
@@ -346,6 +376,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     required this.id,
     required this.name,
     this.description,
+    this.syncedAt,
     this.sharedAt,
     this.myRole,
     required this.lastSeen,
@@ -363,6 +394,9 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || syncedAt != null) {
+      map['synced_at'] = Variable<DateTime>(syncedAt);
     }
     if (!nullToAbsent || sharedAt != null) {
       map['shared_at'] = Variable<DateTime>(sharedAt);
@@ -387,6 +421,9 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      syncedAt: syncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncedAt),
       sharedAt: sharedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(sharedAt),
@@ -410,6 +447,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
+      syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
       sharedAt: serializer.fromJson<DateTime?>(json['sharedAt']),
       myRole: serializer.fromJson<String?>(json['myRole']),
       lastSeen: serializer.fromJson<int>(json['lastSeen']),
@@ -426,6 +464,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
+      'syncedAt': serializer.toJson<DateTime?>(syncedAt),
       'sharedAt': serializer.toJson<DateTime?>(sharedAt),
       'myRole': serializer.toJson<String?>(myRole),
       'lastSeen': serializer.toJson<int>(lastSeen),
@@ -440,6 +479,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     String? id,
     String? name,
     Value<String?> description = const Value.absent(),
+    Value<DateTime?> syncedAt = const Value.absent(),
     Value<DateTime?> sharedAt = const Value.absent(),
     Value<String?> myRole = const Value.absent(),
     int? lastSeen,
@@ -451,6 +491,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
+    syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
     sharedAt: sharedAt.present ? sharedAt.value : this.sharedAt,
     myRole: myRole.present ? myRole.value : this.myRole,
     lastSeen: lastSeen ?? this.lastSeen,
@@ -466,6 +507,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
       description: data.description.present
           ? data.description.value
           : this.description,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
       sharedAt: data.sharedAt.present ? data.sharedAt.value : this.sharedAt,
       myRole: data.myRole.present ? data.myRole.value : this.myRole,
       lastSeen: data.lastSeen.present ? data.lastSeen.value : this.lastSeen,
@@ -484,6 +526,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('syncedAt: $syncedAt, ')
           ..write('sharedAt: $sharedAt, ')
           ..write('myRole: $myRole, ')
           ..write('lastSeen: $lastSeen, ')
@@ -500,6 +543,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
     id,
     name,
     description,
+    syncedAt,
     sharedAt,
     myRole,
     lastSeen,
@@ -515,6 +559,7 @@ class FamilyRow extends DataClass implements Insertable<FamilyRow> {
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
+          other.syncedAt == this.syncedAt &&
           other.sharedAt == this.sharedAt &&
           other.myRole == this.myRole &&
           other.lastSeen == this.lastSeen &&
@@ -528,6 +573,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String?> description;
+  final Value<DateTime?> syncedAt;
   final Value<DateTime?> sharedAt;
   final Value<String?> myRole;
   final Value<int> lastSeen;
@@ -540,6 +586,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
+    this.syncedAt = const Value.absent(),
     this.sharedAt = const Value.absent(),
     this.myRole = const Value.absent(),
     this.lastSeen = const Value.absent(),
@@ -553,6 +600,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     required String id,
     required String name,
     this.description = const Value.absent(),
+    this.syncedAt = const Value.absent(),
     this.sharedAt = const Value.absent(),
     this.myRole = const Value.absent(),
     this.lastSeen = const Value.absent(),
@@ -568,6 +616,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? description,
+    Expression<DateTime>? syncedAt,
     Expression<DateTime>? sharedAt,
     Expression<String>? myRole,
     Expression<int>? lastSeen,
@@ -581,6 +630,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
+      if (syncedAt != null) 'synced_at': syncedAt,
       if (sharedAt != null) 'shared_at': sharedAt,
       if (myRole != null) 'my_role': myRole,
       if (lastSeen != null) 'last_seen': lastSeen,
@@ -596,6 +646,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     Value<String>? id,
     Value<String>? name,
     Value<String?>? description,
+    Value<DateTime?>? syncedAt,
     Value<DateTime?>? sharedAt,
     Value<String?>? myRole,
     Value<int>? lastSeen,
@@ -609,6 +660,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      syncedAt: syncedAt ?? this.syncedAt,
       sharedAt: sharedAt ?? this.sharedAt,
       myRole: myRole ?? this.myRole,
       lastSeen: lastSeen ?? this.lastSeen,
@@ -638,6 +690,9 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
     if (sharedAt.present) {
       map['shared_at'] = Variable<DateTime>(sharedAt.value);
     }
@@ -665,6 +720,7 @@ class FamiliesCompanion extends UpdateCompanion<FamilyRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('syncedAt: $syncedAt, ')
           ..write('sharedAt: $sharedAt, ')
           ..write('myRole: $myRole, ')
           ..write('lastSeen: $lastSeen, ')
@@ -3385,6 +3441,7 @@ typedef $$FamiliesTableCreateCompanionBuilder =
       required String id,
       required String name,
       Value<String?> description,
+      Value<DateTime?> syncedAt,
       Value<DateTime?> sharedAt,
       Value<String?> myRole,
       Value<int> lastSeen,
@@ -3399,6 +3456,7 @@ typedef $$FamiliesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String?> description,
+      Value<DateTime?> syncedAt,
       Value<DateTime?> sharedAt,
       Value<String?> myRole,
       Value<int> lastSeen,
@@ -3484,6 +3542,11 @@ class $$FamiliesTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3597,6 +3660,11 @@ class $$FamiliesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get sharedAt => $composableBuilder(
     column: $table.sharedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3646,6 +3714,9 @@ class $$FamiliesTableAnnotationComposer
     column: $table.description,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get sharedAt =>
       $composableBuilder(column: $table.sharedAt, builder: (column) => column);
@@ -3746,6 +3817,7 @@ class $$FamiliesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<DateTime?> syncedAt = const Value.absent(),
                 Value<DateTime?> sharedAt = const Value.absent(),
                 Value<String?> myRole = const Value.absent(),
                 Value<int> lastSeen = const Value.absent(),
@@ -3758,6 +3830,7 @@ class $$FamiliesTableTableManager
                 id: id,
                 name: name,
                 description: description,
+                syncedAt: syncedAt,
                 sharedAt: sharedAt,
                 myRole: myRole,
                 lastSeen: lastSeen,
@@ -3772,6 +3845,7 @@ class $$FamiliesTableTableManager
                 required String id,
                 required String name,
                 Value<String?> description = const Value.absent(),
+                Value<DateTime?> syncedAt = const Value.absent(),
                 Value<DateTime?> sharedAt = const Value.absent(),
                 Value<String?> myRole = const Value.absent(),
                 Value<int> lastSeen = const Value.absent(),
@@ -3784,6 +3858,7 @@ class $$FamiliesTableTableManager
                 id: id,
                 name: name,
                 description: description,
+                syncedAt: syncedAt,
                 sharedAt: sharedAt,
                 myRole: myRole,
                 lastSeen: lastSeen,
