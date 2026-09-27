@@ -756,6 +756,15 @@ leaves it. The role is what permits the owner's one undo, so folding them
 together would be an owner deleting on one device and being refused their own
 backup on the other.
 
+**A rename made elsewhere arrives the same way.** The name is the one thing the
+list draws, so it rides along on the same request: pulling down brings it, and
+nobody has to open the family to find out what it is called now. Deliberately
+the name **only** — everything else about a family arrives when the family is
+opened, through the merge built for it — and deliberately never over work this
+device has not sent. Two devices renaming the same gia phả is a disagreement
+nothing on this path can settle, so this side does not enter it: the local name
+stays and goes up on the next push.
+
 **And the person is told which family went.** A list that is simply one shorter
 than it was is not an explanation. The message names the family and says which
 of the two happened — deleted, or no longer yours — because from the outside

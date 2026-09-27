@@ -728,6 +728,37 @@ void main() {
       expect(answer.live, isNot(contains(family)));
     });
 
+    test('the name comes back with it', () async {
+      // What pulling down on the family list needs: the list draws the name,
+      // and this is the request that gesture makes. A rename made by the owner
+      // otherwise waited for somebody to open the family.
+      final owner = await anAccount();
+      final family = await aFamily();
+      final invitation = await invitations().create(
+        familyId: family,
+        role: 'viewer',
+      );
+      await signOut();
+
+      final viewer = await anAccount();
+      await invitations().accept(invitation.code!);
+      await signOut();
+
+      await signIn(email: owner.email, password: password);
+      await SupabaseFamilyRepository(client()).saveAll(
+        family: Family(id: family, name: 'Họ Nguyễn Phúc'),
+      );
+      await signOut();
+
+      await signIn(email: viewer.email, password: password);
+
+      expect(
+        (await invitations().myRoles()).names,
+        containsPair(family, 'Họ Nguyễn Phúc'),
+        reason: 'a viewer reading the list sees what it is called now',
+      );
+    });
+
     test('a membership the owner ended is named neither way', () async {
       // Put out of a family that still exists: nothing to report at all, which
       // is what turns into `removed` on the device.

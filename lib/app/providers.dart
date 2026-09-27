@@ -21,6 +21,7 @@ import '../data/cloud/cloud_session.dart';
 import '../data/cloud/family_invitations.dart';
 import '../data/database/family_roles.dart';
 import '../data/database/invitation_codes.dart';
+import '../data/database/family_names.dart';
 import '../data/database/removed_families.dart';
 import '../data/sync/cloud_changes.dart';
 import '../data/sync/cloud_push.dart';
@@ -66,6 +67,11 @@ final sharingMarksProvider = Provider<SharingMarks>(
 /// Drops the copies this account has been put out of (PRODUCT §5.0).
 final removedFamiliesProvider = Provider<RemovedFamilies>(
   (ref) => RemovedFamilies(ref.watch(databaseProvider)),
+);
+
+/// Writes the server's name onto a family this device is merely holding.
+final familyNamesProvider = Provider<FamilyNames>(
+  (ref) => FamilyNames(ref.watch(databaseProvider)),
 );
 
 final syncMarksProvider = Provider<SyncMarks>(
@@ -143,19 +149,26 @@ final cloudSessionProvider = Provider<CloudSession>(
 /// the other way would turn that dependency into a circle (ARCHITECTURE §3).
 abstract interface class RolesSource {
   /// Every family this account is in: the live ones by id with the role held
-  /// there, and the ids of those that no longer exist.
+  /// there, their names, and the ids of those that no longer exist.
   ///
-  /// Reported apart because they end differently. Both take the copy off this
-  /// device; only being *put out* takes the role with it (PRODUCT §5.10).
-  Future<({Map<String, String> live, Set<String> deleted})> myRoles();
+  /// The live and the deleted are reported apart because they end differently.
+  /// Both take the copy off this device; only being *put out* takes the role
+  /// with it (PRODUCT §5.10). The names ride along because the family list draws
+  /// them and this is the request pulling down on that list makes.
+  Future<
+    ({Map<String, String> live, Map<String, String> names, Set<String> deleted})
+  >
+  myRoles();
 }
 
 final class CloudRoles implements RolesSource {
   const CloudRoles();
 
   @override
-  Future<({Map<String, String> live, Set<String> deleted})> myRoles() =>
-      FamilyInvitations(Supabase.instance.client).myRoles();
+  Future<
+    ({Map<String, String> live, Map<String, String> names, Set<String> deleted})
+  >
+  myRoles() => FamilyInvitations(Supabase.instance.client).myRoles();
 }
 
 /// A family this device has just let go of, and why.
@@ -273,6 +286,17 @@ Future<({Map<String, FamilyRole> roles, List<GoneFamily> gone})> refreshedRoles(
     container.invalidate(familyRoleMapProvider);
   }
 
+  // A rename made elsewhere, for the one field this screen draws. Held back
+  // where this device has something of its own waiting, so the two are never
+  // fighting over the same name.
+  final renamed = await container.read(familyNamesProvider).apply(answer.names);
+  if (renamed.isNotEmpty) {
+    container.invalidate(familyListProvider);
+    for (final familyId in renamed) {
+      container.invalidate(familySnapshotProvider(familyId));
+    }
+  }
+
   // Losing the family takes the copy with it, whether this account was put out
   // or the family itself was deleted. Run every time rather than only on a
   // change: a drop interrupted half way — the application killed, the database
@@ -308,12 +332,17 @@ Future<({Map<String, FamilyRole> roles, List<GoneFamily> gone})> refreshedRoles(
 /// all in a test process. That is deliberate and it is the important part —
 /// "the server named nothing" and "the server could not be reached" look
 /// identical from here, and one of them would mark every family removed.
-Future<({bool changed, Set<String> deleted})> _refreshRoles(
+Future<({bool changed, Set<String> deleted, Map<String, String> names})>
+_refreshRoles(
   FamilyRoles roles,
   RolesSource source,
   CloudSession session,
 ) async {
-  const nothing = (changed: false, deleted: <String>{});
+  const nothing = (
+    changed: false,
+    deleted: <String>{},
+    names: <String, String>{},
+  );
   try {
     if (!session.isSignedIn) return nothing;
 
@@ -328,10 +357,12 @@ Future<({bool changed, Set<String> deleted})> _refreshRoles(
     return (
       changed: await roles.reconcile(fromServer, deleted: named.deleted),
       deleted: named.deleted,
+      names: named.names,
     );
   } catch (_) {
-    // Nothing was learnt, so nothing is dropped. An empty answer and a failed
-    // request look the same from here, and one of them would clear the device.
+    // Nothing was learnt, so nothing is dropped and nothing is renamed. An
+    // empty answer and a failed request look the same from here, and one of
+    // them would clear the device.
     return nothing;
   }
 }

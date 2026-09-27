@@ -1412,6 +1412,24 @@ role, a deletion leaves it, and the role is what permits the owner's one undo.
 And the person is told, by name, which family went and which of the two happened.
 A list one shorter than it was is not an explanation.
 
+__The same request now brings the name.__ One more column on a join already being
+made, for the one field the list draws — a rename made elsewhere used to wait for
+somebody to open the family, which is the moment a person standing on the list
+does not have. A deliberate shortcut past the merge, and its limits are the
+point: the name only, never over a row this device has not sent, never a
+resurrection. The unsent rule is the one that makes it safe; two devices renaming
+the same family is a disagreement this path cannot settle, so it does not enter
+it.
+
+__And two changes made from the list now leave the device from the list.__
+Deleting was gated on `context.mounted` — a context belonging to the row drawing
+the family, so the check asked whether the thing just destroyed still existed,
+and deleting the last family lost that race every time. Found on two phones: the
+tombstone sat there until the application was next opened, when the sweep, which
+has no such gate, sent it. Renaming was not sent at all; the only other moment
+anything goes is opening a family and leaving it, and a gia phả nobody returns to
+kept its old name everywhere else indefinitely.
+
 Still to do:
 
 * **Two devices renaming the same family** — the last push wins, in silence. It

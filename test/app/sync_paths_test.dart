@@ -41,19 +41,29 @@ final class SignedIn implements CloudSession {
 
 /// Says what the server says this account may do.
 final class StandInRoles implements RolesSource {
-  StandInRoles(this.answer, {this.deleted = const <String>{}});
+  StandInRoles(
+    this.answer, {
+    this.deleted = const <String>{},
+    this.names = const <String, String>{},
+  });
 
   Map<String, String> answer;
 
   /// Families this account is still a member of, and which no longer exist.
   Set<String> deleted;
 
+  /// What the server calls each family.
+  Map<String, String> names;
+
   int asked = 0;
 
   @override
-  Future<({Map<String, String> live, Set<String> deleted})> myRoles() async {
+  Future<
+    ({Map<String, String> live, Map<String, String> names, Set<String> deleted})
+  >
+  myRoles() async {
     asked++;
-    return (live: answer, deleted: deleted);
+    return (live: answer, names: names, deleted: deleted);
   }
 }
 
@@ -408,6 +418,57 @@ void main() {
       await refreshedRoles(device);
 
       expect(await repository.listFamilies(), hasLength(1));
+    });
+  });
+
+  group('a family renamed on another device', () {
+    test('takes its new name at the refresh', () async {
+      // The whole point of asking for the name here: this is the request that
+      // pulling down on the family list makes, and the list draws the name. A
+      // rename used to wait for somebody to open the family (PRODUCT §5.10).
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await db.customStatement('UPDATE families SET unsent = 0');
+      final device = await aDevice();
+      roles.names = <String, String>{familyId: 'Họ Nguyễn Phúc'};
+
+      await refreshedRoles(device);
+
+      expect(
+        (await repository.loadFamily(familyId))!.family.name,
+        'Họ Nguyễn Phúc',
+      );
+    });
+
+    test('but not one this device has renamed and not yet sent', () async {
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn Gia'),
+      );
+      final device = await aDevice();
+      roles.names = <String, String>{familyId: 'Họ Nguyễn Phúc'};
+
+      await refreshedRoles(device);
+
+      expect(
+        (await repository.loadFamily(familyId))!.family.name,
+        'Họ Nguyễn Gia',
+        reason: 'unsent work is held, not merged',
+      );
+    });
+
+    test('and a failed request renames nothing', () async {
+      // An empty answer and an unreachable server look the same from here.
+      await repository.saveFamily(
+        const Family(id: familyId, name: 'Họ Nguyễn'),
+      );
+      await db.customStatement('UPDATE families SET unsent = 0');
+      final device = await aDevice(signedIn: false);
+      roles.names = <String, String>{familyId: 'Họ Nguyễn Phúc'};
+
+      await refreshedRoles(device);
+
+      expect((await repository.loadFamily(familyId))!.family.name, 'Họ Nguyễn');
     });
   });
 }

@@ -330,19 +330,32 @@ final class FamilyInvitations {
   /// family cannot be read at all drops out here and reads as a removal, which
   /// is the safe way round. `families_read` is `my_role(id) IS NOT NULL` and
   /// says nothing about `deleted_at`, so a member can still see the row.
-  Future<({Map<String, String> live, Set<String> deleted})> myRoles() async {
+  ///
+  /// The name comes back too, and for one reason: the family list draws it, and
+  /// pulling down on that list runs exactly this request. A rename made on
+  /// another device otherwise waited for somebody to open the family
+  /// (PRODUCT §5.10). It is one more column on a join already being made.
+  Future<
+    ({Map<String, String> live, Map<String, String> names, Set<String> deleted})
+  >
+  myRoles() async {
     final me = _db.auth.currentUser?.id;
     if (me == null) {
-      return (live: const <String, String>{}, deleted: const <String>{});
+      return (
+        live: const <String, String>{},
+        names: const <String, String>{},
+        deleted: const <String>{},
+      );
     }
 
     final rows = await _db
         .from('family_memberships')
-        .select('family_id, role, families!inner(deleted_at)')
+        .select('family_id, role, families!inner(name, deleted_at)')
         .eq('user_id', me)
         .isFilter('deleted_at', null);
 
     final live = <String, String>{};
+    final names = <String, String>{};
     final deleted = <String>{};
     for (final row in rows) {
       final familyId = row['family_id'] as String;
@@ -352,9 +365,11 @@ final class FamilyInvitations {
         continue;
       }
       live[familyId] = row['role'] as String;
+      final name = family?['name'] as String?;
+      if (name != null) names[familyId] = name;
     }
 
-    return (live: live, deleted: deleted);
+    return (live: live, names: names, deleted: deleted);
   }
 
   /// Changes what somebody may do in a family.

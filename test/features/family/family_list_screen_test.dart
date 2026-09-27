@@ -38,8 +38,14 @@ final class _NoRoles implements RolesSource {
   const _NoRoles();
 
   @override
-  Future<({Map<String, String> live, Set<String> deleted})> myRoles() async =>
-      (live: const <String, String>{}, deleted: const <String>{});
+  Future<
+    ({Map<String, String> live, Map<String, String> names, Set<String> deleted})
+  >
+  myRoles() async => (
+    live: const <String, String>{},
+    names: const <String, String>{},
+    deleted: const <String>{},
+  );
 }
 
 /// Keeps what was sent, and answers as a server that stored all of it.
