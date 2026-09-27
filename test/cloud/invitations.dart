@@ -662,7 +662,7 @@ void main() {
     // whether a role survives (PRODUCT §5.10).
 
     test('a live family comes back with the role held there', () async {
-      final owner = await anAccount();
+      await anAccount();
       final family = await aFamily();
       final invitation = await invitations().create(
         familyId: family,
@@ -677,7 +677,6 @@ void main() {
 
       expect(answer.live, containsPair(family, 'editor'));
       expect(answer.deleted, isEmpty);
-      expect(owner.id, isNotEmpty);
     });
 
     test('one the owner deleted comes back as deleted, not as gone', () async {
@@ -719,7 +718,7 @@ void main() {
       // Deleting on one device and reaching for the backup on another is the
       // one undo there is. The role has to survive it, which it does because
       // this answer never claims the owner was put out.
-      final owner = await anAccount();
+      await anAccount();
       final family = await aFamily();
       await SupabaseFamilyRepository(client()).deleteFamily(family);
 
@@ -727,7 +726,6 @@ void main() {
 
       expect(answer.deleted, contains(family));
       expect(answer.live, isNot(contains(family)));
-      expect(owner.email, isNotEmpty);
     });
 
     test('a membership the owner ended is named neither way', () async {
