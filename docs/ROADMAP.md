@@ -1452,6 +1452,210 @@ Two authorized devices can make supported changes and converge to a consistent f
 
 ---
 
+## M9.5 — Continuous integration, and a server to deliver to
+
+**Proposed, not decided.** Written out to be approved or refused before anything
+is built, the way M6.5 §5.8 was. Inserted before M10 because photos are the first
+feature whose mistakes are expensive to undo, and because there is still nothing
+standing between a commit and `main` except one person remembering to run two
+commands.
+
+### What is missing today, precisely
+
+`flutter analyze` and `flutter test` are run by hand. The suite is 1,206 tests
+across 62 files and takes about three minutes, so running it is cheap — but
+"cheap" and "always" are different things, and nothing enforces the second.
+
+Worse, the one check that guards something irreversible is **opt-in**.
+`.githooks/pre-commit` refuses a commit carrying signing material, an
+environment file or a leaked `DEVELOPMENT_TEAM`, and it only runs on a machine
+where somebody has typed `git config core.hooksPath .githooks`. A fresh clone —
+a second machine, a new contributor, a rebuilt laptop — commits secrets with
+nothing to stop it. A published secret cannot be unpublished (CLAUDE §8).
+
+And `test/cloud/*.dart` carry no `_test.dart` suffix, so they are excluded from
+the suite by design: they need Docker and a running local Supabase. They are the
+**only** place row-level security is checked, and RLS is the security model
+(CLAUDE §8). Every one of them has been run by hand, on request. None of them
+has ever been run by anything that would notice if a policy regressed.
+
+### The constraint that shapes the whole design: macOS minutes cost ten times as much
+
+GitHub Actions bills a private repository by runner minutes, with a free monthly
+allowance, and the multipliers are not equal: Linux 1×, Windows 2×, **macOS
+10×**. A ten-minute iOS build therefore spends a hundred minutes. Twenty pushes
+in a month would be the entire free allowance, spent on a build nobody asked for.
+
+*(The allowance and multipliers must be checked against GitHub's current pricing
+before this is relied on — they are the kind of number that moves.)*
+
+That single fact decides the shape: **everything that can run on Linux runs on
+every push; everything that needs macOS runs only on a tag.**
+
+### Stage 1 — the gate, on Linux, on every push and pull request
+
+```yaml
+# .github/workflows/gate.yml
+name: gate
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'   # pinned: a toolchain that moves under a
+          channel: stable             # green suite is a red suite nobody caused
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: the pre-commit checks, where they are not optional
+        run: .githooks/pre-commit --all
+```
+
+Three things about that, each a decision rather than a default.
+
+**The Flutter version is pinned, not `stable`.** `stable` moves. A suite that
+goes red because a toolchain changed under it costs a morning finding out that
+nobody broke anything, and it goes red on whichever commit happened to be next.
+
+**The hook runs in CI, and needs a `--all` mode to do it.** Today it reads
+`git diff --cached`, which on a runner is empty. Giving it a second mode that
+walks the working tree is a small change to a file that already exists, and it
+is the difference between a check that runs where somebody enabled it and a check
+that runs.
+
+**There is no format gate, and that is measured rather than assumed.** `dart
+format` would rewrite **48 of 159 files** in `lib` and `test`. A whole-directory
+format has been run and reverted three times in this project, twice taking
+unrelated work with it. A gate that fails on its first day is a gate somebody
+turns off — and turning it off teaches the habit of turning gates off. If
+formatting is wanted, it is one deliberate commit, reviewed on its own terms,
+and only after that a gate.
+
+### Stage 2 — the policy tests, on Linux, with a real Postgres
+
+The highest-value job in the design, because a policy mistake is **silent**: an
+UPDATE a policy forbids changes nothing and reports success (M9, step 2). A
+regression here does not throw; it quietly stops protecting a family.
+
+```yaml
+# .github/workflows/policies.yml
+  cloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+      - run: supabase start              # applies supabase/migrations in order
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '3.44.8', channel: stable, cache: true }
+      - run: flutter pub get
+      - run: flutter test test/cloud/
+```
+
+`supabase start` runs the migrations from scratch, which tests something else
+worth testing: that the migration folder still builds a working database from
+nothing. Locally it never does — the database has been there for weeks.
+
+Linux minutes, and about five of them. **Proposed for every push**, not only
+tags: a policy that stopped protecting a family should be found by the commit
+that did it.
+
+### Stage 3 — builds, on a tag only
+
+```yaml
+# .github/workflows/release.yml
+on:
+  push:
+    tags: ['m*']
+
+jobs:
+  android:
+    runs-on: ubuntu-latest          # 1x
+    steps: [ ..., run: flutter build appbundle --release ]
+
+  ios:
+    runs-on: macos-latest           # 10x — this is why it is tag-gated
+    steps: [ ..., run: flutter build ios --release --no-codesign ]
+```
+
+Android is cheap enough that it could run on every push; it is put here anyway,
+because a build that nobody installs proves only that the code compiles, and
+`flutter analyze` already said so.
+
+### Stage 4 — the server, which is the one step with no undo
+
+There is **no hosted Supabase project**: `supabase status` reports
+`linked_project: null`. Everything so far has run against a local Postgres in
+Docker. Until a project exists there is nothing to deploy to, and this stage
+cannot be built — only designed.
+
+When it exists, `supabase db push` applies pending migrations. That is the one
+irreversible act in the whole pipeline: a migration that has run on a real
+database is history, and the data it touched is somebody's gia phả. So:
+
+* **tag-gated, never on a push to `main`.** The cost of a wrong migration is not
+  symmetrical with the convenience of it being automatic.
+* `supabase db lint` first, and the plan printed in the job log, so what was
+  applied can be read afterwards.
+* secrets as repository secrets — `SUPABASE_ACCESS_TOKEN`, the project ref, the
+  database password — and never in the tree. The hook already refuses
+  environment files; this is the reason it exists.
+
+**Deliberately not proposed: a staging project.** It would double the hosting
+cost and the number of things to keep in step, to catch a class of mistake that
+`supabase start` from scratch in stage 2 already catches. Reconsider when there
+is family data worth the second bill.
+
+### Stage 5 — delivery, and what it costs in money rather than minutes
+
+TestFlight needs an Apple Developer account at 99 USD a year and an App Store
+Connect API key. Play internal testing needs a one-off 25 USD and a service
+account JSON. Signing material goes in secrets as base64 and never in the tree.
+
+**Proposed: deferred to M12, where distribution already lives.** Stages 1 and 2
+can be had today for nothing and pay for themselves immediately. Stage 5 cannot
+be had at all without those two accounts, and building half of it against an
+interface nobody has logged into yet is building against a guess.
+
+### What is deliberately not in this
+
+* **self-hosted runners** — a machine to maintain, to save minutes that are free
+* **coverage gates** — a number that goes up fastest by testing getters, and the
+  suite's problem has never been quantity (CLAUDE §6: no tests that only verify
+  implementation details)
+* **Codemagic, Bitrise, Fastlane** — another vendor, and a second place CI is
+  configured, for what Actions does
+* **a changelog or release bot** — commit messages here are written to be read,
+  and a generated list of them would be worse than the tag messages already are
+
+### Decisions needed before any of it is written
+
+1. **iOS on tags only, or on every push?** Recommended: tags only, on the
+   arithmetic above.
+2. **The policy tests on every push?** Recommended: yes. It is Linux minutes for
+   the only check the security model has.
+3. **A hosted Supabase project now, or at M12?** Recommended: at M12, with
+   stage 4 written but unwired until then.
+4. **A format gate?** Recommended: no, on the 48-file measurement — and if ever
+   yes, then a separate reformat commit first.
+5. **Does the pre-commit hook get an `--all` mode?** Recommended: yes. It is the
+   only change to existing code this whole milestone asks for.
+
+### Exit criteria
+
+A commit that breaks the suite, breaks analysis, breaks a row-level security
+policy, or carries a secret cannot reach `main` without somebody being told — and
+none of it depends on what any one machine has been configured to do.
+
+---
+
 ## M10 — Media
 
 Implement:
