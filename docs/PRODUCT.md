@@ -386,6 +386,13 @@ now hand the family back by inviting the right person as owner. That is not a
 transfer — the first owner stays — but it unblocks somebody locked out of a
 gia phả they themselves built, which was the sharpest cost of first-press-wins.
 
+**And a real transfer is decided against, not deferred.** Moving ownership away
+from the first owner would need a way to answer "who may take it from whom",
+which is a second authority above the role table, for a case the two existing
+acts already cover: invite the right person as owner, and remove the wrong one.
+Nothing is left that a transfer would add except the tidiness of there being one
+owner, and a gia phả is better off with two.
+
 **What it costs, plainly.** An owner can delete the whole family, and can make
 further owners. There is no super-owner, and until removing a member exists
 there is no way to walk any of it back. So the warning is not decoration: it

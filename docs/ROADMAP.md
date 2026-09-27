@@ -105,10 +105,10 @@ Must use the **Vietnamese** lunar calendar, based on UTC+7. The Chinese
 calendar uses UTC+8 and differs by a day for some dates, so a Chinese
 implementation cannot be adopted without verification.
 
-**Complete** — tagged `m1.5`. One caveat carried forward: the Tết and
+**Complete** — tagged `m1.5`. One caveat carried to M11: the Tết and
 can-chi reference tables are still provisional, written from memory rather
 than checked against a published almanac. Replace them before anyone relies
-on a computed giỗ date.
+on a computed giỗ date, which is to say before real family use.
 
 Both now live in `test/support/lunar_reference.dart`, so the replacement is
 one file. They are the __only__ place the lunar code is measured against the
@@ -697,8 +697,10 @@ sealing has nine tests of its own with no widgets in them, and what belongs in
 the feature layer is the one decision it actually makes: is this file sealed,
 and what does the reader see if it is.
 
-**Still to do:** measure on the oldest supported Android. Everything above is
-a floor taken on a development machine, and that is not a phone.
+**Carried to M11:** measure on the oldest supported Android. Everything above is
+a floor taken on a development machine, and that is not a phone — and the number
+is a trade between how long somebody waits and how hard a stolen backup is to
+open, which cannot be settled without the device.
 
 ---
 
@@ -1415,9 +1417,6 @@ Still to do:
 * **Two devices renaming the same family** — the last push wins, in silence. It
    is the one field on the family row, and the conflict machinery built for
    people does not cover it.
-* **Argon2id has been measured on a Mac, not on a phone.** 32 MiB was chosen
-   from measurements on this machine. The oldest Android device in scope has to
-   be timed before that number can be called settled.
 
 Constraints already fixed (ARCHITECTURE §12):
 
@@ -1472,6 +1471,21 @@ Implement/review:
 * logging
 * crash reporting as appropriate
 * release configuration
+* **Argon2id on the oldest supported Android device.** 32 MiB and three rounds
+   were chosen from measurements on a development machine, which is not a phone
+   (M6.5). Deliberately left until here: the number is a trade between how long
+   somebody waits and how hard a stolen backup is to open, and neither side of
+   that trade can be settled on a Mac.
+* **The Tết and can-chi reference tables.** Still provisional, written from
+   memory rather than checked against a published almanac (M1.5), and they are
+   the only place the lunar code is measured against the outside world. They must
+   be replaced before anybody relies on a computed giỗ date — which is to say
+   before real family use, which is this milestone.
+
+Both were weighed for doing sooner and deliberately put here. Each is a number
+checked against the world rather than a piece of design: nothing above depends on
+the answer, and neither can be finished properly until there is a real device and
+a real almanac to check against.
 
 Exit criteria:
 
