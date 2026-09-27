@@ -693,6 +693,15 @@ class AppTextEn extends AppText {
   String get inviteNobodyUsed => 'Nobody used it';
 
   @override
+  String get inviteLive => 'Still valid';
+
+  @override
+  String get inviteSearch => 'Search by address';
+
+  @override
+  String get inviteNoMatch => 'No invitation matches';
+
+  @override
   String get inviteUsed => 'Used';
 
   @override
@@ -937,7 +946,7 @@ class AppTextEn extends AppText {
   String get membersSearch => 'Search by name or address';
 
   @override
-  String get membersAll => 'All';
+  String get filterAll => 'All';
 
   @override
   String get membersNoMatch => 'Nobody here matches that';

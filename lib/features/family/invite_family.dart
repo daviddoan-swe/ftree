@@ -152,6 +152,16 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
   final TextEditingController _search = TextEditingController();
   String? _onlyRole;
 
+  /// What has been typed into the invitation search, and which state is being
+  /// looked at. Null means every state.
+  final TextEditingController _codeSearch = TextEditingController();
+  String? _onlyState = _stateLive;
+
+  static const String _stateLive = 'live';
+  static const String _stateUsed = 'used';
+  static const String _stateRevoked = 'revoked';
+  static const String _stateExpired = 'expired';
+
   /// Below this, everybody is on the screen at once and a search field is a
   /// box asking a question nobody has. A family with a hundred viewers is a
   /// different screen from one with three administrators, and it is the same
@@ -176,9 +186,37 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
     ];
   }
 
+  /// Which of the four an invitation is in. One place decides, so the chips,
+  /// the colour and the word can never disagree about a row.
+  String _stateOf(Invitation invitation, DateTime now) {
+    if (invitation.isAccepted) return _stateUsed;
+    if (invitation.isRevoked) return _stateRevoked;
+    if (invitation.isExpiredAt(now)) return _stateExpired;
+    return _stateLive;
+  }
+
+  /// The invitations this screen is currently showing.
+  ///
+  /// Searched by address, because that is the question a long list raises:
+  /// not "which code was that" — nobody remembers a code — but "who came in,
+  /// and on whose invitation".
+  List<Invitation> get _shownInvitations {
+    final typed = _codeSearch.text.trim();
+    final now = DateTime.now().toUtc();
+
+    return <Invitation>[
+      for (final invitation in _invitations)
+        if (_onlyState == null || _stateOf(invitation, now) == _onlyState)
+          if (nameMatches(invitation.acceptedByEmail ?? '', typed) ||
+              nameMatches(invitation.invitedBy ?? '', typed))
+            invitation,
+    ];
+  }
+
   @override
   void dispose() {
     _search.dispose();
+    _codeSearch.dispose();
     super.dispose();
   }
 
@@ -496,18 +534,114 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                       ),
                     ),
 
-                    GroupedSection(
-                      header: text.inviteTitle,
-                      footer: _invitations.isEmpty ? text.inviteNone : null,
-                      children: <Widget>[
-                        for (final invitation in _invitations)
-                          _invitationRow(text, invitation),
-                      ],
-                    ),
+                    if (_invitations.isEmpty)
+                      GroupedSection(
+                        header: text.inviteTitle,
+                        footer: text.inviteNone,
+                        children: const <Widget>[SizedBox.shrink()],
+                      )
+                    else ...<Widget>[
+                      // Always, not only once the list is long. The chips are
+                      // the only way to reach a used code, and the list opens
+                      // on the live ones — so hiding the chips would hide
+                      // rows with nothing on screen to say they exist.
+                      _stateFilter(text),
+
+                      if (_invitations.length >= _worthSearching)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                          child: SearchPill(
+                            controller: _codeSearch,
+                            hint: text.inviteSearch,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+
+                      if (_shownInvitations.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                          child: Text(
+                            text.inviteNoMatch,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: GroupedColors.secondaryLabel(context),
+                            ),
+                          ),
+                        )
+                      else
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                          ),
+                          child: SingleChildScrollView(
+                            child: GroupedSection(
+                              children: <Widget>[
+                                for (final invitation in _shownInvitations)
+                                  _invitationRow(text, invitation),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ],
                 ],
               ),
             ),
+    );
+  }
+
+  /// One chip per thing that can have become of an invitation.
+  ///
+  /// It opens on the live ones. Of seventy-three invitations on a real family,
+  /// twelve were live: the rest are a record, not a list of things to do, and
+  /// a screen that opens on the record buries the twelve that can still be
+  /// acted on.
+  Widget _stateFilter(AppText text) {
+    final now = DateTime.now().toUtc();
+
+    int countOf(String? state) => state == null
+        ? _invitations.length
+        : _invitations.where((i) => _stateOf(i, now) == state).length;
+
+    Widget chip(String? state, String label) {
+      final chosen = _onlyState == state;
+
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          selected: chosen,
+          onSelected: (_) => setState(() => _onlyState = state),
+          showCheckmark: false,
+          backgroundColor: GroupedColors.unselected(context),
+          selectedColor: GroupedColors.primary(context),
+          side: BorderSide.none,
+          shape: const StadiumBorder(),
+          label: Text(
+            '$label  ${countOf(state)}',
+            style: TextStyle(
+              color: chosen
+                  ? GroupedColors.onPrimary(context)
+                  : GroupedColors.onUnselected(context),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            chip(_stateLive, text.inviteLive),
+            chip(_stateUsed, text.inviteUsed),
+            chip(_stateRevoked, text.inviteRevoked),
+            chip(_stateExpired, text.inviteExpired),
+            chip(null, text.filterAll),
+          ],
+        ),
+      ),
     );
   }
 
@@ -555,7 +689,7 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: <Widget>[
-            chip(null, text.membersAll),
+            chip(null, text.filterAll),
             chip('owner', text.roleOwner),
             chip('editor', text.roleEditor),
             chip('viewer', text.roleViewer),
@@ -691,13 +825,21 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
 
     // The end states are read in the order the server decides them, so a
     // revoked invitation that has also expired reads the same in both places.
-    final state = invitation.isAccepted
-        ? text.inviteUsed
-        : invitation.isRevoked
-        ? text.inviteRevoked
-        : invitation.isExpiredAt(now)
-        ? text.inviteExpired
-        : text.inviteExpiresIn(invitation.expiresAt.difference(now).inDays);
+    //
+    // The day it ended travels with the word rather than above it. Above is
+    // now where *who* goes, and a column that means "the inviter" on one row
+    // and "a date" on the next cannot be read down.
+    //
+    // An expired code has no such day: nothing happened to it, a day simply
+    // passed, and putting one there would be inventing a moment.
+    final state = switch (invitation) {
+      final i when i.isAccepted =>
+        '${text.inviteUsed} · ${_day(i.acceptedAt!)}',
+      final i when i.isRevoked =>
+        '${text.inviteRevoked} · ${_day(i.revokedAt!)}',
+      final i when i.isExpiredAt(now) => text.inviteExpired,
+      _ => text.inviteExpiresIn(invitation.expiresAt.difference(now).inDays),
+    };
 
     // One colour for the whole row's state, chosen once. The icon and the word
     // read it from here, because a green dot beside a red word is worse than
@@ -777,15 +919,14 @@ class _InvitationsScreenState extends ConsumerState<InvitationsScreen> {
                 ),
               ],
             )
-          // The day it ended over what ended it. An expired code has no such
-          // day — nothing happened to it, a date simply passed — so it shows
-          // the word alone rather than inventing a moment for it.
+          // Who let them in, over what became of the code.
+          //
+          // Only where somebody actually walked through: an invitation nobody
+          // used has an inviter too, but naming them says nothing that
+          // happened — and this line is the record of who admitted whom, not
+          // of who wrote a code that went nowhere.
           : _stacked(
-              switch (invitation) {
-                final i when i.isAccepted => _day(i.acceptedAt!),
-                final i when i.isRevoked => _day(i.revokedAt!),
-                _ => '',
-              },
+              invitation.isAccepted ? (invitation.invitedBy ?? '') : '',
               state,
               tone: tone,
             ),

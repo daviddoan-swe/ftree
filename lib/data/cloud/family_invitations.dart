@@ -114,6 +114,8 @@ final class Invitation {
     this.acceptedAt,
     this.acceptedByEmail,
     this.revokedAt,
+    this.invitedByName,
+    this.invitedByEmail,
   });
 
   final String id;
@@ -132,6 +134,21 @@ final class Invitation {
   final String? acceptedByEmail;
 
   final DateTime? revokedAt;
+
+  /// Who made it, by the name they gave or the address they signed up with.
+  ///
+  /// The one fact this row has that the member list does not. A used
+  /// invitation otherwise repeats what a member row already says — who
+  /// joined, in what capacity, on what day — and this is what makes it a
+  /// record of *who let whom in*.
+  ///
+  /// Null for a row read straight from the table: the name lives in
+  /// `auth.users`, which only `family_invitation_list` can reach.
+  final String? invitedByName;
+  final String? invitedByEmail;
+
+  /// What to put on a screen for the inviter, or null if it is not known.
+  String? get invitedBy => invitedByName ?? invitedByEmail;
 
   bool get isAccepted => acceptedAt != null;
   bool get isRevoked => revokedAt != null;
@@ -154,6 +171,8 @@ final class Invitation {
     acceptedAt: acceptedAt,
     acceptedByEmail: acceptedByEmail,
     revokedAt: revokedAt,
+    invitedByName: invitedByName,
+    invitedByEmail: invitedByEmail,
   );
 }
 
@@ -363,6 +382,8 @@ final class FamilyInvitations {
     acceptedAt: _time(row['accepted_at']),
     acceptedByEmail: row['accepted_by_email'] as String?,
     revokedAt: _time(row['revoked_at']),
+    invitedByName: row['invited_by_name'] as String?,
+    invitedByEmail: row['invited_by_email'] as String?,
   );
 
   static DateTime? _time(Object? value) =>

@@ -1135,6 +1135,24 @@ abstract class AppText {
   /// **'Chưa ai dùng'**
   String get inviteNobodyUsed;
 
+  /// No description provided for @inviteLive.
+  ///
+  /// In vi, this message translates to:
+  /// **'Còn hiệu lực'**
+  String get inviteLive;
+
+  /// No description provided for @inviteSearch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tìm theo email'**
+  String get inviteSearch;
+
+  /// No description provided for @inviteNoMatch.
+  ///
+  /// In vi, this message translates to:
+  /// **'Không có lời mời khớp'**
+  String get inviteNoMatch;
+
   /// No description provided for @inviteUsed.
   ///
   /// In vi, this message translates to:
@@ -1477,11 +1495,11 @@ abstract class AppText {
   /// **'Tìm theo tên hoặc email'**
   String get membersSearch;
 
-  /// No description provided for @membersAll.
+  /// No description provided for @filterAll.
   ///
   /// In vi, this message translates to:
   /// **'Tất cả'**
-  String get membersAll;
+  String get filterAll;
 
   /// No description provided for @membersNoMatch.
   ///

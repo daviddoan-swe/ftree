@@ -158,6 +158,8 @@ Invitation _used(String id, {String role = 'editor'}) => Invitation(
   expiresAt: DateTime.utc(2026, 9, 27, 12),
   acceptedAt: DateTime.utc(2026, 9, 22, 12),
   acceptedByEmail: 'chuhai@example.test',
+  invitedByName: 'Bác Minh',
+  invitedByEmail: 'toi@example.test',
 );
 
 /// One the owner closed before anybody used it.
@@ -168,6 +170,8 @@ Invitation _revoked(String id) => Invitation(
   createdAt: DateTime.utc(2026, 9, 18, 12),
   expiresAt: DateTime.utc(2026, 9, 25, 12),
   revokedAt: DateTime.utc(2026, 9, 19, 12),
+  invitedByName: 'Bác Minh',
+  invitedByEmail: 'toi@example.test',
 );
 
 /// One that simply ran out: nobody used it, nobody closed it.
@@ -468,7 +472,7 @@ void main() {
       // Two members and a search field is a box asking a question nobody has.
       await open(tester, StandInCircle());
 
-      expect(find.text('Search by name or address'), findsNothing);
+      expect(find.text('Name or address'), findsNothing);
       expect(find.textContaining('All'), findsNothing);
     });
 
@@ -477,7 +481,7 @@ void main() {
     ) async {
       await open(tester, StandInCircle(crowd: viewers(20)));
 
-      expect(find.text('Search by name or address'), findsOneWidget);
+      expect(find.text('Name or address'), findsOneWidget);
     });
 
     testWidgets('typing narrows it, diacritics and all', (
@@ -541,6 +545,119 @@ void main() {
     });
   });
 
+  /// Taps one of the invitation chips.
+  ///
+  /// The list opens on the live ones, because those are the only rows that
+  /// can still be acted on. Everything else is a record and is one chip away.
+  Future<void> showState(WidgetTester tester, String label) async {
+    final chip = find.descendant(
+      of: find.byType(ChoiceChip),
+      matching: find.textContaining(label),
+    );
+
+    // Scrolled to first. The default test surface is 800 points tall and the
+    // chips sit below the members and the button, so a tap without this lands
+    // on nothing, warns, and leaves the filter where it was — which reads as
+    // the filter not working rather than as the test not reaching it.
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+  }
+
+  group('a list of invitations that has grown long', () {
+    testWidgets('it opens on the ones that can still be used', (
+      WidgetTester tester,
+    ) async {
+      // Of seventy-three invitations on a real family, twelve were live. The
+      // rest are a record, not a list of things to do, and a screen that
+      // opens on the record buries the twelve worth acting on.
+      await store.remember(id: 'inv-9', familyId: 'f-1', code: 'K7P2-9XMR-4T');
+      await open(
+        tester,
+        StandInCircle(
+          invitations: <Invitation>[
+            _live('inv-9'),
+            _used('inv-1'),
+            _revoked('inv-2'),
+          ],
+        ),
+      );
+
+      expect(find.textContaining('K7P2-9XMR-4T'), findsOneWidget);
+      expect(find.textContaining('Used · '), findsNothing);
+      expect(find.textContaining('Revoked · '), findsNothing);
+    });
+
+    testWidgets('and the chips are there to reach the rest', (
+      WidgetTester tester,
+    ) async {
+      // Shown whatever the length, unlike the search field. They are the only
+      // way to a used code, so hiding them would hide rows with nothing on
+      // the screen to say they exist.
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_used('inv-1')]),
+      );
+
+      await showState(tester, 'Used');
+
+      expect(find.textContaining('Used · 22/09/2026'), findsOneWidget);
+    });
+
+    testWidgets('an address finds the invitation somebody came in on', (
+      WidgetTester tester,
+    ) async {
+      // Not "which code was that" — nobody remembers a code — but "who came
+      // in, and on whose invitation".
+      await open(
+        tester,
+        StandInCircle(
+          invitations: <Invitation>[
+            for (var n = 0; n < 10; n++) _used('inv-$n'),
+            _revoked('inv-r'),
+          ],
+        ),
+      );
+      await showState(tester, 'Used');
+
+      await tester.enterText(find.byType(TextField), 'chuhai');
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('chuhai@example.test'), findsWidgets);
+    });
+
+    testWidgets('a used one names who let them in', (
+      WidgetTester tester,
+    ) async {
+      // The one fact this row has that the member list has not. Without it a
+      // used invitation only repeats what the membership already says.
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_used('inv-1')]),
+      );
+      await showState(tester, 'Used');
+
+      expect(find.text('Bác Minh'), findsOneWidget);
+    });
+
+    testWidgets('one nobody came in on names nobody', (
+      WidgetTester tester,
+    ) async {
+      // A revoked code has an inviter too, and naming them would say nothing
+      // that happened. This line is the record of who admitted whom, not of
+      // who wrote a code that went nowhere.
+      await open(
+        tester,
+        StandInCircle(invitations: <Invitation>[_revoked('inv-2')]),
+      );
+      await showState(tester, 'Revoked');
+
+      expect(find.text('Bác Minh'), findsNothing);
+      expect(find.textContaining('Revoked · '), findsOneWidget);
+    });
+  });
+
   group('what each row says', () {
     testWidgets('a member shows when they came in, over what they may do', (
       WidgetTester tester,
@@ -562,10 +679,10 @@ void main() {
         tester,
         StandInCircle(invitations: <Invitation>[_used('inv-1')]),
       );
+      await showState(tester, 'Used');
 
       expect(find.textContaining('chuhai@example.test'), findsOneWidget);
-      expect(find.text('22/09/2026'), findsOneWidget);
-      expect(find.text('Used'), findsOneWidget);
+      expect(find.textContaining('Used · 22/09/2026'), findsOneWidget);
     });
 
     testWidgets('each state wears its own colour, on the icon and the word', (
@@ -587,12 +704,13 @@ void main() {
           ],
         ),
       );
+      await showState(tester, 'All');
 
       Color colourOf(String word) =>
           tester.widget<Text>(find.text(word)).style!.color!;
 
-      final used = colourOf('Used');
-      final revoked = colourOf('Revoked');
+      final used = colourOf('Used · 22/09/2026');
+      final revoked = colourOf('Revoked · 19/09/2026');
       final expired = colourOf('Expired');
 
       expect(<Color>{used, revoked, expired}, hasLength(3));
@@ -627,8 +745,9 @@ void main() {
         tester,
         StandInCircle(invitations: <Invitation>[_expired('inv-3')]),
       );
+      await showState(tester, 'Expired');
 
-      expect(find.text('Expired'), findsOneWidget);
+      expect(find.textContaining('Expired'), findsWidgets);
       expect(find.text('Nobody used it'), findsOneWidget);
       expect(find.textContaining('17/09/2026'), findsNothing);
       expect(find.text('Send'), findsNothing);
@@ -646,9 +765,9 @@ void main() {
         tester,
         StandInCircle(invitations: <Invitation>[_revoked('inv-2')]),
       );
+      await showState(tester, 'Revoked');
 
-      expect(find.text('19/09/2026'), findsOneWidget);
-      expect(find.text('Revoked'), findsOneWidget);
+      expect(find.textContaining('Revoked · 19/09/2026'), findsOneWidget);
     });
 
     testWidgets('every row leads with the role, in every state', (
@@ -667,6 +786,7 @@ void main() {
           ],
         ),
       );
+      await showState(tester, 'All');
 
       // Two editors among the invitations, plus the editor in the member list.
       expect(find.text('Editor'), findsNWidgets(3));
@@ -706,6 +826,7 @@ void main() {
           invitations: <Invitation>[_live('inv-9'), _used('inv-1')],
         ),
       );
+      await showState(tester, 'All');
 
       expect(find.text('Send'), findsOneWidget);
     });
@@ -717,6 +838,7 @@ void main() {
         tester,
         StandInCircle(invitations: <Invitation>[_used('inv-1')]),
       );
+      await showState(tester, 'Used');
 
       expect(find.textContaining('20/09/2026 – 27/09/2026'), findsNothing);
       expect(find.textContaining('chuhai@example.test'), findsOneWidget);
@@ -731,6 +853,7 @@ void main() {
         tester,
         StandInCircle(invitations: <Invitation>[_revoked('inv-2')]),
       );
+      await showState(tester, 'Revoked');
 
       expect(find.text('Nobody used it'), findsOneWidget);
     });
@@ -808,8 +931,9 @@ void main() {
           ],
         ),
       );
+      await showState(tester, 'Used');
 
-      expect(find.text('Used'), findsOneWidget);
+      expect(find.textContaining('Used · '), findsOneWidget);
       expect(find.text('Revoke'), findsNothing);
       expect(find.text('Send'), findsNothing);
     });

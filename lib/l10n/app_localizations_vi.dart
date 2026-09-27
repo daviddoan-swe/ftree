@@ -686,6 +686,15 @@ class AppTextVi extends AppText {
   String get inviteNobodyUsed => 'Chưa ai dùng';
 
   @override
+  String get inviteLive => 'Còn hiệu lực';
+
+  @override
+  String get inviteSearch => 'Tìm theo email';
+
+  @override
+  String get inviteNoMatch => 'Không có lời mời khớp';
+
+  @override
   String get inviteUsed => 'Đã dùng';
 
   @override
@@ -927,7 +936,7 @@ class AppTextVi extends AppText {
   String get membersSearch => 'Tìm theo tên hoặc email';
 
   @override
-  String get membersAll => 'Tất cả';
+  String get filterAll => 'Tất cả';
 
   @override
   String get membersNoMatch => 'Không có ai khớp';
