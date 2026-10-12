@@ -961,11 +961,10 @@ and it is a real cost for a record meant to outlive the person keeping it
 (§5.1). The screen says so where the password is chosen, not in a note
 afterwards.
 
-**The interface says none of this in mechanism.** The button is "Xuất dữ
-liệu"; the wait is "Đang xuất file…". How the file is protected is the
-application's business. What somebody must *act* on — that losing the password
-loses the file, and that the password travels separately — is not mechanism,
-and is said plainly.
+**The interface says none of this in mechanism.** The wait says "Đang xuất
+file…". How the file is protected is the application's business. What somebody
+must *act* on — that losing the password loses the file, and that the password
+travels separately — is not mechanism, and is said plainly.
 
 ---
 

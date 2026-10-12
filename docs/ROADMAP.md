@@ -1342,14 +1342,14 @@ them, reviewed as a list before any was changed. Two rules came out of that
 review and both are worth keeping:
 
 * **The application does not know who is an uncle and who is a nephew.** A draft
-   addressed the reader as *bác* — respectful, and wrong for exactly the same
-   reason §1.1 gives for everything else about kinship terms: the relation is not
+   addressed the reader by a kinship term — respectful, and wrong for exactly the
+   same reason §1.1 gives for everything else about kinship: the relation is not
    recorded and cannot be guessed from a family tree. Where a message must name
-   somebody, it says *bạn*.
+   somebody, it says *bạn*, which claims nothing.
 * **No mechanism vocabulary.** "Encrypting", "sealing", "sending" describe what
-   the code is doing, which is not what the person asked for. The button says
-   *Xuất dữ liệu* and the wait says *Đang xuất file*; that the file is encrypted
-   is not a choice anybody makes, so it is not a thing anybody is told.
+   the code is doing, which is not what the person asked for. The wait says
+   *Đang xuất file*; that the file is encrypted is not a choice anybody makes,
+   so it is not a thing anybody is told.
 
 **The invitation list at a hundred members.** Chips filter by state, defaulting
 to the ones that still work; the search is by email, since that is the only thing
