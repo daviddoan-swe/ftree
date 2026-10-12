@@ -1,0 +1,47 @@
+# The three gates the project already runs before every commit, run somewhere
+# other than the author's laptop.
+#
+# A failing test and a new analyser warning are both treated as a broken build
+# rather than a note for later, which is why `--fatal-infos` is here: without
+# it the analyser reports and the job still passes, and a gate that cannot fail
+# is not one.
+#
+# The Flutter version is pinned rather than tracking the channel. A portfolio
+# repository's job is to prove *this* project builds and passes, and a green
+# badge that turns red because the SDK moved says nothing about the code. Bump
+# it deliberately, the same way the local toolchain is bumped.
+#
+# `flutter test` collects every `*_test.dart` under test/. The files in
+# test/cloud/ are deliberately not named that way: they need a local Supabase
+# stack and are run on purpose, not on every push.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # The generated Drift code is committed, so a mismatch between the schema
+      # and `app_database.g.dart` would otherwise only surface on the next
+      # person's machine.
+      - name: Static analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Tests
+        run: flutter test --reporter=expanded

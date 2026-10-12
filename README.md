@@ -1,5 +1,8 @@
 # Ftree
 
+[![ci](https://github.com/daviddoan-swe/ftree/actions/workflows/ci.yml/badge.svg)](https://github.com/daviddoan-swe/ftree/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A private, offline-capable family tree application for iOS and Android.
 
 Ftree lets a family record and explore its history across multiple generations,
@@ -323,3 +326,15 @@ Presentation  →  Application  →  Domain  →  Repository abstractions
 The domain layer is pure Dart and must not import Flutter, Riverpod, Drift,
 SQLite, Supabase, or platform APIs. This is enforced by
 `test/architecture/domain_purity_test.dart`, not by convention alone.
+
+## Continuous integration
+
+Every push runs `flutter analyze --fatal-infos` and the full test suite
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — the same two gates
+the pre-commit hook expects before a commit, run somewhere other than the
+author's laptop. The Flutter version is pinned, so a red badge means this code
+changed rather than that the SDK moved.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
