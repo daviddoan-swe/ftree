@@ -116,7 +116,7 @@ front of it is a wall in front of the whole application — against the offline
 capability the project lists fourth among its goals.
 
 So there is no sign-in screen at launch. Sharing is an action on **one family**
-— a "Chia sẻ" alongside export, edit and delete — and signing in happens there,
+— a "Share" alongside export, edit and delete — and signing in happens there,
 with a sentence saying what it is for. Somebody who never presses it never sees
 it.
 
@@ -135,7 +135,7 @@ costs real money per message, which §9's total-cost thinking has to weigh.
 
 ### 4.2 Only a family that is shared leaves the device
 
-**Decided.** Pressing Chia sẻ on one family sends that family. Every other
+**Decided.** Pressing Share on one family sends that family. Every other
 family on the device is untouched and unknown to the server, including after
 the account exists.
 
@@ -149,7 +149,7 @@ Two earlier decisions make it work rather than merely describe it:
    server keeping the id it already had. There is no renumbering and no table
    of translations.
 * The server decides who owns a family from the token of whoever created it,
-   so the person who presses Chia sẻ becomes its owner without anything being
+   so the person who presses Share becomes its owner without anything being
    asserted by the client.
 
 What it needs that does not exist yet: the device has to remember which of its
@@ -164,7 +164,7 @@ repository boundary is worth splitting rather than before (ARCHITECTURE §7).
 
 ### 4.3 Two devices holding one family: the first to press owns it
 
-**Decided.** Whoever presses Chia sẻ first becomes the owner. The second person
+**Decided.** Whoever presses Share first becomes the owner. The second person
 is told that the family is already kept by somebody else, and that an
 invitation from them is the way in.
 
@@ -193,7 +193,7 @@ owns it" is that they invite the right one as an editor.
 
 Three things the interface owes a person here:
 
-* Chia sẻ is not offered for a family this device has marked as shared, so the
+* Share is not offered for a family this device has marked as shared, so the
    refusal is usually never reached.
 * When the mark is missing but the family is ours, **the mark is recovered
    rather than the family re-sent.** This is the reinstall, and the restore from
@@ -269,8 +269,8 @@ that already exists on the server.
 | | not shared | owner | editor | viewer |
 |---|---|---|---|---|
 | Export a file | ✓ | ✓ | — | — |
-| Chia sẻ | ✓ | — | — | — |
-| Thành viên | — | ✓ | — | — |
+| Share | ✓ | — | — | — |
+| Members | — | ✓ | — | — |
 | Rename the family | ✓ | ✓ | — | — |
 | Delete the family | ✓ | ✓ | — | — |
 | Add a person | ✓ | ✓ | ✓ | — |
@@ -302,7 +302,7 @@ row.
 answer is cached for as long as the application is running, so a demotion made
 on somebody else's phone would otherwise leave the old controls in place until
 the application was restarted — an editor demoted to viewer still being offered
-Sửa and Xoá. It is asked again whenever a family is opened, which is already
+Edit and Delete. It is asked again whenever a family is opened, which is already
 the moment a request is spent, and whenever the application comes back to the
 front. Between those the answer may be stale, and the server refusing is what
 keeps that safe rather than merely untidy.
@@ -324,7 +324,7 @@ can copy it, and no arrangement of buttons changes that.
 **Where the role comes from.** Two moments where the device knows it for
 certain, both of which already write to the local database:
 
-* pressing Chia sẻ — this device is the owner
+* pressing Share — this device is the owner
 * accepting an invitation — the code says which role it grants
 
 It is stored beside `sharedAt` and read without a network, so it holds on a
@@ -381,7 +381,7 @@ forgotten password, a person who dies. A second owner is how the record
 survives that, and nothing in the schema ever forbade it: `keep_an_owner`
 requires _at least_ one owner, not exactly one.
 
-It also softens §4.3. Where the wrong person pressed Chia sẻ first, they can
+It also softens §4.3. Where the wrong person pressed Share first, they can
 now hand the family back by inviting the right person as owner. That is not a
 transfer — the first owner stays — but it unblocks somebody locked out of a
 gia phả they themselves built, which was the sharpest cost of first-press-wins.
@@ -462,7 +462,7 @@ closed rather than left open (§5.8).
 ### 5.4 The owner's device keeps the codes it issued
 
 **Decided.** Codes for invitations that are still standing are held on the
-device that made them, so the Lời mời screen can show one again and send it
+device that made them, so the Invitations screen can show one again and send it
 again. Used or revoked, it is forgotten.
 
 This does not weaken §5.2. Hashing defends against the *server* being read; the
@@ -525,7 +525,7 @@ the distinction between the two meaningless.
 
 ### 5.6 The member list, and who may open it
 
-**Decided.** Reached from **Thành viên** on a family that has been shared —
+**Decided.** Reached from **Members** on a family that has been shared —
 labelled for what pressing it does, which is to open the room rather than to
 send an invitation. Inviting is a button inside it, and making a code is not
 something that should happen as a side effect of looking. Two
@@ -534,13 +534,13 @@ against the family.
 
 A member's row is **a name, an address and a role, and nothing to press.**
 Managing somebody is behind a left swipe, as it is on the family list, giving
-**Sửa** and **Xoá**. A row is for reading; demoting a relative or putting them
+**Edit** and **Delete**. A row is for reading; demoting a relative or putting them
 out are not things to leave under a thumb while scrolling.
 
-* **Sửa** offers the three roles — the same sheet an invitation uses, so
+* **Edit** offers the three roles — the same sheet an invitation uses, so
   promoting somebody already here and inviting somebody at that role read as
   one idea. Promoting to owner asks first, for the reason §5.1 gives.
-* **Xoá** takes away everything. See below.
+* **Delete** takes away everything. See below.
 
 **Your own row has nothing behind it.** Leaving a family is a different act
 from running one, and this screen is reached by whoever runs it.
@@ -605,7 +605,7 @@ Left behind, the first would lie to whoever signs in next and the second would
 hand them somebody else's live codes.
 
 **Clearing the marks is safe because it heals itself.** A family with no mark
-offers Chia sẻ again. Pressing it asks the server, which says the family is
+offers Share again. Pressing it asks the server, which says the family is
 claimed — and then, for the same account, that it can see it, which is case 2
 of §4.3: the mark is recovered and nothing is sent. Signed in as somebody
 else, the same press is told another account holds it, which is true.

@@ -65,6 +65,23 @@ development loop — generated test data, resetting the database, the pre-commit
 hook, running the cloud locally, changing either schema — is in
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Vietnamese terms
+
+The documentation keeps the Vietnamese words for the things it is about, because
+each names something English describes only loosely. Interface labels are in
+English and Vietnamese both — these are the terms the *documentation* uses.
+
+| Term | Meaning |
+| --- | --- |
+| **gia phả** | A Vietnamese family record: the book a lineage is written down in, kept and added to across generations |
+| **giỗ** | The death anniversary, observed on the lunar date rather than the Gregorian one |
+| **đời** | Generation, counted from the founding ancestor — a fact about a person, not about the chart on screen |
+| **thuỷ tổ** | The founding ancestor the generations are counted from |
+| **Con Cả** / **Con Thứ** | The eldest child / a younger child. A gia phả is read from Con Cả down |
+| **can chi** | The sixty-year cycle that names years — Giáp Tý, Đinh Hợi. Repeats every 60 years, so a source giving only the name needs a century from the reader |
+| **tháng nhuận** | The intercalary month of the lunar calendar: a year with one has two months of the same number |
+| **Tết** | Lunar new year, where the lunar year changes mid-Gregorian-year |
+
 ## Layering
 
 ```

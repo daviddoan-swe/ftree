@@ -814,9 +814,9 @@ status.
 
 Implement:
 
-* **signing in, reached from Chia sẻ** — the first screen in the application
+* **signing in, reached from Share** — the first screen in the application
    that knows an account exists (PRODUCT §4.1). Done
-* **Chia sẻ** — one family up, on one action in one row, beside Xuất. Done
+* **Share** — one family up, on one action in one row, beside Export. Done
 * **marking a family as shared** — one column in the local schema, because the
    device cannot ask the server while offline (PRODUCT §4.2)
 * **asking whether a family is already claimed** — the one question the device
@@ -846,7 +846,7 @@ Not at the door. The application works with no account and no network, and
 most people will only ever want that (PRODUCT §4.1). A sign-in wall in front
 of it is a wall in front of the whole application.
 
-It sits behind **Chia sẻ**, one action on one family, beside export, edit and
+It sits behind **Share**, one action on one family, beside export, edit and
 delete. Pressing it is somebody saying they want a record kept by more than one
 person, which is the only thing an account buys.
 
@@ -866,7 +866,7 @@ it had — no renumbering, no translation table. Had this been an auto-increment
 integer, this is where it would have stopped.
 
 `owner_on_create` reads the creator from the token, and fires on INSERT
-whatever id the client supplied. So whoever presses Chia sẻ becomes owner with
+whatever id the client supplied. So whoever presses Share becomes owner with
 nothing added, and `save_family_all` already branches insert from update in the
 way that needs.
 
@@ -874,7 +874,7 @@ What is missing is one column: the device has to remember which families are
 shared. It travels with the synchronisation metadata the local schema needs
 anyway.
 
-### Chia sẻ is offered once, and what happens when it is not
+### Share is offered once, and what happens when it is not
 
 Checked against the running stack rather than reasoned about, because the
 question — *what if the family is already up there?* — has three answers and
@@ -918,13 +918,13 @@ proof of authorship, and cannot, because at export time there may be no account
 on the device to sign it. Handing a family over afterwards is deferred
 (PRODUCT §4.3).
 
-**A member pressing Chia sẻ on a family already shared is the one to prevent.**
+**A member pressing Share on a family already shared is the one to prevent.**
 It takes the update branch and is allowed — and `saveAll` upserts the people
 and edges too, so a local copy would land on top of the shared one. That is
 "my copy wins", which is precisely the conflict resolution that cannot be done
 without an ordering nobody has yet (§15.3).
 
-So **Chia sẻ is offered only for a family that is not shared**. Once it is, the
+So **Share is offered only for a family that is not shared**. Once it is, the
 action on that family is *invite somebody*, not share it again. The column that
 remembers which families are shared is what makes the distinction visible
 without asking the server.
@@ -980,7 +980,7 @@ was never theirs.
 __Three of the four checks inside the hole are the whole feature.__
 `accept_invitation` is SECURITY DEFINER, so nothing inside it is protected by a
 policy and every guard is one somebody wrote by hand. Removing the revoked
-check makes the owner's Huỷ button decoration; removing the accepted check
+check makes the owner's Revoke button decoration; removing the accepted check
 turns one code into a crowd; removing the expiry check revives last year's
 codes. Each was broken deliberately and each turns a check red.
 
@@ -1021,7 +1021,7 @@ carrier, no Google, no Facebook, no Zalo — and `auth.uid()` is the same value
 whatever somebody signed in with, so a provider can be added later without
 touching a policy, a membership or a trigger.
 
-**Handing a family over.** The first to press Chia sẻ owns it, and there is no
+**Handing a family over.** The first to press Share owns it, and there is no
 fairer rule the data supports (PRODUCT §4.3). Transferring ownership afterwards
 is wanted and deferred: it needs an owner willing to do it, so it is a
 conversation between people with a button at the end. Until then the way out is
@@ -1137,8 +1137,8 @@ could go stale — somebody edits the person again and the question is about a
 value that is nobody's any more.
 
 The screen shows both versions **and the one they started from**. Two values
-alone do not say which way either side moved; `Cụ Tổ` → `Cụ Tổ (tôi)` against
-`Cụ Tổ` → `Cụ Tổ (họ)` is a different question from one side leaving the field
+alone do not say which way either side moved; `Cụ Tổ` → `Cụ Tổ (mine)` against
+`Cụ Tổ` → `Cụ Tổ (theirs)` is a different question from one side leaving the field
 untouched. A field somebody deliberately cleared is labelled as emptied rather
 than drawn blank, because a blank row beside a filled one reads as the screen
 having failed to load it.
