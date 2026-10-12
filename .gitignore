@@ -49,3 +49,9 @@ app.*.map.json
 # Signing settings belonging to whoever is building, not to the project.
 # See ios/Flutter/Local.xcconfig.example.
 **/ios/Flutter/Local.xcconfig
+
+# The engineering notebook. Written to be read by one person, and kept out of
+# the public record for that reason — it carries interview preparation, not
+# documentation of the application. The design reasoning worth publishing
+# belongs in docs/ proper.
+docs/notes/
