@@ -88,6 +88,11 @@ Historical records are frequently incomplete, so the domain must not require inf
 
 ### 3.1 Name Fields
 
+<p align="center">
+  <img src="images/person-form.png" width="46%" alt="Name parts kept separately from the display name, with <em>Family name at birth</em> among them — and a sex of Male, Female or Unknown.">
+  <br><sub>Name parts kept separately from the display name, with <em>Family name at birth</em> among them — and a sex of Male, Female or Unknown.</sub>
+</p>
+
 `displayName` is **stored and user-editable**, and must be non-empty.
 
 * When creating a Person, the UI suggests a default composed from the name parts.
@@ -150,6 +155,11 @@ exist for many milestones creates a constraint nobody can satisfy.
 ---
 
 ### 3.4 Person Must Not Contain Relationships
+
+<p align="center">
+  <img src="images/profile.png" width="40%" alt="Parents, spouses and children read as three separate lists, because they are derived from Relationship rows rather than stored on the person.">
+  <br><sub>Parents, spouses and children read as three separate lists, because they are derived from Relationship rows rather than stored on the person.</sub>
+</p>
 
 Person must NOT contain:
 
@@ -276,6 +286,11 @@ BC/BCE dates and date ranges ("between 1880 and 1890") are out of scope for V1.
 
 ### 4.4 Lunar calendar
 
+<p align="center">
+  <img src="images/family-form.png" width="52%" alt="The lunar calendar is a switch on the family, not a setting on the reader: a grandchild abroad still gets the giỗ.">
+  <br><sub>The lunar calendar is a switch on the family, not a setting on the reader: a grandchild abroad still gets the giỗ.</sub>
+</p>
+
 Vietnamese genealogical sources are written in the lunar calendar, and giỗ —
 the death anniversary — is observed on the lunar date. Modern records use the
 Gregorian calendar. A single family tree will contain both.
@@ -385,6 +400,11 @@ Enforced on write.
 ---
 
 ## 6. Parent-Child Relationship
+
+<p align="center">
+  <img src="images/add-relationship.png" width="40%" alt="<em>Add a parent</em>, not <em>Add a father</em>. The role is not carried on the edge, and relationships are made from the person being looked at.">
+  <br><sub><em>Add a parent</em>, not <em>Add a father</em>. The role is not carried on the edge, and relationships are made from the person being looked at.</sub>
+</p>
 
 Parent-child is directional.
 

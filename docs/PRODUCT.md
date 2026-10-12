@@ -38,6 +38,11 @@ follow the locale.
 **Search must ignore diacritics.** "Nguyen" has to find "Nguyễn". Relevant when
 search is built, not before.
 
+<p align="center">
+  <img src="images/people.png" width="40%" alt="Three hundred people, filtered by generation and searched by name — the search folds tone marks, so <em>nguyen</em> finds <em>Nguyễn</em>.">
+  <br><sub>Three hundred people, filtered by generation and searched by name — the search folds tone marks, so <em>nguyen</em> finds <em>Nguyễn</em>.</sub>
+</p>
+
 ---
 
 ## 2. Primary Users
@@ -101,6 +106,11 @@ After the local application is stable, users should be able to:
 
 ### 4.1 An account is never needed to use the application
 
+<p align="center">
+  <img src="images/sign-in.png" width="42%" alt="The one screen that asks for an account says why, and says what still works without one.">
+  <br><sub>The one screen that asks for an account says why, and says what still works without one.</sub>
+</p>
+
 **Decided.** The application works, completely, with no account and no
 network. Three ways of using it, and only the third asks for one:
 
@@ -134,6 +144,11 @@ A phone number is the identity Vietnamese users actually remember; an SMS code
 costs real money per message, which §9's total-cost thinking has to weigh.
 
 ### 4.2 Only a family that is shared leaves the device
+
+<p align="center">
+  <img src="images/share-family.png" width="40%" alt="Sharing says the two things that cannot be said afterwards: every other family stays on the device, and this one cannot be taken back.">
+  <br><sub>Sharing says the two things that cannot be said afterwards: every other family stays on the device, and this one cannot be taken back.</sub>
+</p>
 
 **Decided.** Pressing Share on one family sends that family. Every other
 family on the device is untouched and unknown to the server, including after
