@@ -3,8 +3,8 @@
 [![ci](https://github.com/daviddoan-swe/ftree/actions/workflows/ci.yml/badge.svg)](https://github.com/daviddoan-swe/ftree/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A private, offline-capable family tree application for iOS and Android, built
-around a Vietnamese *gia phả* — a lineage written down and added to across
+A private, offline-capable family tree application for iOS, Android and the web,
+built around a Vietnamese *gia phả* — a lineage written down and added to across
 generations.
 
 <p align="center">
@@ -94,8 +94,12 @@ design.
 | Local persistence | Drift / SQLite |
 | Cloud | Supabase — PostgreSQL, Auth, row-level security |
 
-Platform targets are iOS and Android. `web/` is a development convenience for
-inspecting graph and layout output quickly, not a release target.
+Platform targets are iOS, Android and the web. The web was promoted from a
+development convenience to a release target for a reason about cost rather than
+engineering: shipping to a phone needs a paid developer account, and a browser
+needs neither that nor a review, so it is the first place a family can actually
+use this (M9.7). It is a peer device there — it creates, edits and
+synchronises — not a reader.
 
 ## Status
 

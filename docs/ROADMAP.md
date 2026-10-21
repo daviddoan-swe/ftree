@@ -1736,6 +1736,144 @@ are Supabase's own published local constants.
 
 ---
 
+## M9.7 — The web build
+
+**Not planned, and inserted here for a reason that is about money rather than
+engineering.** Shipping to a phone costs: 99 USD a year for iOS, or seven-day
+profiles that stop working mid-week; 25 USD once for Play. The web costs nothing
+and waits for no review. So the fastest route to a gia phả the family actually
+uses is a browser, and that reorders the plan rather than adding to it — photos
+can wait for people to be using the thing.
+
+**Decided: the web build is a peer device**, not a reader. It creates, edits and
+synchronises like a phone. The machinery for that already exists — M9 built the
+three-way merge, the question put to a person, and deletion travelling both ways
+— and a read-only web build would reopen §5.8, which was closed on the grounds
+that a sealed file already serves whoever only needs to read.
+
+### What the architecture already paid for
+
+The domain layer is pure Dart with no Flutter in it, there is not one
+`Platform.is…` in `lib/`, and exactly **one** file imports `dart:io`. That is
+the layering rule in CLAUDE §3 returning its cost: a third platform is four
+known problems rather than an unknown number.
+
+### The four things that break, measured rather than guessed
+
+__1. SQLite does not open at all.__ `driftDatabase(name: 'ftree')` throws on the
+web — `drift_flutter/lib/src/web.dart` says "When compiling to the web, the
+`web` parameter needs to be set". It needs `sqlite3.wasm` and `drift_worker.js`
+served beside the application, downloaded from the `sqlite3.dart` and `drift`
+releases at versions matching the drift in `pubspec.lock`; a mismatch fails at
+run time. No tool fetches them — `drift_dev` has only `analyze`,
+`make-migration`, `migrate` and `schema`.
+
+**And where the data lands is not one answer.** Drift picks from five storage
+modes depending on the browser (`drift/lib/src/web/wasm_setup/types.dart`):
+
+| Mode | Stored in | Durability |
+| --- | --- | --- |
+| `opfsShared` | Origin Private File System, shared worker | drift's "preferred mode" |
+| `opfsLocks` | OPFS, one worker per tab | good |
+| `sharedIndexedDb` | IndexedDB, shared worker | workable |
+| `unsafeIndexedDb` | IndexedDB | drift: "can't store data reliably" |
+| `inMemory` | nothing | drift: "not at all" — gone on reload |
+
+Two notes from drift's own source. The preferred mode needs a shared worker to
+spawn a dedicated one, which drift records as implemented in Firefox only, with
+Chrome (crbug.com/1088481) and Safari not supporting it — so Chrome falls to
+`opfsLocks`. And `opfsLocks` requires cross-origin isolation:
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp`.
+
+__2. Exporting a family will not compile.__ `export_family.dart` imports
+`dart:io`, writes a temporary file and calls `getTemporaryDirectory()`.
+`dart:io` is not a web library and `path_provider` has no web implementation, so
+this is a compile error rather than a run-time one. The content-building half is
+already pure Dart; only handing the bytes out needs a second path, behind a
+conditional import so `dart:io` never enters a web build. `share_plus` has a web
+implementation and `file_selector` has `file_selector_web`, so importing and
+sharing both survive the move.
+
+__3. Sealing a backup freezes the tab.__ On the web `compute` does not start an
+isolate; the Flutter SDK's own `_isolates_web.dart` pumps one frame and then
+calls the callback on the interface thread. Argon2id at 32 MiB costs about a
+second on a development machine, so a browser would stop drawing for longer than
+that with nothing to say why.
+
+The seam for the fix already exists: `runOffThread` in `vault_password.dart` is a
+variable, put there so widget tests could run the work inline. The web
+implementation is a web worker, and it replaces an implementation rather than a
+design.
+
+**Measured before promised.** If a browser makes 32 MiB cost eight seconds, the
+number has to be argued again for the web — and that is the same shape of
+question as the account password being weaker than the file password: one
+mechanism, two levels of protection, and the weaker one needs a reason rather
+than a shrug.
+
+__4. Signing in needs the project to know the address.__ The session lives in the
+browser's storage, and the hosted project needs its site URL and redirect URLs
+set. Small, and it is configuration rather than code.
+
+### Where it is hosted, which the headers decide
+
+Free, which is the point of the milestone — but **not GitHub Pages**, because
+Pages cannot set arbitrary response headers, and without COOP and COEP Chrome
+drops to the IndexedDB mode drift calls unreliable. Cloudflare Pages, Netlify and
+Vercel all have free tiers that set headers from a file in the repository
+(`_headers`, or `vercel.json`), so the constraint costs nothing — it only removes
+the most obvious option.
+
+### Saying which mode we got
+
+Drift returns the storage implementation it chose, and its own documentation
+notes that for the last two modes "you may want to show" something. This project
+already holds that nothing should disappear without being told (§5.10), so:
+
+| Mode | What the application says |
+| --- | --- |
+| either OPFS, or `sharedIndexedDb` | nothing; it behaves like a phone |
+| `unsafeIndexedDb` | that sharing a family to the cloud is how it stops being fragile |
+| `inMemory` | plainly, **before anybody types anything**, that nothing here is kept |
+
+It uses what exists: `sharedAt` already records which families this device put on
+a server, so the warning belongs only to the families that are *not* up there. A
+family that has been shared survives the browser being cleared, because the
+server has it.
+
+### Order of work
+
+1. `sqlite3.wasm` and `drift_worker.js` in place, and `driftDatabase` given its
+   `web:` options. Nothing else can be tried until the database opens.
+2. Split `export_family.dart`, so the web target compiles at all.
+3. Host it with the two headers, and read back which storage mode a real Chrome,
+   Firefox and Safari each chose. This is a measurement, not a guess, and it
+   decides whether step 4 is a warning or a crisis.
+4. Say which mode we got, per the table above.
+5. Measure Argon2id in a browser, then write the web `runOffThread`.
+6. Point it at a real Supabase project (CONTRIBUTING, *Creating the production
+   cloud*) and let two browsers synchronise with a phone.
+
+### Deliberately not in this
+
+* **A desktop layout.** The tree screen was built and measured for a phone
+   (M6). A browser window is wider, and the right answer is probably to centre a
+   phone-width column rather than redesign — but that is a design decision, and
+   pretending it is part of a platform port would smuggle it in.
+* **PWA install, offline service worker, push notifications.** Each is its own
+   decision and none is needed for a family to open a link.
+* **Dropping either phone platform.** The web arriving first is about cost, not
+   about iOS and Android being wrong.
+
+### Exit criteria
+
+A browser creates a family, edits it, synchronises with a phone and converges —
+and where the browser cannot store data reliably, the person is told before they
+trust it with anything.
+
+---
+
 ## M10 — Media
 
 Implement:
@@ -1797,11 +1935,15 @@ Application is suitable for controlled real-world family use.
 
 ## M12 — Distribution
 
+The web ships first and separately, at M9.7, because it needs no paid account
+and no review. This milestone is the two that do.
+
 iOS:
 
 * signing
 * TestFlight
-* controlled testing
+* controlled testing — and the 99 USD a year that makes an install last longer
+   than seven days
 
 Android:
 
@@ -1809,7 +1951,8 @@ Android:
 * internal testing
 * controlled testing
 
-Collect feedback before adding major new features.
+Collect feedback before adding major new features. By the time this is reached
+some of that feedback should already exist, from people using the web build.
 
 ---
 
