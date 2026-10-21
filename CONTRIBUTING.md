@@ -19,6 +19,54 @@ The project treats a failing test or a new analyser warning as a broken build
 rather than a note for later. The same two gates run in CI
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
+### What those three commands need
+
+**A Flutter SDK matching the version CI pins.** The pin is in `ci.yml`. When a
+local SDK moves ahead of it, CI goes on guarding the code against a version
+nobody is using, and the gap hides exactly what it exists to catch — so bump
+both together, as one commit, and run the suite before trusting the new pin.
+
+An SDK bump is not free. Going from 3.44.8 to 3.47.7 required `vector_math`
+`^2.4.0`, which rewrote `pubspec.lock` and brought in a transitive dependency the
+project had not had. `flutter pub get` after an SDK change therefore needs the
+network, and the resulting lockfile is part of the bump rather than noise beside
+it.
+
+**A loopback socket.** `flutter test` starts the test process and talks to it
+over `127.0.0.1`, so a restricted environment refuses the suite before a single
+test runs:
+
+```
+Failed to load "...": Failed to create server socket
+(OS Error: Operation not permitted, errno = 1), address = 127.0.0.1, port = 0
+```
+
+Every file fails identically and none of them fails *in* a test. That shape —
+all of them, at load — means the environment, not the code.
+
+**Docker, for the checks that need a cloud.** Only those; see *The cloud, on your
+own machine* below. The default suite needs nothing running.
+
+### If you develop this with Claude Code
+
+Bash commands run in an OS sandbox, and the grants it needs are not in the
+repository: they name absolute paths belonging to one machine, and this
+repository is public. Write your own `.claude/settings.local.json`, which git
+ignores. What it has to cover:
+
+| Grant | Why |
+| --- | --- |
+| read + write on your Flutter SDK, `~/.pub-cache`, `~/.config/flutter` | `pub get` and the build write into all three |
+| read + write on the simulator and Xcode build directories | building and installing |
+| write on your temporary directory | the build's scratch space |
+| `network.allowLocalBinding: true` | `flutter test`, per above — without it the whole suite refuses to load |
+| the Docker socket, under `network.allowUnixSockets` | the cloud checks |
+| network access to `pub.dev` and `storage.googleapis.com` | `flutter pub get` and `flutter precache` |
+
+Kept here rather than in the ignored file itself, because a list of what is
+needed survives the file being lost — and it was lost once, which is why this
+table exists.
+
 ### Running on a physical iPhone
 
 The simulator needs nothing. A real device has to be code-signed, and the

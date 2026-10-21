@@ -102,11 +102,17 @@ inspecting graph and layout output quickly, not a release target.
 Pre-release. [docs/ROADMAP.md](docs/ROADMAP.md) carries the current milestone.
 
 The local application works: domain model, family graph, SQLite persistence,
-tree rendering, and a family that can leave the device as a file. The cloud
-schema, authentication and access policies exist and are exercised against a
-PostgreSQL running locally — sharing a family and inviting somebody into it both
-work. Synchronisation is partly built: a device pulls a family's changes down,
-and pushing them back is the next step.
+tree rendering, and a family that can leave the device as a file, sealed with a
+password. The cloud schema, authentication and access policies exist and are
+exercised against a PostgreSQL running locally — sharing a family and inviting
+somebody into it both work.
+
+Synchronisation works in both directions. A device pulls a family's changes down
+and pushes its own up; where two people edited the same record, the disagreement
+is put to a person rather than settled by a clock; a deletion travels both ways,
+and a family the owner deletes reaches every device that holds a copy. What is
+next is the half of continuous integration that is missing — nothing automatic
+yet checks a row-level security policy — and then photographs.
 
 Covered by 1,206 tests, including migration tests that replay the schema as it
 actually shipped rather than an approximation of it.

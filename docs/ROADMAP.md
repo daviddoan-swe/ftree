@@ -1454,19 +1454,43 @@ Two authorized devices can make supported changes and converge to a consistent f
 
 ## M9.5 — Continuous integration, and a server to deliver to
 
-**Proposed, not decided.** Written out to be approved or refused before anything
-is built, the way M6.5 §5.8 was. Inserted before M10 because photos are the first
-feature whose mistakes are expensive to undo, and because there is still nothing
-standing between a commit and `main` except one person remembering to run two
-commands.
+**Stage 1 is built; the rest is still a proposal.** It was written out to be
+approved or refused before anything was made, the way M6.5 §5.8 was, and then
+stage 1 was taken and the others were not. What runs today is
+`.github/workflows/ci.yml`: Ubuntu, `flutter analyze --fatal-infos` and
+`flutter test`, on every push to `main` and every pull request. The sections
+below are kept as they were written, with what changed since marked.
 
-### What is missing today, precisely
+**Two things have changed under the design and both matter.**
 
-`flutter analyze` and `flutter test` are run by hand. The suite is 1,206 tests
-across 62 files and takes about three minutes, so running it is cheap — but
-"cheap" and "always" are different things, and nothing enforces the second.
+__The repository is now public, which removes the constraint that shaped the
+whole thing.__ The arithmetic below — macOS at ten times Linux, a free monthly
+allowance that twenty pushes would exhaust — is the billing for a *private*
+repository. Standard runners are not metered the same way for a public one, so
+stage 3's tag-gating and the recommendation to leave iOS until M12 were decided
+against a cost that no longer applies. They may still be right for other reasons
+— an unsigned build nobody installs proves little — but they are no longer
+*forced*, and the reason for them has to be restated rather than inherited.
+*(Checked against GitHub's current terms before relying on it, like every other
+number here.)*
 
-Worse, the one check that guards something irreversible is **opt-in**.
+__And the toolchain moved.__ CI pins Flutter 3.44.8; the machine is on 3.47.7.
+The pin's own comment says to bump it deliberately, as the local toolchain is
+bumped — and the local one was, so CI has been guarding the code on an SDK
+nobody uses. The bump is not free: 3.47.7's `flutter_test` requires
+`vector_math ^2.4.0`, which rewrites `pubspec.lock` and pulls a dependency the
+project did not have. That is exactly the kind of change a pinned CI exists to
+surface, and exactly the kind it cannot surface while the pin is stale.
+
+### What was missing when this was written
+
+`flutter analyze` and `flutter test` were run by hand. The suite was 1,206 tests
+across 62 files and took about three minutes, so running it was cheap — but
+"cheap" and "always" are different things, and nothing enforced the second.
+**Stage 1 closed this.**
+
+Worse, the one check that guards something irreversible is **opt-in**, and it
+**still is**.
 `.githooks/pre-commit` refuses a commit carrying signing material, an
 environment file or a leaked `DEVELOPMENT_TEAM`, and it only runs on a machine
 where somebody has typed `git config core.hooksPath .githooks`. A fresh clone —
@@ -1477,9 +1501,15 @@ And `test/cloud/*.dart` carry no `_test.dart` suffix, so they are excluded from
 the suite by design: they need Docker and a running local Supabase. They are the
 **only** place row-level security is checked, and RLS is the security model
 (CLAUDE §8). Every one of them has been run by hand, on request. None of them
-has ever been run by anything that would notice if a policy regressed.
+has ever been run by anything that would notice if a policy regressed. **Still
+true, and now the largest gap left in the milestone.**
 
-### The constraint that shapes the whole design: macOS minutes cost ten times as much
+### The constraint that shaped the design — and no longer holds
+
+*(Superseded: the repository is public. Kept because stages 3 and 5 were argued
+from it, and anything still wanted from them needs a new argument.)*
+
+#### As written: macOS minutes cost ten times as much
 
 GitHub Actions bills a private repository by runner minutes, with a free monthly
 allowance, and the multipliers are not equal: Linux 1×, Windows 2×, **macOS
@@ -1637,8 +1667,14 @@ interface nobody has logged into yet is building against a guess.
 
 ### Decisions needed before any of it is written
 
-1. **iOS on tags only, or on every push?** Recommended: tags only, on the
-   arithmetic above.
+*(Decision 1 was never taken either way: stage 3 does not exist. Decisions 2–5
+are still open, and 1 now rests on an argument that has to be made again.)*
+
+1. **iOS on tags only, or on every push?** Was recommended: tags only, on the
+   arithmetic above — which was the arithmetic of a private repository. What
+   survives the repository going public is the smaller claim: an unsigned build
+   nobody installs proves only that Xcode links, and until M12 there is nowhere
+   to send one.
 2. **The policy tests on every push?** Recommended: yes. It is Linux minutes for
    the only check the security model has.
 3. **A hosted Supabase project now, or at M12?** Recommended: at M12, with
@@ -1653,6 +1689,22 @@ interface nobody has logged into yet is building against a guess.
 A commit that breaks the suite, breaks analysis, breaks a row-level security
 policy, or carries a secret cannot reach `main` without somebody being told — and
 none of it depends on what any one machine has been configured to do.
+
+**Where that stands:** the suite and analysis are covered. A broken policy and a
+committed secret are not — both still depend on somebody running something on
+their own machine, which is the half of the criterion that was the point.
+
+### What remains, in the order it is worth doing
+
+1. **Bump the pin to 3.47.7**, which is also the only way to find out what the
+   new SDK breaks.
+2. **Stage 2, the policy tests.** The largest gap: RLS is the security model, a
+   policy mistake is silent, and nothing automatic has ever checked one.
+3. **`--all` on the pre-commit hook.** Small, and more pressing than when it was
+   written: the repository is public now, so a secret reaching it cannot be taken
+   back.
+4. Stages 3 to 5 — builds, migrations, delivery — restated against the public
+   repository's costs rather than inherited from a private one's.
 
 ---
 
