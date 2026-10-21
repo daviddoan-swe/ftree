@@ -165,11 +165,16 @@ English and Vietnamese both — these are the terms the *documentation* uses.
 
 ## Continuous integration
 
-Every push runs `flutter analyze --fatal-infos` and the full test suite
-([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — the same two gates the
-pre-commit hook expects before a commit, run somewhere other than the author's
-laptop. The Flutter version is pinned, so a red badge means this code changed
-rather than that the SDK moved.
+Every push runs two jobs
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). One is the pair of
+gates the pre-commit hook expects: `flutter analyze --fatal-infos` and the full
+test suite. The other starts a real PostgreSQL from the migration folder and
+runs the checks that need one — the row-level security policies, which are the
+whole of the access model and where a mistake is silent, because a write a
+policy forbids changes nothing and reports success.
+
+The Flutter version is pinned, so a red badge means this code changed rather
+than that the SDK moved.
 
 ## License
 

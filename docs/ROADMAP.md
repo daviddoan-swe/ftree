@@ -1454,12 +1454,19 @@ Two authorized devices can make supported changes and converge to a consistent f
 
 ## M9.5 — Continuous integration, and a server to deliver to
 
-**Stage 1 is built; the rest is still a proposal.** It was written out to be
-approved or refused before anything was made, the way M6.5 §5.8 was, and then
-stage 1 was taken and the others were not. What runs today is
-`.github/workflows/ci.yml`: Ubuntu, `flutter analyze --fatal-infos` and
-`flutter test`, on every push to `main` and every pull request. The sections
-below are kept as they were written, with what changed since marked.
+**Stages 1 and 2 are built; the rest is still a proposal.** It was written out
+to be approved or refused before anything was made, the way M6.5 §5.8 was. What
+runs today is `.github/workflows/ci.yml`, two jobs on every push to `main` and
+every pull request:
+
+* `check` — Ubuntu, nothing running: `flutter analyze --fatal-infos` and
+  `flutter test`.
+* `cloud` — Ubuntu with a real Postgres: `supabase start`, then all six files in
+  `test/cloud/`, named one by one because they carry no `_test.dart` suffix and
+  serialised because they share the one database.
+
+The sections below are kept as they were written, with what changed since
+marked.
 
 **Two things have changed under the design and both matter.**
 
@@ -1501,8 +1508,19 @@ And `test/cloud/*.dart` carry no `_test.dart` suffix, so they are excluded from
 the suite by design: they need Docker and a running local Supabase. They are the
 **only** place row-level security is checked, and RLS is the security model
 (CLAUDE §8). Every one of them has been run by hand, on request. None of them
-has ever been run by anything that would notice if a policy regressed. **Still
-true, and now the largest gap left in the milestone.**
+has ever been run by anything that would notice if a policy regressed. **Closed
+by stage 2**, and it was the largest gap in the milestone.
+
+Running all six rather than only the three that touch policies was decided
+deliberately: on a public repository runner minutes are no longer the constraint
+that shaped this design, and `repository_contract.dart` is the only place that
+notices SQLite and Postgres answering the same sixteen questions differently —
+the kind of divergence nobody goes looking for.
+
+It also moves a cost off the author's machine. `invitations.dart` creates dozens
+of throwaway accounts per run; on a runner the container is built and discarded,
+while locally they accumulated until somebody had to clear 58 of them out by
+hand.
 
 ### The constraint that shaped the design — and no longer holds
 
@@ -1690,21 +1708,31 @@ A commit that breaks the suite, breaks analysis, breaks a row-level security
 policy, or carries a secret cannot reach `main` without somebody being told — and
 none of it depends on what any one machine has been configured to do.
 
-**Where that stands:** the suite and analysis are covered. A broken policy and a
-committed secret are not — both still depend on somebody running something on
-their own machine, which is the half of the criterion that was the point.
+**Where that stands:** the suite, analysis and the policies are covered. A
+committed secret is not — it still depends on somebody having run
+`git config core.hooksPath .githooks` on their own machine, which is the half of
+the criterion that was the point.
 
 ### What remains, in the order it is worth doing
 
-1. **Bump the pin to 3.47.7**, which is also the only way to find out what the
-   new SDK breaks.
-2. **Stage 2, the policy tests.** The largest gap: RLS is the security model, a
-   policy mistake is silent, and nothing automatic has ever checked one.
-3. **`--all` on the pre-commit hook.** Small, and more pressing than when it was
-   written: the repository is public now, so a secret reaching it cannot be taken
-   back.
+1. ~~Bump the pin to 3.47.7.~~ Done, with the lockfile and the analyser
+   exclusions the new SDK writes for itself.
+2. ~~Stage 2, the policy tests.~~ Done.
+3. **`--all` on the pre-commit hook.** The last of the exit criteria still
+   resting on what one machine was configured to do — and more pressing than
+   when it was written: the repository is public now, so a secret reaching it
+   cannot be taken back.
 4. Stages 3 to 5 — builds, migrations, delivery — restated against the public
    repository's costs rather than inherited from a private one's.
+
+**One thing stage 2 is not: verified locally.** The cloud tests need a loopback
+socket and the Supabase CLI needs to write outside the project, neither of which
+was available where this was written — and the six files had, until now, only
+ever been run one at a time. The first CI run is the first time they run
+together, and it is the first verification. The parts that are not guesses:
+every named file exists, the serialisation matches how they have always been
+run, and the stack needs no secret because the defaults in `cloud_session.dart`
+are Supabase's own published local constants.
 
 ---
 

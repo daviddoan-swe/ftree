@@ -1,5 +1,12 @@
-# The three gates the project already runs before every commit, run somewhere
-# other than the author's laptop.
+# The gates the project runs before a commit, run somewhere other than the
+# author's laptop.
+#
+# Two jobs, and the split is the point. `check` needs nothing running and is
+# what every push is judged by. `cloud` starts a real Postgres and runs the
+# files in test/cloud/, which are the only place row-level security is checked
+# — and a policy mistake is silent, because an UPDATE a policy forbids changes
+# nothing and reports success. Until this existed, nothing automatic had ever
+# checked one.
 #
 # A failing test and a new analyser warning are both treated as a broken build
 # rather than a note for later, which is why `--fatal-infos` is here: without
@@ -22,6 +29,11 @@ on:
     branches: [main]
   pull_request:
 
+# Declared once because two jobs install it, and a pin that disagrees with
+# itself is worse than no pin.
+env:
+  FLUTTER_VERSION: 3.47.7
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -30,7 +42,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.7
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
@@ -45,3 +57,52 @@ jobs:
 
       - name: Tests
         run: flutter test --reporter=expanded
+
+  cloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned for the same reason Flutter is, and for one more: the stack mints
+      # the publishable key the application is compiled with
+      # (`lib/data/cloud/cloud_session.dart`), and a CLI that minted a different
+      # one would fail every sign-in with an error about nothing to do with the
+      # code. This is the version those constants were read from.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      # Applies supabase/migrations in order, from nothing. That is a second
+      # thing worth testing: locally the database has been there for weeks, so
+      # nobody finds out whether the folder still builds a working one.
+      - name: Start the stack
+        run: supabase start
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # Named one by one because these files deliberately carry no `_test.dart`
+      # suffix — a directory would collect nothing — and run one at a time
+      # because all six share the one Postgres. The project has always run them
+      # singly; this is the first time they run together, and serialising is the
+      # part of that which is not a guess.
+      #
+      # No secrets and no --dart-define: the defaults in cloud_session.dart point
+      # at exactly this stack, with Supabase's own published local constants. The
+      # key names a project and nothing more; every request carrying it is still
+      # judged row by row by the policies.
+      - name: Checks that need a cloud
+        run: >
+          flutter test --concurrency=1 --reporter=expanded
+          test/cloud/auth.dart
+          test/cloud/claiming.dart
+          test/cloud/invitations.dart
+          test/cloud/pull.dart
+          test/cloud/push.dart
+          test/cloud/repository_contract.dart

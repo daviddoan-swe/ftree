@@ -264,6 +264,9 @@ They are **not** part of `flutter test`, and deliberately have no `_test.dart`
 suffix: they need Docker and a running stack, and a check that fails on a
 machine without one says nothing about the code.
 
+CI runs all six anyway, in a job that starts its own stack, so forgetting them
+locally no longer means nobody ran them.
+
 ```sh
 flutter test test/cloud/auth.dart                 # signing in, and who the server thinks you are
 flutter test test/cloud/repository_contract.dart  # Postgres answering the repository contract
