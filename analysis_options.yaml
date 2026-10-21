@@ -22,6 +22,10 @@ analyzer:
     # migration tests run against the shape a released version really had.
     # They are not written by hand and must not be tidied.
     - test/data/database/schema_versions/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
 
 linter:
   # The lint rules applied to this project can be customized in the
