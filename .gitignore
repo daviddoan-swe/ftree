@@ -55,3 +55,6 @@ app.*.map.json
 # documentation of the application. The design reasoning worth publishing
 # belongs in docs/ proper.
 docs/notes/
+
+# Personal sandbox settings for this machine. Absolute paths, not the project's.
+.claude/settings.local.json
