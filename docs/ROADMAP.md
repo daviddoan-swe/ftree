@@ -1842,6 +1842,72 @@ a server, so the warning belongs only to the families that are *not* up there. A
 family that has been shared survives the browser being cleared, because the
 server has it.
 
+### Opening a chart on a wide screen
+
+**Decided, and it changes the tree screen rather than the port.** A browser
+window is wider than a phone, and a chart that opens three generations deep in a
+narrow column is answering a question the window did not ask. Two things change,
+both in `tree_screen.dart`, and the domain layout is untouched.
+
+**Measured by the width of the viewport, not by the device.** That was the
+decision taken over sniffing the platform, for three reasons: a browser window
+is resized while the application is running, so "this build is a desktop" is a
+claim that stops being true; an iPad, a split screen and a folded phone are
+neither thing; and width answers the third requirement for nothing, since the
+web on a phone is a narrow viewport and therefore already behaves like the
+phone, with no second branch to keep in step.
+
+**And neither orientation nor depth is fixed any more; both are chosen by what
+fits.** Today `_decideOrientation` compares the two charts *against each other*
+and never against the window:
+
+```dart
+widthOf(TreeOrientation.leftToRight) < widthOf(TreeOrientation.topDown)
+```
+
+So a laptop gets the phone's answer, because 1.6 screens is narrower than 61.4
+however wide the screen is. The replacement walks depth outwards in both
+orientations and keeps the deepest that still draws at `_readableScale`:
+
+```
+at open, with the real viewport:
+  for each orientation, for increasing depth:
+    scale = viewport / layoutDescendants(…, collapsed: foldFor(depth)).width
+  choose the (orientation, depth) with the greatest depth where scale >= 0.6
+```
+
+Both primitives exist: `layoutDescendants` already measures any fold, and
+`_readableScale` is already the line below which the comment says "a chart
+nobody can read is not an overview".
+
+**What that yields, from the measurements already taken.** Eight generations of
+columns measure 2900 units, and a phone fits them at 0.13 — so a phone is about
+377 units and a 1440-point laptop has 2400 to spend at the readable scale. Across
+is 362 units a generation and does not widen with the family; down is set by the
+people in a generation, and 300 people unfolded measured 53 phone-screens.
+
+| Family | Phone | Laptop |
+| --- | --- | --- |
+| ~30 people | 3 generations, across | **every generation, down** |
+| ~100 people | 3 generations, across | 4–5 generations, down |
+| 300 people | 3 generations, across | **6 generations, across** |
+
+The last row is the one worth reading twice. On a large family the rule will
+**not** choose the wide form, because down is wider *per person*: 300 people get
+six generations across where down would give two. That is the opposite of what
+"wide screen means the wide layout" suggests, and it is the right answer — the
+request was to stop capping at three, and across on a laptop doubles it.
+
+**Decided once, at open, and not re-decided on resize.** The orientation is
+already measured once and held, deliberately: "reading a gia phả is not helped
+by the page rotating between one generation and the next". Dragging a window
+edge must not turn the page under somebody, so the viewport is read when the
+chart opens, and after that only the reader changes it.
+
+**It is not only a web change.** The rule lives in the tree screen, so a tablet
+and a landscape phone get it too. The phone's behaviour must come out unchanged,
+which is what the existing tree-screen tests are for.
+
 ### Order of work
 
 1. `sqlite3.wasm` and `drift_worker.js` in place, and `driftDatabase` given its
@@ -1852,15 +1918,15 @@ server has it.
    decides whether step 4 is a warning or a crisis.
 4. Say which mode we got, per the table above.
 5. Measure Argon2id in a browser, then write the web `runOffThread`.
-6. Point it at a real Supabase project (CONTRIBUTING, *Creating the production
+6. Choose orientation and depth from the viewport, per *Opening a chart on a
+   wide screen*. Independent of the five steps above — it is a tree-screen
+   change, testable on a phone build — so it can be done at any point, and the
+   phone's own behaviour has to come out of it unchanged.
+7. Point it at a real Supabase project (CONTRIBUTING, *Creating the production
    cloud*) and let two browsers synchronise with a phone.
 
 ### Deliberately not in this
 
-* **A desktop layout.** The tree screen was built and measured for a phone
-   (M6). A browser window is wider, and the right answer is probably to centre a
-   phone-width column rather than redesign — but that is a design decision, and
-   pretending it is part of a platform port would smuggle it in.
 * **PWA install, offline service worker, push notifications.** Each is its own
    decision and none is needed for a family to open a link.
 * **Dropping either phone platform.** The web arriving first is about cost, not
@@ -1870,7 +1936,9 @@ server has it.
 
 A browser creates a family, edits it, synchronises with a phone and converges —
 and where the browser cannot store data reliably, the person is told before they
-trust it with anything.
+trust it with anything. A chart opened in a laptop window shows more of the
+lineage than the same chart on a phone, chosen by what can be read rather than
+capped at a number, and the phone's own view is unchanged.
 
 ---
 
