@@ -324,3 +324,68 @@ flutter test test/data/database/migration_test.dart
 Read DOMAIN.md §18 and ARCHITECTURE.md §8.2 first. A schema mistake costs a
 migration on every installed device, and the migration tests exist to replay
 the real shipped schema rather than an approximation of it.
+
+## Creating the production cloud
+
+Everything above runs against the stack `supabase start` brings up in Docker.
+A real one is a separate project, created once, and nothing in this repository
+points at it — the defaults in `lib/data/cloud/cloud_session.dart` are the local
+stack's published constants.
+
+**1. Make the project.** In the Supabase dashboard: a region near the family
+rather than near you, and a database password kept in a password manager. The
+password is shown once.
+
+**2. Link this checkout to it.**
+
+```sh
+supabase login
+supabase link --project-ref <ref>        # the ref is in the project's URL
+```
+
+**3. Put the schema up.** Rehearse first — this is the one step with no undo:
+
+```sh
+supabase db push --dry-run               # prints what would be applied
+supabase db push
+```
+
+A migration that has run on a real database is history. What it touched is
+somebody's gia phả, and `supabase/migrations/` is replayed in order, so a file
+edited after it has been applied is a file whose two versions disagree about
+what the database contains.
+
+**4. Put the settings up, which the schema does not carry.** `supabase/config.toml`
+configures the *local* stack. A hosted project has its own settings, so
+`minimum_password_length`, sign-up rules and the rest do not travel with
+`db push`:
+
+```sh
+supabase config diff                     # what differs from the project
+supabase config push
+```
+
+Read the diff. It is the whole of what this changes about a live project's
+behaviour, and some of those lines are about who can get in.
+
+**5. Point a build at it.** The address and key come from `--dart-define`, so
+nothing about the production project is committed:
+
+```sh
+flutter build appbundle --release \
+  --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
+  --dart-define=SUPABASE_KEY=<publishable key>
+```
+
+The publishable key is in the dashboard under the project's API settings. It is
+**not a secret** — it names the project, and every request carrying it is still
+judged row by row by the policies. The **secret** key is the opposite: it
+bypasses row-level security entirely. It never belongs in a build, a file, or
+this repository, and the pre-commit hook refuses it.
+
+**What is not set up by any of the above.** No email leaves a fresh project
+until SMTP is configured, so password reset does not work and confirmation
+emails are not sent — which is why `enable_confirmations` is off. Deciding that
+is its own piece of work; until then, a forgotten password cannot be recovered,
+and the only protection against losing a family with an account is that a
+family may have more than one owner (PRODUCT §5.1).
