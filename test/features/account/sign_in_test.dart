@@ -196,7 +196,15 @@ void main() {
       WidgetTester tester,
     ) async {
       await open(tester, answering(true));
-      await fill(tester, email: 'khong-phai-email', password: 'sáu ký tự');
+      // A password that is fine, so the address is the only thing wrong. It
+      // used to be nine characters, which was above the old minimum and is
+      // below this one — leaving the test with two faults where it means to
+      // have one, and passing only because the address is checked first.
+      await fill(
+        tester,
+        email: 'khong-phai-email',
+        password: 'correct horse battery',
+      );
 
       await press(tester);
 
@@ -223,7 +231,7 @@ void main() {
       await press(tester);
 
       expect(
-        find.text('A password needs at least 6 characters'),
+        find.text('A password needs at least 12 characters'),
         findsOneWidget,
       );
       expect(asked, isEmpty);
@@ -277,7 +285,11 @@ void main() {
       // A keyboard that capitalises also offers a trailing space, and an
       // address with one on the end is a different address to the server.
       await open(tester, answering(true));
-      await fill(tester, email: '  a@example.test  ', password: 'correct h');
+      await fill(
+        tester,
+        email: '  a@example.test  ',
+        password: 'correct horse battery',
+      );
 
       await press(tester);
 
@@ -391,7 +403,7 @@ void main() {
       );
 
       expect(
-        find.text('A password needs at least 6 characters'),
+        find.text('A password needs at least 12 characters'),
         findsOneWidget,
       );
     });

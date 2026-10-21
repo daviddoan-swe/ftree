@@ -77,7 +77,14 @@ bool get isSignedIn => signedInUserId != null;
 /// stays the authority. This copy exists so a field can state the rule before
 /// somebody guesses at it — not to enforce it. Should the two ever disagree,
 /// what a person sees is the server's refusal, not this number.
-const int minimumPasswordLength = 6;
+///
+/// Twelve, raised from six, to match `minimumVaultPassword`
+/// (`lib/data/transfer/family_vault.dart`). It was the weaker
+/// rule guarding the larger thing: an exported file holds one snapshot of one
+/// family, while this password opens the gia phả in the cloud — every family
+/// this account is in, for every member, and it opens it from anywhere rather
+/// than only to whoever already holds a file.
+const int minimumPasswordLength = 12;
 
 /// Creates an account and signs into it.
 ///
